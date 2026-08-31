@@ -27,5 +27,13 @@ module load firedrake/2025.10
 
 cd "${SLURM_SUBMIT_DIR:-.}"
 
-ISMIP7_LC=2500 ISMIP7_LC_COARSE=25000 ISMIP7_BUFFER_M=20000 \
-  srun -n 12 python -u scripts/inversion_icepack2.py
+# The Makefile supplies these values with sbatch --export. Keep defaults here
+# too so the script remains directly runnable from Quartz.
+export ISMIP7_LC="${ISMIP7_LC:-2500}"
+export ISMIP7_LC_COARSE="${ISMIP7_LC_COARSE:-25000}"
+export ISMIP7_BUFFER_M="${ISMIP7_BUFFER_M:-20000}"
+export ISMIP7_FRICTION="${ISMIP7_FRICTION:-budd}"
+export ISMIP7_N_FLOW="${ISMIP7_N_FLOW:-3.0}"
+export ISMIP7_A4_FACTOR="${ISMIP7_A4_FACTOR:-1.0}"
+
+srun -n "${SLURM_NTASKS}" python -u scripts/inversion_icepack2.py

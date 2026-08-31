@@ -17,6 +17,7 @@ from firedrake import (
     ds,
     split,
     assemble,
+    Mesh,
     FunctionSpace,
     VectorFunctionSpace,
     TensorFunctionSpace,
@@ -123,8 +124,9 @@ def setup_model(restart_from=None):
     # (RC residual driven by the inversion_icepack2_rc_<lc>.h5 MAP:
     # grounded-only theta, exact-zero shelf drag via the Coulomb cap c0*N).
     # Must mirror inversion_icepack2.py so theta/phi keep their meaning.
-    # Resolved first because the compute mesh is loaded FROM this friction's
-    # MAP checkpoint (below), not from a fresh Mesh(.msh).
+    # Resolved first because it determines the MAP checkpoint and friction
+    # semantics. The compute mesh may be loaded from that checkpoint for a
+    # normal forward run, or explicitly from ISMIP7_MESH for the timing grid.
     friction = os.environ.get("ISMIP7_FRICTION", "budd")
     # Exact-zero-shelf residual laws (icepack2 dual, dual_friction.py):
     #   regularized_coulomb -> Coulomb cap tau_c=c0*N
@@ -141,37 +143,57 @@ def setup_model(restart_from=None):
     inv_fn = os.environ.get(
         "ISMIP7_INVERSION", os.path.join(MESH_DIR, f"inversion_icepack2{map_tag}_{lc}.h5")
     )
-    # Take the mesh + reference fields from the checkpoint we start from: the
-    # MAP on a cold start, or the self-contained restart checkpoint on a warm
-    # start. A fresh Mesh(.msh) repartitions with a different dof ordering,
-    # so a raw copy of the saved theta/phi/geometry scrambles at any rank
-    # count != the one the checkpoint was written on (the -n4 tripwire crash).
-    # The checkpoint mesh carries the full boundary-marker set, so the
-    # calving BC is preserved.
+    mesh_fn = os.environ.get("ISMIP7_MESH")
+    # The source checkpoint is loaded in the current MPI job, so it must have
+    # been rewritten by redistribute_checkpoint.py when its rank count differs
+    # from the inversion job. Timing runs keep its fields as the source and
+    # construct the requested compute mesh separately below.
     source_chk = restart_from if is_restart else inv_fn
     PETSc.Sys.Print(f"Loading mesh + reference state: {source_chk}")
     with fd.CheckpointFile(source_chk, "r") as _chk:
-        mesh = _chk.load_mesh()
-        # The boundary_ids sidecar must match the buffer/resolution the mesh
-        # was BUILT with, which only the checkpoint knows -- the live
-        # ISMIP7_BUFFER_M / ISMIP7_LC_COARSE can drift from it, and a
-        # mismatched sidecar puts the calving BC on the wrong facets
-        # (ds(absent_id) integrates to zero: silently wrong physics, no
-        # crash). No legacy fallback; unstamped checkpoints must be re-run.
-        if not (_chk.has_attr("/", "lc_coarse")
-                and _chk.has_attr("/", "buffer_m")):
+        source_mesh = _chk.load_mesh()
+        source_has_provenance = (
+            _chk.has_attr("/", "lc_coarse") and _chk.has_attr("/", "buffer_m")
+        )
+        source_lc_coarse = (
+            int(_chk.get_attr("/", "lc_coarse"))
+            if source_has_provenance else None
+        )
+        source_buffer_m = (
+            float(_chk.get_attr("/", "buffer_m"))
+            if source_has_provenance else None
+        )
+
+    if mesh_fn:
+        # Explicit mesh selection is used by the timing matrix. The MAP mesh
+        # and all saved MAP fields are interpolated onto this compute mesh.
+        mesh = Mesh(mesh_fn)
+        target_lc_coarse = lc_coarse
+        target_buffer_m = buffer_m
+        PETSc.Sys.Print(
+            f"  Compute mesh override: {mesh_fn} "
+            f"({mesh.num_vertices()} vertices, {mesh.num_cells()} cells)"
+        )
+    else:
+        # Normal forward/restart runs use the self-contained checkpoint mesh,
+        # preserving its boundary markers and partition-independent layout.
+        mesh = source_mesh
+        if not source_has_provenance:
             raise KeyError(
                 f"checkpoint {source_chk} has no lc_coarse/buffer_m "
                 "attributes, so the boundary_ids sidecar matching its mesh "
-                "cannot be determined. Re-run the inversion to stamp mesh "
-                "provenance."
+                "cannot be determined. Re-run the inversion or provide "
+                "ISMIP7_MESH together with matching ISMIP7_BNDIDS."
             )
-        chk_lc_coarse = int(_chk.get_attr("/", "lc_coarse"))
-        chk_buffer_m = float(_chk.get_attr("/", "buffer_m"))
-    PETSc.Sys.Print(f"  {mesh.num_vertices()} vertices, {mesh.num_cells()} cells")
+        target_lc_coarse = source_lc_coarse
+        target_buffer_m = source_buffer_m
+        PETSc.Sys.Print(
+            f"  Checkpoint mesh: {mesh.num_vertices()} vertices, "
+            f"{mesh.num_cells()} cells"
+        )
 
     bndids_fn = os.environ.get(
-        "ISMIP7_BNDIDS", bndids_filename(chk_lc_coarse, lc, chk_buffer_m)
+        "ISMIP7_BNDIDS", bndids_filename(target_lc_coarse, lc, target_buffer_m)
     )
     with open(bndids_fn) as f:
         bnd_ids = json.load(f)
@@ -180,6 +202,7 @@ def setup_model(restart_from=None):
 
     Q = FunctionSpace(mesh, "CG", 1)
     V = VectorFunctionSpace(mesh, "CG", 1)
+    Q_dg = FunctionSpace(mesh, "DG", 0)
     dg0 = FiniteElement("DG", "triangle", 0)
     Sigma = TensorFunctionSpace(mesh, dg0, symmetry=True)
     T = VectorFunctionSpace(mesh, dg0)
@@ -227,9 +250,9 @@ def setup_model(restart_from=None):
         )
 
     # Reference log-adjustments (theta=log_friction, phi=log_fluidity) plus,
-    # for RC/Budd or any restart, the geometry and frozen anchors — all read
-    # onto the mesh we already took from THIS checkpoint, so the dof order
-    # matches by construction (no fragile .msh-vs-checkpoint node comparison).
+    # for RC/Budd or any restart, the geometry and frozen anchors. When a
+    # timing mesh is selected, these fields are interpolated from source_mesh;
+    # normal runs use the checkpoint mesh directly.
     C_w0 = None
     N_ref = None
     H_init = None
@@ -240,65 +263,73 @@ def setup_model(restart_from=None):
     a_ref_mb = None
     h_dg_state = None
     t_restart = None
+    A_prior_f = None
+    same_mesh = mesh is source_mesh
+
+    def load_checkpoint_field(chk, name, space, optional=False):
+        """Load a checkpoint field directly or interpolate it to the target mesh."""
+        try:
+            source_field = chk.load_function(source_mesh, name=name)
+        except (KeyError, RuntimeError, ValueError):
+            if optional:
+                return None
+            raise
+        target_field = Function(space, name=name)
+        if same_mesh:
+            target_field.dat.data[:] = source_field.dat.data_ro
+        else:
+            target_field.interpolate(
+                source_field,
+                allow_missing_dofs=True,
+                default_missing_val=0.0,
+            )
+        return target_field
+
     with fd.CheckpointFile(source_chk, "r") as chk:
-        _th = chk.load_function(mesh, name="log_friction")
-        _ph = chk.load_function(mesh, name="log_fluidity")
-        theta_f = Function(Q, name="theta"); theta_f.dat.data[:] = _th.dat.data_ro
-        phi_f = Function(Q, name="phi");     phi_f.dat.data[:] = _ph.dat.data_ro
+        theta_f = load_checkpoint_field(chk, "log_friction", Q)
+        theta_f.rename("theta")
+        phi_f = load_checkpoint_field(chk, "log_fluidity", Q)
+        phi_f.rename("phi")
         # Fluidity prior mean (physical thermomechanical field): the fluidity
         # control is phi = log(A / A_prior), so the forward must reconstruct
         # A = A_prior * exp(phi) with the SAME A_prior the inversion used. New
         # MAPs and restart checkpoints carry it; older ones (constant-baseline
         # MAPs) don't, and A4_base falls back to A0*a4_factor below.
-        try:
-            _ap = chk.load_function(mesh, name="fluidity_prior")
-            A_prior_f = Function(Q, name="fluidity_prior")
-            A_prior_f.dat.data[:] = _ap.dat.data_ro
-        except Exception:
-            A_prior_f = None
+        A_prior_f = load_checkpoint_field(
+            chk, "fluidity_prior", Q, optional=True
+        )
         if is_restart:
             # Self-contained restart: evolved geometry, frozen anchors, time.
-            _b = chk.load_function(mesh, name="bed")
-            _H = chk.load_function(mesh, name="thickness")     # evolved thickness
-            _s = chk.load_function(mesh, name="surface")
-            _Hi = chk.load_function(mesh, name="H_init")       # t=0 fixed-front anchor
-            _pe = chk.load_function(mesh, name="phi_eff")
-            _u = chk.load_function(mesh, name="velocity")
-            b = Function(Q, name="bed");           b.dat.data[:] = _b.dat.data_ro
-            H = Function(Q, name="thickness");     H.dat.data[:] = _H.dat.data_ro
-            s = Function(Q, name="surface");       s.dat.data[:] = _s.dat.data_ro
-            H_init = Function(Q, name="H_init");   H_init.dat.data[:] = _Hi.dat.data_ro
-            phi_eff = Function(Q, name="phi_eff"); phi_eff.dat.data[:] = _pe.dat.data_ro
-            u_guess = Function(V);                 u_guess.dat.data[:] = _u.dat.data_ro
+            b = load_checkpoint_field(chk, "bed", Q)
+            H = load_checkpoint_field(chk, "thickness", Q)  # evolved thickness
+            s = load_checkpoint_field(chk, "surface", Q)
+            H_init = load_checkpoint_field(chk, "H_init", Q)  # t=0 fixed-front anchor
+            phi_eff = load_checkpoint_field(chk, "phi_eff", Q)
+            u_guess = load_checkpoint_field(chk, "velocity", V)
             # Stress components (newer checkpoints): restoring them makes the
             # resume Newton start from the full converged state instead of
             # (u, 0, 0), which needed a fresh continuation ramp.
             try:
-                _M = chk.load_function(mesh, name="membrane_stress")
-                _ta = chk.load_function(mesh, name="basal_stress")
-                M_guess, tau_guess = _M, _ta
-            except Exception:
+                M_guess = load_checkpoint_field(chk, "membrane_stress", Sigma)
+                tau_guess = load_checkpoint_field(chk, "basal_stress", T)
+            except (KeyError, RuntimeError, ValueError):
                 M_guess = tau_guess = None
             # Frozen apparent-MB reference (present iff the run used
             # ISMIP7_APPARENT_MB): restarts must reuse the ORIGINAL t=0
             # correction, never recompute it from the evolved state.
-            try:
-                a_ref_mb = chk.load_function(mesh, name="a_ref_mb")
-            except Exception:
-                a_ref_mb = None
+            a_ref_mb = load_checkpoint_field(
+                chk, "a_ref_mb", Q_dg, optional=True
+            )
             # DG0 prognostic thickness state (newer checkpoints): the CG h
             # above is its lumped lift; restoring it avoids re-applying the
             # CG->DG projection to an already-consistent state.
-            try:
-                h_dg_state = chk.load_function(mesh, name="thickness_dg")
-            except Exception:
-                h_dg_state = None
+            h_dg_state = load_checkpoint_field(
+                chk, "thickness_dg", Q_dg, optional=True
+            )
             if use_residual:
-                _cw = chk.load_function(mesh, name="C_w0")
-                C_w0 = Function(Q, name="C_w0");   C_w0.dat.data[:] = _cw.dat.data_ro
+                C_w0 = load_checkpoint_field(chk, "C_w0", Q)
             if friction == "budd":
-                _nr = chk.load_function(mesh, name="N_ref")
-                N_ref = Function(Q, name="N_ref"); N_ref.dat.data[:] = _nr.dat.data_ro
+                N_ref = load_checkpoint_field(chk, "N_ref", Q)
             if chk.has_attr("/", "t_yr"):
                 t_restart = float(chk.get_attr("/", "t_yr"))
             # Guard the resume environment against the checkpoint's recorded
@@ -335,10 +366,10 @@ def setup_model(restart_from=None):
         elif use_rc:
             # Cold RC/Budd: geometry + velocity_obs from the MAP so the
             # Weertman anchor C_w0 (hence the meaning of theta) is reproduced.
-            _H = chk.load_function(mesh, name="thickness")
-            _b = chk.load_function(mesh, name="bed")
-            _s = chk.load_function(mesh, name="surface")
-            _uo = chk.load_function(mesh, name="velocity_obs")
+            _H = load_checkpoint_field(chk, "thickness", Q)
+            _b = load_checkpoint_field(chk, "bed", Q)
+            _s = load_checkpoint_field(chk, "surface", Q)
+            _uo = load_checkpoint_field(chk, "velocity_obs", V)
             H.dat.data[:] = _H.dat.data_ro
             b.dat.data[:] = _b.dat.data_ro
             s.dat.data[:] = _s.dat.data_ro
@@ -745,8 +776,8 @@ def setup_model(restart_from=None):
         "friction": friction,
         # Mesh provenance from the source checkpoint (re-stamped into every
         # state checkpoint so warm restarts stay self-describing).
-        "lc_coarse": chk_lc_coarse,
-        "buffer_m": chk_buffer_m,
+        "lc_coarse": target_lc_coarse,
+        "buffer_m": target_buffer_m,
         # Rescue speed limiter (residual laws): live Constant, 0 = inert.
         "k_lim": k_lim if use_residual else None,
         "k_lim_rescue": k_lim_rescue if use_residual else 0.0,

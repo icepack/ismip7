@@ -318,7 +318,7 @@ python scripts/check_ismip6_track.py results/<exp>_timeseries.csv
 | `ISMIP7_BUFFER_M` | outline buffer (m) used to resolve the default mesh/boundary-id filenames (see §3) | `20000` |
 | `ISMIP7_MESH` | override mesh `.msh` path | `mesh/antarctica_<COARSE>_<LC>_buffered<BUFFER_M>.msh` |
 | `ISMIP7_BNDIDS` | override boundary-id JSON | `mesh/boundary_ids_antarctica_<COARSE>_<LC>_buffered<BUFFER_M>.json` |
-| `ISMIP7_INVERSION` | override inversion checkpoint (θ/φ MAP) | `mesh/inversion_icepack2_<LC>.h5` |
+| `ISMIP7_INVERSION` | override inversion checkpoint (θ/φ MAP); fields are interpolated onto `ISMIP7_MESH` when set | `mesh/inversion_icepack2_budd_n3_<LC>.h5` |
 | `ISMIP7_DATA_ROOT` | ISMIP7 forcing tree root | `<repo>/ISMIP7/AIS` |
 | `ISMIP7_T_END` / `ISMIP7_DT` | end year / timestep (yr) | `2300` / `1.0` |
 | `ISMIP7_FRICTION` | friction law (`budd`, `regularized_coulomb`) - selects the MAP h5 | `budd` |
@@ -362,20 +362,25 @@ The pipeline has five idempotent stages (each skips work already done):
 2. **Inversion** — one inversion at LC=2500 / LC_coarse=25000 (via
    `scripts/batch_runners/timing_inversion.script` on Slurm, or `mpiexec`
    locally).
-3. **Redistribute** — rewrite `mesh/inversion_icepack2_2500.h5` on a single
-   core (`scripts/redistribute_checkpoint.py`) so any rank count can load it.
+3. **Redistribute** — rewrite the complete tagged MAP checkpoint on a single
+   core (`scripts/redistribute_checkpoint.py`) so any rank count can load it;
+   fields, root metadata, and mesh provenance are retained.
 4. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): 5 years
    (`2015`–`2020`, `dt=1.0`), zero SMB/melt forcing. Every resolution
-   warm-starts θ/φ from the single inversion via cross-mesh interpolation
-   (`ISMIP7_INVERSION=mesh/inversion_icepack2_2500.h5`).
+   loads its own mesh via `ISMIP7_MESH` and warm-starts θ/φ and the physical
+   prior from the single inversion via cross-mesh interpolation
+   (`ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5`).
 5. **Matrix** — aggregate JSON timing records into [`TIMING_MATRIX.md`](TIMING_MATRIX.md).
 
 Individual stages can be run separately: `make meshes`, `make inversion`,
 `make redistribute`, `make transient`, `make matrix`.
 
 Slurm scripts live in `scripts/batch_runners/` (`timing_inversion.script`,
-`timing_transient.script`), following the same module-load pattern as
-`inversion.script`.
+`timing_meshes.script`, `timing_redistribute.script`, and
+`timing_transient.script`), following the Quartz module-load pattern used by
+the other batch scripts. On Quartz, run `make timing` from the `antarctica/`
+directory; mesh generation and checkpoint redistribution are submitted as
+single-rank jobs, while the transient jobs use 16, 32, and 64 ranks.
 
 ---
 
@@ -422,12 +427,10 @@ VAF is reported in mm of sea-level equivalent; mass in Gt.
 - **`icepack2_tools/coupled.py`** is a WIP sketch of ice↔plume coupling and
   references a `PlumeModel` that does not yet exist in this tree — not wired into
   any run.
-- **`make timing` is not ready to run yet.** The benchmark in §7 should wait
-  until (1) inversion solver divergence is fixed (the forward/adjoint SNES can
-  fail during `inversion_icepack2.py`, so the shared LC=2500 checkpoint the
-  timing grid depends on may not be obtainable), and (2) finite-element order
-  is pinned down across the mesh pipeline and solvers — until then, wall-clock
-  numbers would not be comparable across resolutions or runs.
+- **Timing runs inherit any diagnostic-Newton convergence failure.** If a
+  transient job stops in its rescue ladder, rerun that cell after inspecting
+  its `timing_*.txt` / `timing_*.err` files; the matrix builder leaves missing
+  cells as `—` rather than inventing a timing value.
 
 ---
 

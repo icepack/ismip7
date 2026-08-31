@@ -14,7 +14,6 @@ Usage:
 
 import argparse
 import os
-import sys
 
 import firedrake as fd
 from firedrake import COMM_WORLD
@@ -23,15 +22,40 @@ from firedrake.petsc import PETSc
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MESH_DIR = os.path.join(_ROOT, "mesh")
 
-# Fields saved by inversion_icepack2.py (MAP + final velocity).
+
+def default_checkpoint(lc):
+    """Return the MAP filename used by the current inversion defaults."""
+    friction = os.environ.get("ISMIP7_FRICTION", "budd")
+    friction_tag = {"regularized_coulomb": "_rc", "budd": "_budd"}.get(
+        friction, ""
+    )
+    n_flow = float(os.environ.get("ISMIP7_N_FLOW", "3.0"))
+    n_tag = "" if abs(n_flow - 4.0) < 1e-9 else f"_n{int(round(n_flow))}"
+    return os.path.join(
+        MESH_DIR, f"inversion_icepack2{friction_tag}{n_tag}_{lc}.h5"
+    )
+
+# Fields saved by inversion_icepack2.py and simulation.py. Optional fields are
+# skipped so older checkpoints can still be rewritten, but every field needed
+# by a current MAP or restart is preserved when present.
 _CHECKPOINT_FIELDS = (
     "log_friction",
     "log_fluidity",
     "velocity_obs",
+    "obs_mask",
     "thickness",
     "bed",
     "surface",
+    "fluidity_prior",
     "velocity",
+    "membrane_stress",
+    "basal_stress",
+    "H_init",
+    "phi_eff",
+    "C_w0",
+    "N_ref",
+    "a_ref_mb",
+    "thickness_dg",
 )
 
 
@@ -46,7 +70,8 @@ def parse_args():
     parser.add_argument(
         "--input",
         default=None,
-        help="Input checkpoint .h5 (default: mesh/inversion_icepack2_<LC>.h5)",
+        help=("Input checkpoint .h5 (default: the MAP path selected by "
+              "ISMIP7_FRICTION and ISMIP7_N_FLOW)"),
     )
     parser.add_argument(
         "--output",
@@ -64,7 +89,7 @@ def main():
         )
 
     args = parse_args()
-    in_fn = args.input or os.path.join(MESH_DIR, f"inversion_icepack2_{args.lc}.h5")
+    in_fn = args.input or default_checkpoint(args.lc)
     out_fn = args.output or in_fn
 
     if not os.path.isfile(in_fn):
@@ -73,11 +98,16 @@ def main():
     PETSc.Sys.Print(f"Loading checkpoint: {in_fn}")
     with fd.CheckpointFile(in_fn, "r") as chk:
         mesh = chk.load_mesh()
+        root_attrs = {
+            key: value
+            for key, value in chk.attributes("/").items()
+            if key != "dmplex_storage_version"
+        }
         loaded = {}
         for name in _CHECKPOINT_FIELDS:
             try:
                 loaded[name] = chk.load_function(mesh, name=name)
-            except KeyError:
+            except (KeyError, RuntimeError, ValueError):
                 PETSc.Sys.Print(f"  (field '{name}' not present, skipping)")
 
     if "log_friction" not in loaded or "log_fluidity" not in loaded:
@@ -92,6 +122,8 @@ def main():
         chk.save_mesh(mesh)
         for name, fn in loaded.items():
             chk.save_function(fn, name=name)
+        for key, value in root_attrs.items():
+            chk.set_attr("/", key, value)
 
     os.replace(tmp_fn, out_fn)
     PETSc.Sys.Print(f"Done: {out_fn}")

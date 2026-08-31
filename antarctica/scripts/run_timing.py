@@ -10,7 +10,7 @@ under results/timing/.
 
 Usage:
     ISMIP7_LC=2500 ISMIP7_LC_COARSE=25000 ISMIP7_BUFFER_M=20000 \
-    ISMIP7_INVERSION=mesh/inversion_icepack2_2500.h5 \
+    ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5 \
     mpiexec -n 16 python scripts/run_timing.py
 """
 
@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from firedrake import COMM_WORLD
 from firedrake.petsc import PETSc
 
-from simulation import setup_model, run_simulation, lc, lc_coarse, buffer_m
+from simulation import setup_model, run_simulation, lc
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TIMING_DIR = os.path.join(_ROOT, "results", "timing")
@@ -40,14 +40,23 @@ def main():
 
     ncores = COMM_WORLD.size
     PETSc.Sys.Print(
-        f"Timing run: lc={lc} lc_coarse={lc_coarse} buffer={buffer_m} "
+        f"Timing run: lc={lc} "
+        f"lc_coarse={os.environ.get('ISMIP7_LC_COARSE', 'unknown')} "
+        f"buffer={os.environ.get('ISMIP7_BUFFER_M', 'unknown')} "
         f"ncores={ncores} t={T_START}->{T_END} dt={DT}"
     )
 
     t0 = perf_counter()
     ctx = setup_model()
     mesh = ctx["mesh"]
-    nsteps = int((T_END - T_START) / DT)
+    target_lc_coarse = ctx["lc_coarse"]
+    target_buffer_m = ctx["buffer_m"]
+    nsteps = int(round((T_END - T_START) / DT))
+
+    PETSc.Sys.Print(
+        f"Timing compute mesh: {mesh.num_vertices()} vertices, "
+        f"{mesh.num_cells()} cells"
+    )
 
     run_simulation(
         ctx,
@@ -63,8 +72,8 @@ def main():
 
     record = {
         "lc": lc,
-        "lc_coarse": lc_coarse,
-        "buffer_m": buffer_m,
+        "lc_coarse": target_lc_coarse,
+        "buffer_m": target_buffer_m,
         "ncores": ncores,
         "vertices": mesh.num_vertices(),
         "cells": mesh.num_cells(),
@@ -77,7 +86,9 @@ def main():
     }
 
     if COMM_WORLD.rank == 0:
-        out_fn = os.path.join(TIMING_DIR, f"timing_{lc}_{lc_coarse}_{ncores}.json")
+        out_fn = os.path.join(
+            TIMING_DIR, f"timing_{lc}_{target_lc_coarse}_{ncores}.json"
+        )
         with open(out_fn, "w") as f:
             json.dump(record, f, indent=2)
         PETSc.Sys.Print(
