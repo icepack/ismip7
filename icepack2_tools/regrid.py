@@ -76,6 +76,7 @@ class ISMIP7Regridder:
             source_mesh, pts, missing_points_behaviour="warn"
         )
         self._Q_vom = fd.FunctionSpace(self._vom, "DG", 0)
+        self._Q_input = fd.FunctionSpace(self._vom.input_ordering, "DG", 0)
 
         n_found = self._vom.num_vertices()
         PETSc.Sys.Print(f"  Points inside mesh: {n_found} / {len(pts)}")
@@ -89,10 +90,10 @@ class ISMIP7Regridder:
         from firedrake.__future__ import interpolate
 
         f_vom = fd.assemble(interpolate(field, self._Q_vom))
-        vals = f_vom.dat.data_ro
-
-        crop = np.full(self._n_query, fill_value)
-        crop[:len(vals)] = vals
+        f_input = fd.Function(self._Q_input)
+        f_input.dat.data_wo[:] = fill_value
+        f_input.interpolate(f_vom)
+        crop = np.array(f_input.dat.data_ro)
 
         grid = np.full((ISMIP7_NY, ISMIP7_NX), fill_value)
         grid[np.ix_(self._jj, self._ii)] = crop.reshape(self._query_shape)

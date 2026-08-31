@@ -1,9 +1,10 @@
 # Data
 
-Download with `python scripts/download_data.py` (requires `earthaccess`).
+Observational inputs downloaded by `python scripts/download_data.py`
+(BedMachine, MEaSUREs velocity, RACMO SMB). See §1 of
+[`antarctica/README.md`](../README.md) for the dataset table, accounts,
+and where each product lands.
 
-| Dataset | Source | DOI/ID |
-|---------|--------|--------|
-| BedMachine Antarctica v4 | NSIDC | [NSIDC-0756](https://nsidc.org/data/nsidc-0756) |
-| MEaSUREs Ice Velocity v2 | NSIDC | [NSIDC-0484](https://nsidc.org/data/nsidc-0484) |
-| Ice shelf polygons (MEaSUREs v02) | NSIDC | [IceShelf_Antarctica_v02.shp](https://nsidc.org/data/nsidc-0709) |
+`scripts/gl_sensitivity.py` additionally reads the MEaSUREs ice-shelf
+polygons ([NSIDC-0709](https://nsidc.org/data/nsidc-0709), not fetched by
+`download_data.py`) from the path in its `SHAPEFILE` constant.

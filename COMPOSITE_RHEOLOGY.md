@@ -1,5 +1,16 @@
 # Composite rheology for icepack2 dual-form SSA
 
+> **Branch `antarctica-n3`: standard Glen n=3.** This branch runs the flow
+> law at `n = 3` with `a4_factor = 1` (the composite "main" term is just
+> Glen, since `A0 = rate_factor(260 K)` is already the n=3 fluidity). The
+> n=4 Goldsby-Kohlstedt composite (`a4_factor ≈ 10`) is on the `antarctica`
+> branch. Everything below is written for the general exponent `n_flow`;
+> read `n_flow = 3`, `a4_factor = 1` here. MAPs inverted at n=3 carry an
+> `_n3` filename tag (`inversion_icepack2_budd_n3_<lc>.h5`) so they coexist
+> with the untagged n=4 MAPs; the forward and its inversion must use the
+> same `ISMIP7_N_FLOW` / `ISMIP7_A4_FACTOR`.
+
+
 The standard formulation lets the membrane stress and basal shear stress
 become unconstrained where the local ice thickness vanishes, so the SNES
 Jacobian goes singular at the calving front. To allow `h → 0` cleanly we
@@ -21,7 +32,7 @@ This mirrors `icepack2/test/dome_test.py` and is used in
 | `h`     | ice thickness (CG1 control variable)                     | m         |
 | `s`     | upper surface elevation                                  | m         |
 | `b`     | bed elevation                                            | m         |
-| `A`     | depth-averaged ice fluidity = `A₀ · exp(φ)`              | MPa⁻ⁿ·yr⁻¹|
+| `A`     | depth-averaged ice fluidity = `A_prior · exp(φ)`         | MPa⁻ⁿ·yr⁻¹|
 | `K`     | sliding coefficient = `K_base · exp(−n·θ)`               | (yr/m)·MPa⁻ⁿ |
 | `K_base`| baseline sliding coefficient = `u_c / (φ_eff · τ_c)ⁿ`    | (yr/m)·MPa⁻ⁿ |
 | `φ_eff` | effective-pressure fraction in `[0.01, 1]`               | —         |
@@ -93,12 +104,19 @@ with `d = min(0, s − h)` the draft below sea level.
 The main (nonlinear) rheology uses the spatially-varying inverted controls:
 
 ```
-A      = A_4 · exp(φ)                          where A_4 = a4_factor · A₀
+A      = A_prior · exp(φ)                      A_prior(x) = fluidity prior mean
 K      = K_base · exp(−m_slide · θ)
 K_base = u_c / (φ_eff · τ_c)^{m_slide}
 φ_eff  = max(0.01, 1 − ρ_W g max(0, −b) / (ρ_I g max(H, 1)))
-a4_factor ≈ 10           # so A_4·τ_c^4 ≈ A_3·τ_c^3 at τ = τ_c (Glen ↔ GK crossover)
 ```
+
+`A_prior(x)` is the thermomechanical fluidity prior mean the inversion
+computes and stores in the MAP checkpoint, so the control
+`φ = log(A / A_prior)` is a deviation from a physical field (see
+`antarctica/N3_FRAMEWORK.md` for the prior method). MAPs that predate the
+physical prior carry no `fluidity_prior` and the forward falls back to the
+legacy constant baseline `a4_factor · A₀` (`a4_factor ≈ 10` on `antarctica`,
+so `A_4·τ_c⁴ ≈ A_3·τ_c³` at `τ = τ_c`; `1` on this branch).
 
 The linear rheology is obtained by linearizing the main forms about the
 reference stress `τ_c`:
@@ -130,22 +148,25 @@ dependence — `ψ_fric` doesn't carry an `h` factor in either form).
 
 ## Defaults
 
-| env var                  | default            | used in                                 |
-|--------------------------|--------------------|-----------------------------------------|
-| `ISMIP7_N_FLOW`          | `4.0`              | both                                    |
-| `ISMIP7_M_SLIDE`         | `3.0`              | both                                    |
-| `ISMIP7_A4_FACTOR`       | `10.0`             | both                                    |
-| `ISMIP7_COMPOSITE_ALPHA` | `1e-4` (forward)   | `simulation.py` / `control/run.py`      |
+| env var                  | default (this branch) | used in                              |
+|--------------------------|-----------------------|--------------------------------------|
+| `ISMIP7_N_FLOW`          | `3.0` (n=4 on `antarctica`) | both                           |
+| `ISMIP7_M_SLIDE`         | `3.0`                 | both                                 |
+| `ISMIP7_A4_FACTOR`       | `1.0` (10.0 on `antarctica`) | both                          |
+| `ISMIP7_COMPOSITE_ALPHA` | `1e-2` (forward, `budd`/`regularized_coulomb`; `1e-4` legacy) | `simulation.py` / `control/run.py` |
 | `ISMIP7_COMPOSITE_ALPHA` | `1e-2` (inversion) | `inversion_icepack2.py`                 |
 | `ISMIP7_H_REF`           | `100.0` m          | both                                    |
-| `ISMIP7_H_CLAMP_INIT`    | `10.0` m           | `simulation.py` initial diagnostic only |
+| `ISMIP7_H_CLAMP_INIT`    | `0.0` m (`budd`/`regularized_coulomb`; `10.0` legacy) | `simulation.py` initial diagnostic only |
 | `ISMIP7_H_CLAMP`         | `0.0` m            | both, advection floor + inversion       |
 
-The inversion uses a 100× stronger `α` than forward runs because every
-L-BFGS-B step does a full diagnostic solve and the SNES robustness is
-worth a small bias in the recovered `θ` and `φ`. Forward runs only need
-the regularization to remain stable as `h` evolves toward zero, so a
-much smaller `α` suffices.
+With the residual friction laws (`ISMIP7_FRICTION=budd`, the default, or
+`regularized_coulomb`) the forward runs share the inversion's `α = 1e-2`
+and start from the true h=0 BedMachine geometry (`h_clamp_init = 0`),
+because the MAP was inverted against that geometry. The legacy action-form
+path keeps the original split: a 100× stronger `α` in the inversion (every
+L-BFGS-B step does a full diagnostic solve, so SNES robustness is worth a
+small bias in the recovered `θ` and `φ`) and a 10 m initial clamp in the
+forward run.
 
 ## Sanity checks
 
@@ -161,7 +182,7 @@ much smaller `α` suffices.
   this is *not* a clean drift test. See
   `antarctica/results/ctrl2015_cesm2_waccm_2500_timeseries.csv` (2026-05-15).
 
-- **Inversion with composite + `h_clamp = 0`:** the goal — produce `θ`
-  and `φ` consistent with the true BedMachine geometry (h=0 over the
-  buffered ocean region) so subsequent forward runs don't need any
-  initial-thickness clamp.
+- **Inversion with composite + `h_clamp = 0`:** done - the `_budd` / `_rc`
+  MAP checkpoints are inverted against the true BedMachine geometry (h=0
+  over the buffered ocean region), and the forward runs that load them
+  start with `h_clamp_init = 0` (no initial-thickness clamp).

@@ -7,161 +7,221 @@ Usage:
     python scripts/download_forcing.py --status
     python scripts/download_forcing.py --ocean
     python scripts/download_forcing.py --calibration
+    python scripts/download_forcing.py --scenarios [--esm MRI-ESM2-0]
+                                       [--scenario historical,ssp585]
     python scripts/download_forcing.py
 """
 
 import os, sys, json, argparse
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-FORCING_DIR = DATA_DIR / "forcing"
+# Downloads land directly in the runtime tree that icepack2_tools/forcing.py
+# reads (ISMIP7/AIS/...), mirroring the remote layout — no rename step.
+FORCING_DIR = Path(__file__).resolve().parents[2] / "ISMIP7" / "AIS"
 
 GHUB_COLLECTION_ID = os.environ.get(
     "ISMIP7_GLOBUS_COLLECTION", "ccc9bbd2-4091-4e35-addd-eeb639cf5332"
 )
 
-OCEAN_BASE = "/ISMIP6/ISMIP7_Prep/AIS_ocean/share_with_modellers"
+# RESOLVED 2026-07-19: the "shrinking collection" was the reorganization in
+# flight - the data MOVED to a new TOP-LEVEL /ISMIP7 tree (the Jul 8/18
+# walks started inside /ISMIP6/ISMIP7_Prep and never looked up). The new
+# authoritative layout is
+#   /ISMIP7/AIS/<ESM>/<scenario>/{SDBN1-8000m,SDBN1-2000m,ocean,fracture}/
+#     <var>/v*/  (per-year atm files; decadal-chunk ocean files)
+# with ESM in {CESM2-WACCM, MRI-ESM2-0} and scenario in {ctrl, ctrlclim,
+# historical, ssp126, ssp370, ssp534-over, ssp585} - i.e. EVERYTHING cores
+# 1-8 need, including all of MRI-ESM2-0; /ISMIP7/cmipraw is back too, and
+# /ISMIP7/{Output-Processing, Submission_Templates} hold submission tooling.
+# Use --scenarios below to mirror the per-scenario runtime sets.
+#
+# The OLD subtree (climatologies/bias/obs used by the sets below) is:
+#   /ISMIP6/ISMIP7_Prep/CMIP6_test_protocol/{AIS, GrIS, Tools, test}
+# and under AIS/ only:
+#   CESM2-WACCM/{bias, climatology, historical/ocean/extras}  (climatologies
+#     + bias-correction ingredients ONLY — NO per-year forcing, no scenario dirs)
+#   grid, obs (mipkit / OI-climatology / IMBIE / topography)
+# Everything listed in OCEAN_FILES/CALIBRATION_FILES below is present and
+# ALREADY MIRRORED locally, so the default --ocean/--calibration modes are
+# idempotent no-ops.
+AIS_BASE = "/ISMIP6/ISMIP7_Prep/CMIP6_test_protocol/AIS"
 
+# New top-level tree (see the 2026-07-19 note above): scenario forcing.
+ISMIP7_BASE = "/ISMIP7/AIS"
+SCENARIO_ESMS = ("CESM2-WACCM", "MRI-ESM2-0")
+SCENARIO_NAMES = ("historical", "ssp126", "ssp370", "ssp585")
+# Minimal runtime vars (what experiment.py actually reads): re-referenced
+# aSMB + full-acabf fallback, ocean tf/so at draft, fracture masks. The
+# rest (pr/tas/ts/gradients, thetao, SDBN1-2000m, ocean extras) stays
+# upstream until something consumes it.
+SCENARIO_ATM_VARS = ("acabf", "acabf-anomaly")
+SCENARIO_OCEAN_VARS = ("tf", "so")
+
+_LTM = "{var}_CESM2-WACCM_ltm_SDBN1_1960-1989.nc"
 OCEAN_FILES = {
-    "cesm2_waccm_historical": {
-        "remote_dir": f"{OCEAN_BASE}/biascorr_cmip/CESM2-WACCM/historical/zhou_annual_30_sep/0yr/thetao_so_tf",
-        "files": [
-            "so_Oyr_CESM2-WACCM_historical_r1i1p1f1_ismip8km_60m_185001-201412.nc",
-            "tf_Oyr_CESM2-WACCM_historical_r1i1p1f1_ismip8km_60m_185001-201412.nc",
-            "thetao_Oyr_CESM2-WACCM_historical_r1i1p1f1_ismip8km_60m_185001-201412.nc",
-        ],
-        "local_dir": "ocean/cesm_waccm/historical",
+    "sdbn1_ltm_1960_1989": {
+        # The exact climatology the acabf-anomaly files are referenced to.
+        "remote_dir": f"{AIS_BASE}/CESM2-WACCM/climatology/SDBN1",
+        "per_var_dirs": "v1",
+        "files": [_LTM.format(var=v) for v in
+                  ("acabf", "precip", "runoff", "snowfall", "snowmelt",
+                   "tas", "ts")],
+        "local_dir": "CESM2-WACCM/climatology/SDBN1",
     },
-    "cesm2_waccm_ssp585": {
-        "remote_dir": f"{OCEAN_BASE}/biascorr_cmip/CESM2-WACCM/ssp585/zhou_annual_30_sep/0yr/thetao_so_tf",
+    "cesm2_waccm_ocean_climatology": {
+        "remote_dir": f"{AIS_BASE}/CESM2-WACCM/climatology",
         "files": [
-            "so_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_201501-210012.nc",
-            "so_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_210101-215012.nc",
-            "so_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_215101-220012.nc",
-            "so_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_220101-225012.nc",
-            "so_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_225101-229912.nc",
-            "tf_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_201501-210012.nc",
-            "tf_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_210101-215012.nc",
-            "tf_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_215101-220012.nc",
-            "tf_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_220101-225012.nc",
-            "tf_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_225101-229912.nc",
-            "thetao_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_201501-210012.nc",
-            "thetao_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_210101-215012.nc",
-            "thetao_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_215101-220012.nc",
-            "thetao_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_220101-225012.nc",
-            "thetao_Oyr_CESM2-WACCM_ssp585_r1i1p1f1_ismip8km_60m_225101-229912.nc",
+            "ct_CESM2-WACCM_climatology_r1i1p1f1_ismip8km_60m_1850_199501-201412.nc",
+            "sa_CESM2-WACCM_climatology_r1i1p1f1_ismip8km_60m_1850_199501-201412.nc",
         ],
-        "local_dir": "ocean/cesm_waccm/ssp585",
+        "local_dir": "CESM2-WACCM/climatology",
     },
-    "obs_climatology": {
-        "remote_dir": f"{OCEAN_BASE}/climatology/zhou_annual_30_sep",
+    "cesm2_waccm_ocean_bias": {
+        "remote_dir": f"{AIS_BASE}/CESM2-WACCM/bias/zhou_annual_30_sep",
         "files": [
-            "OI_Climatology_ismip8km_60m_so_extrap.nc",
-            "OI_Climatology_ismip8km_60m_tf_extrap.nc",
-            "OI_Climatology_ismip8km_60m_thetao_extrap.nc",
+            "ct_CESM2-WACCM_bias_r1i1p1f1_ismip8km_60m_1850_199501-201412.nc",
+            "sa_CESM2-WACCM_bias_r1i1p1f1_ismip8km_60m_1850_199501-201412.nc",
         ],
-        "local_dir": "ocean/climatology",
+        "local_dir": "CESM2-WACCM/bias/zhou_annual_30_sep",
     },
-    "cesm2_waccm_climatology": {
-        "remote_dir": f"{OCEAN_BASE}/biascorr_cmip/CESM2-WACCM/climatology",
+    "oi_climatology_06nov": {
+        "remote_dir": f"{AIS_BASE}/obs/ocean/climatology/zhou_annual_06_nov",
+        "per_var_dirs": "v3",
         "files": [
-            "ct_CESM2-WACCM_climatology_r1i1p1f1_ismip8km_60m_199501-201412.nc",
-            "sa_CESM2-WACCM_climatology_r1i1p1f1_ismip8km_60m_199501-201412.nc",
+            f"{v}_AIS_obs_ocean_climatology_zhou_annual_06_nov_v3_1972-2024.nc"
+            for v in ("tf", "so", "thetao")
         ],
-        "local_dir": "ocean/cesm_waccm/climatology",
-    },
-    "cesm2_waccm_bias": {
-        "remote_dir": f"{OCEAN_BASE}/biascorr_cmip/CESM2-WACCM/bias/zhou_annual_30_sep",
-        "files": [
-            "ct_CESM2-WACCM_bias_r1i1p1f1_ismip8km_60m_199501-201412.nc",
-            "sa_CESM2-WACCM_bias_r1i1p1f1_ismip8km_60m_199501-201412.nc",
-        ],
-        "local_dir": "ocean/cesm_waccm/bias",
+        "local_dir": "obs/ocean/climatology/zhou_annual_06_nov",
     },
 }
 
 CALIBRATION_FILES = {
-    "observed_melt": {
-        "remote_dir": f"{OCEAN_BASE}/meltmip",
-        "files": [
-            "melt_paolo_err_adusumilli_ismip8km.nc",
-            "Melt_Paolo_Err_Adusumilli_imbie2.csv",
-            "BFRN_ismip_8km.nc",
-        ],
-        "local_dir": "ocean/meltmip",
+    "obs_mipkit": {
+        "remote_dir": f"{AIS_BASE}/obs/mipkit",
+        "files": ["AntarcticaObsISMIP7-v1.1.nc"],
+        "local_dir": "obs/mipkit",
     },
-    "ocean_model_data": {
-        "remote_dir": f"{OCEAN_BASE}/meltmip/Ocean_Modelling_Data",
-        "files": [
-            "Mathiot23_cold_T.nc", "Mathiot23_cold_S.nc",
-            "Mathiot23_cold_TF.nc", "Mathiot23_cold_m.nc",
-            "Mathiod23_warm_T.nc", "Mathiod23_warm_S.nc",
-            "Mathiod23_warm_TF.nc", "Mathiod23_warm_m.nc",
-            "TimmermannUndGoeller2017_cold_T.nc", "TimmermannUndGoeller2017_cold_S.nc",
-            "TimmermannUndGoeller2017_cold_TF.nc", "TimmermannUndGoeller2017_cold_m.nc",
-            "TimmermannUndGoeller2017_warm_T.nc", "TimmermannUndGoeller2017_warm_S.nc",
-            "TimmermannUndGoeller2017_warm_TF.nc", "TimmermannUndGoeller2017_warm_m.nc",
-        ],
-        "local_dir": "ocean/meltmip/ocean_modelling",
-    },
-    "basin_mask": {
-        "remote_dir": f"{OCEAN_BASE}/imbie2",
-        "files": ["basin_numbers_ismip8km.nc"],
-        "local_dir": "ocean/imbie2",
+    "imbie_basins_v3": {
+        "remote_dir": f"{AIS_BASE}/obs/ocean/IMBIE-basins/v3",
+        "files": ["IMBIE-basins_AIS_obs_ocean_v3.nc"],
+        "local_dir": "obs/ocean/IMBIE-basins/v3",
     },
     "ismip_grid": {
-        "remote_dir": f"{OCEAN_BASE}/ismip",
-        "files": ["ismip_8km_60m_grid.nc"],
-        "local_dir": "ocean/grid",
+        "remote_dir": f"{AIS_BASE}/grid/ocean/ISMIP7/8km-60m/v3",
+        "files": ["ISMIP7_8km-60m_AIS_grid_ocean_v3.nc"],
+        "local_dir": "grid/ocean/ISMIP7/8km-60m/v3",
     },
     "topography": {
-        "remote_dir": f"{OCEAN_BASE}/topography",
+        "remote_dir": f"{AIS_BASE}/obs/ocean/topography",
+        "per_file_dirs": {
+            "BedMachineAntarctica-v3_AIS_obs_ocean_topography_v3.nc":
+                "BedMachineAntarctica-v3/v3",
+            "bedmap3_AIS_obs_ocean_topography_v3.nc": "bedmap3/v3",
+        },
         "files": [
-            "BedMachineAntarctica-v3_ismip_8km.nc",
-            "BedMachineAntarctica-v3.nc",
-            "Bedmap3_ismip_8km.nc",
-            "bedmap3.nc",
+            "BedMachineAntarctica-v3_AIS_obs_ocean_topography_v3.nc",
+            "bedmap3_AIS_obs_ocean_topography_v3.nc",
         ],
-        "local_dir": "ocean/topography",
+        "local_dir": "obs/ocean/topography",
     },
 }
 
 
+def _remote_local_pair(file_set, fn):
+    r"""(remote_path, local_relpath) for one file, honoring per-var/v layout."""
+    remote_dir = file_set["remote_dir"]
+    sub = ""
+    if "per_var_dirs" in file_set:
+        var = fn.split("_")[0]
+        sub = f"{var}/{file_set['per_var_dirs']}"
+    elif "per_file_dirs" in file_set:
+        sub = file_set["per_file_dirs"][fn]
+    rd = f"{remote_dir}/{sub}".rstrip("/")
+    ld = Path(file_set["local_dir"]) / sub
+    return f"{rd}/{fn}", ld / fn
+
+
+def _client_from_cli_storage():
+    r"""TransferClient from the globus CLI's own token store
+    (~/.globus/cli/storage.db): the CLI keeps a long-lived refresh token
+    for transfer.api plus its per-user confidential-client credentials, so
+    a machine that has ever run `globus login` works headlessly."""
+    import sqlite3
+    import globus_sdk
+
+    db_path = Path.home() / ".globus" / "cli" / "storage.db"
+    if not db_path.exists():
+        return None
+    try:
+        db = sqlite3.connect(str(db_path))
+        cc_data = json.loads(db.execute(
+            "SELECT config_data_json FROM config_storage "
+            "WHERE config_name='auth_client_data'"
+        ).fetchone()[0])
+        tok = json.loads(db.execute(
+            "SELECT token_data_json FROM token_storage "
+            "WHERE resource_server='transfer.api.globus.org'"
+        ).fetchone()[0])
+        cc = globus_sdk.ConfidentialAppAuthClient(
+            cc_data["client_id"], cc_data["client_secret"]
+        )
+        authorizer = globus_sdk.RefreshTokenAuthorizer(
+            tok["refresh_token"], cc
+        )
+        return globus_sdk.TransferClient(authorizer=authorizer)
+    except Exception:
+        return None
+
+
 def get_globus_client():
-    r"""Get an authenticated Globus TransferClient."""
+    r"""Authenticated TransferClient: own refresh-token cache, then the
+    globus CLI's token store, then an interactive login."""
     try:
         import globus_sdk
     except ImportError:
         print("ERROR: globus-sdk not installed.")
         print("  Install with: pip install globus-sdk")
-        print("  Then run: python scripts/download_forcing.py --login")
         sys.exit(1)
 
     token_file = Path.home() / ".ismip7_globus_tokens.json"
-
     if token_file.exists():
         tokens = json.loads(token_file.read_text())
-        authorizer = globus_sdk.AccessTokenAuthorizer(
-            tokens.get("transfer_access_token", "")
-        )
-        client = globus_sdk.TransferClient(authorizer=authorizer)
+        if "refresh_token" in tokens:
+            auth_client = globus_sdk.NativeAppAuthClient(tokens["client_id"])
+            authorizer = globus_sdk.RefreshTokenAuthorizer(
+                tokens["refresh_token"], auth_client
+            )
+            client = globus_sdk.TransferClient(authorizer=authorizer)
+            try:
+                client.get_endpoint(GHUB_COLLECTION_ID)
+                return client
+            except globus_sdk.GlobusAPIError:
+                print("  Cached refresh token invalid, trying CLI store...")
+
+    client = _client_from_cli_storage()
+    if client is not None:
         try:
             client.get_endpoint(GHUB_COLLECTION_ID)
+            print("  Authenticated via the globus CLI token store.")
             return client
         except globus_sdk.GlobusAPIError:
-            print("  Stored token expired, re-authenticating...")
+            pass
 
     return do_login()
 
 
 def do_login():
-    r"""Run the Globus native app auth flow."""
+    r"""Globus native-app auth flow, storing a REFRESH token so this is a
+    one-time step per machine."""
     import globus_sdk
 
     CLIENT_ID = "c9e8acfa-6c6d-4e68-aa6c-0ee4a12c4e2a"
     client = globus_sdk.NativeAppAuthClient(CLIENT_ID)
     client.oauth2_start_flow(
-        requested_scopes="urn:globus:auth:scope:transfer.api.globus.org:all"
+        requested_scopes=[
+            "urn:globus:auth:scope:transfer.api.globus.org:all",
+        ],
+        refresh_tokens=True,
     )
 
     authorize_url = client.oauth2_get_authorize_url()
@@ -175,15 +235,31 @@ def do_login():
 
     token_file = Path.home() / ".ismip7_globus_tokens.json"
     token_file.write_text(json.dumps({
+        "client_id": CLIENT_ID,
+        "refresh_token": transfer_tokens["refresh_token"],
         "transfer_access_token": transfer_tokens["access_token"],
     }))
     token_file.chmod(0o600)
-    print("  Tokens saved.")
+    print("  Tokens saved (refresh token: no more logins needed).")
 
-    authorizer = globus_sdk.AccessTokenAuthorizer(
-        transfer_tokens["access_token"]
+    authorizer = globus_sdk.RefreshTokenAuthorizer(
+        transfer_tokens["refresh_token"], client,
+        access_token=transfer_tokens["access_token"],
+        expires_at=transfer_tokens["expires_at_seconds"],
     )
     return globus_sdk.TransferClient(authorizer=authorizer)
+
+
+def get_local_endpoint():
+    r"""Destination endpoint: GLOBUS_LOCAL_ENDPOINT env, else the Globus
+    Connect Personal id registered on this machine."""
+    ep = os.environ.get("GLOBUS_LOCAL_ENDPOINT")
+    if ep:
+        return ep
+    gcp_id = Path.home() / ".globusonline" / "lta" / "client-id.txt"
+    if gcp_id.exists():
+        return gcp_id.read_text().strip()
+    return None
 
 
 def list_remote_files(tc, path, recursive=False):
@@ -208,9 +284,9 @@ def list_remote_files(tc, path, recursive=False):
 
 
 def discover_layout(tc):
-    print(f"\nDiscovering data at {OCEAN_BASE}/...")
+    print(f"\nDiscovering data at {AIS_BASE}/...")
 
-    entries = list_remote_files(tc, OCEAN_BASE)
+    entries = list_remote_files(tc, AIS_BASE)
     if not entries:
         print("  No files found. Check your Globus auth and endpoint.")
         return
@@ -230,19 +306,15 @@ def discover_layout(tc):
 def download_file_set(tc, file_set, dry_run=False):
     import globus_sdk
 
-    remote_dir = file_set["remote_dir"]
-    files = file_set["files"]
-    local_dir = FORCING_DIR / file_set["local_dir"]
-    local_dir.mkdir(parents=True, exist_ok=True)
-
     to_download = []
-    for fn in files:
-        local_path = local_dir / fn
+    for fn in file_set["files"]:
+        remote, rel = _remote_local_pair(file_set, fn)
+        local_path = FORCING_DIR / rel
         if local_path.exists():
             size_mb = local_path.stat().st_size / 1e6
             print(f"    {fn}  ({size_mb:.0f} MB) [exists]")
         else:
-            to_download.append(fn)
+            to_download.append((remote, local_path))
             print(f"    {fn}  [needed]")
 
     if not to_download:
@@ -252,27 +324,106 @@ def download_file_set(tc, file_set, dry_run=False):
         print(f"  Would download {len(to_download)} file(s)")
         return
 
-    local_endpoint = os.environ.get("GLOBUS_LOCAL_ENDPOINT")
+    local_endpoint = get_local_endpoint()
     if local_endpoint:
         td = globus_sdk.TransferData(
-            tc, GHUB_COLLECTION_ID, local_endpoint,
+            source_endpoint=GHUB_COLLECTION_ID,
+            destination_endpoint=local_endpoint,
             label=f"ISMIP7 {file_set['local_dir']}",
+            verify_checksum=True, sync_level="checksum",
         )
-        for fn in to_download:
-            td.add_item(f"{remote_dir}/{fn}", str(local_dir / fn))
+        for remote, local_path in to_download:
+            td.add_item(remote, str(local_path))
         result = tc.submit_transfer(td)
         task_id = result["task_id"]
         print(f"  Transfer submitted: {task_id}")
         print(f"  Monitor: https://app.globus.org/activity/{task_id}")
         return task_id
 
-    print(f"\n  No GLOBUS_LOCAL_ENDPOINT set. To download these files:")
-    print(f"  1. Install Globus Connect Personal: https://www.globus.org/globus-connect-personal")
-    print(f"  2. Set GLOBUS_LOCAL_ENDPOINT=<your-endpoint-id>")
-    print(f"  3. Re-run this script")
-    print(f"  Or use the Globus web app to transfer from:")
-    print(f"    {remote_dir}")
-    print(f"  To your local machine at: {local_dir}")
+    print(f"\n  No local Globus endpoint found. Either:")
+    print(f"  1. Install/start Globus Connect Personal, or")
+    print(f"  2. Set GLOBUS_LOCAL_ENDPOINT=<endpoint-id>, or")
+    print(f"  3. Transfer by hand in the Globus web app from:")
+    print(f"     {file_set['remote_dir']}")
+
+
+def _pick_version(tc, var_dir):
+    r"""Highest v<N> subdir of a remote var dir, or None if absent."""
+    vs = []
+    for e in list_remote_files(tc, var_dir):
+        if e["type"] == "dir" and e["name"].startswith("v"):
+            try:
+                vs.append((int(e["name"][1:]), e["name"]))
+            except ValueError:
+                pass
+    return max(vs)[1] if vs else None
+
+
+def download_scenarios(tc, esms=SCENARIO_ESMS, scenarios=SCENARIO_NAMES,
+                       dry_run=False):
+    r"""Mirror the minimal per-(ESM, scenario) runtime sets from the new
+    /ISMIP7/AIS tree: SDBN1-8000m {acabf, acabf-anomaly}, ocean {tf, so},
+    and the fracture masks. One recursive-dir Globus transfer per
+    (ESM, scenario); sync_level=checksum makes re-runs incremental, so an
+    already-complete local set costs one listing pass server-side."""
+    import globus_sdk
+
+    local_endpoint = None if dry_run else get_local_endpoint()
+    if not dry_run and not local_endpoint:
+        print("  No local Globus endpoint (start Globus Connect Personal "
+              "or set GLOBUS_LOCAL_ENDPOINT).")
+        return []
+
+    task_ids = []
+    for esm in esms:
+        for scen in scenarios:
+            base = f"{ISMIP7_BASE}/{esm}/{scen}"
+            groups = (
+                [(f"{base}/SDBN1-8000m/{v}", f"{esm}/{scen}/SDBN1-8000m/{v}")
+                 for v in SCENARIO_ATM_VARS]
+                + [(f"{base}/ocean/{v}", f"{esm}/{scen}/ocean/{v}")
+                   for v in SCENARIO_OCEAN_VARS]
+                + [(f"{base}/fracture", f"{esm}/{scen}/fracture")]
+            )
+            print(f"\n  [{esm} / {scen}]")
+            items = []
+            for remote_dir, local_rel in groups:
+                # every group (fracture included) is <dir>/v<N>/<files>
+                ver = _pick_version(tc, remote_dir)
+                if ver is None:
+                    print(f"    {local_rel}: not on the share, skipped")
+                    continue
+                src = f"{remote_dir}/{ver}"
+                dst = FORCING_DIR / local_rel / ver
+                n_remote = len([e for e in list_remote_files(tc, src)
+                                if e["type"] == "file"])
+                n_local = (len([p for p in dst.iterdir() if p.is_file()])
+                           if dst.exists() else 0)
+                state = ("complete" if n_local >= n_remote and n_remote > 0
+                         else f"{n_local}/{n_remote} local")
+                print(f"    {local_rel}{'/' + ver if ver else ''}: "
+                      f"{n_remote} remote files [{state}]")
+                if n_local < n_remote:
+                    items.append((src, dst))
+            if not items:
+                print("    nothing to transfer")
+                continue
+            if dry_run:
+                print(f"    would submit {len(items)} recursive dir item(s)")
+                continue
+            td = globus_sdk.TransferData(
+                source_endpoint=GHUB_COLLECTION_ID,
+                destination_endpoint=local_endpoint,
+                label=f"ISMIP7 {esm} {scen}",
+                verify_checksum=True, sync_level="checksum",
+            )
+            for src, dst in items:
+                td.add_item(src, str(dst), recursive=True)
+            task_id = tc.submit_transfer(td)["task_id"]
+            task_ids.append(task_id)
+            print(f"    submitted: {task_id}  "
+                  f"https://app.globus.org/activity/{task_id}")
+    return task_ids
 
 
 def download_ocean(tc, dry_run=False):
@@ -304,17 +455,17 @@ def print_status():
 
     all_sets = {**OCEAN_FILES, **CALIBRATION_FILES}
     for name, fset in all_sets.items():
-        local_dir = FORCING_DIR / fset["local_dir"]
         total = len(fset["files"])
-        if local_dir.exists():
-            existing = [f for f in fset["files"] if (local_dir / f).exists()]
-            if existing:
-                total_mb = sum((local_dir / f).stat().st_size for f in existing) / 1e6
-                print(f"  {name:30s}  {len(existing)}/{total} files ({total_mb:.0f} MB)")
-            else:
-                print(f"  {name:30s}  0/{total} files")
+        existing = []
+        for fn in fset["files"]:
+            _, rel = _remote_local_pair(fset, fn)
+            if (FORCING_DIR / rel).exists():
+                existing.append(FORCING_DIR / rel)
+        if existing:
+            total_mb = sum(p.stat().st_size for p in existing) / 1e6
+            print(f"  {name:30s}  {len(existing)}/{total} files ({total_mb:.0f} MB)")
         else:
-            print(f"  {name:30s}  not downloaded")
+            print(f"  {name:30s}  0/{total} files")
 
 
 def main():
@@ -326,6 +477,13 @@ def main():
     parser.add_argument("--status", action="store_true", help="Show local download status")
     parser.add_argument("--ocean", action="store_true", help="Download ocean forcing only")
     parser.add_argument("--calibration", action="store_true", help="Download calibration data only")
+    parser.add_argument("--scenarios", action="store_true",
+                        help="Mirror per-(ESM, scenario) runtime sets from the "
+                             "new /ISMIP7/AIS tree (cores 1-8 forcing)")
+    parser.add_argument("--esm", default=",".join(SCENARIO_ESMS),
+                        help="comma list of ESMs for --scenarios")
+    parser.add_argument("--scenario", default=",".join(SCENARIO_NAMES),
+                        help="comma list of scenarios for --scenarios")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be downloaded")
     args = parser.parse_args()
 
@@ -346,7 +504,14 @@ def main():
 
     dry = args.dry_run
 
-    if args.ocean:
+    if args.scenarios:
+        download_scenarios(
+            tc,
+            esms=tuple(e.strip() for e in args.esm.split(",") if e.strip()),
+            scenarios=tuple(s.strip() for s in args.scenario.split(",") if s.strip()),
+            dry_run=dry,
+        )
+    elif args.ocean:
         download_ocean(tc, dry_run=dry)
     elif args.calibration:
         download_calibration(tc, dry_run=dry)

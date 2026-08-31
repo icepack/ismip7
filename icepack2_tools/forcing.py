@@ -111,13 +111,72 @@ def _find_ismip7_data(data_root=None):
     return None
 
 
+def load_mean_annual_surface_temperature(Q, var="tas", data_root=None,
+                                         fill_K=260.0):
+    r"""Mean-annual surface temperature [K] on ``Q``, from the ISMIP7
+    CESM2-WACCM SDBN1 climatology. ``var='tas'`` (near-surface air temp) is the
+    standard englacial upper boundary condition for a thermal model; ``'ts'``
+    (skin temp) is melt-capped at 273 K. Averages the 12 monthly slices and
+    samples with a nearest-neighbour ``RegularGridInterpolator`` (xarray.interp
+    blows up memory at mesh-node counts; same pattern as the OI ocean reader).
+    NODATA/ocean (~0 K) is masked and filled with ``fill_K``."""
+    import glob
+    import xarray as xr
+    import firedrake as fd
+    from scipy.interpolate import RegularGridInterpolator
+    root = _find_ismip7_data(data_root)
+    if root is None:
+        raise FileNotFoundError("ISMIP7 data root not found (set ISMIP7_DATA_ROOT)")
+    hits = glob.glob(os.path.join(root, "CESM2-WACCM", "climatology", "SDBN1",
+                                  var, "v1", f"{var}_*.nc"))
+    if not hits:
+        raise FileNotFoundError(f"no {var} climatology under {root}")
+    ds = xr.open_dataset(hits[0])
+    da = ds[var] if var in ds else ds[list(ds.data_vars)[0]]
+    T = np.asarray(da.mean(dim="month").values, dtype=float)     # (y, x)
+    x = np.asarray(ds["x"].values, dtype=float)
+    y = np.asarray(ds["y"].values, dtype=float)
+    T = np.where(T > 100.0, T, np.nan)                           # mask fill (~0 K)
+    T_filled = np.where(np.isfinite(T), T, fill_K)
+    interp = RegularGridInterpolator((y, x), T_filled, method="nearest",
+                                     bounds_error=False, fill_value=fill_K)
+    Tf = fd.Function(Q, name="T_srf")
+    xy = Q.mesh().coordinates.dat.data_ro
+    Tf.dat.data[:] = interp(np.column_stack([xy[:, 1], xy[:, 0]]))
+    return Tf
+
+
+def _version_subdirs(parent_dir):
+    r"""(N, name) pairs for the v<N> subdirs of a directory, ascending."""
+    versions = []
+    if parent_dir is not None and os.path.isdir(parent_dir):
+        for name in os.listdir(parent_dir):
+            if name.startswith("v") and os.path.isdir(
+                    os.path.join(parent_dir, name)):
+                try:
+                    versions.append((int(name[1:]), name))
+                except ValueError:
+                    pass
+    return sorted(versions)
+
+
+def _resolve_version(parent_dir, pinned):
+    r"""The pinned version if that subdir exists, else the highest v<N>
+    subdir present, else the pinned name unchanged (so missing trees keep
+    producing the same non-existent path the callers already handle)."""
+    if parent_dir is None or os.path.isdir(os.path.join(parent_dir, pinned)):
+        return pinned
+    versions = _version_subdirs(parent_dir)
+    return versions[-1][1] if versions else pinned
+
+
 def atmosphere_path(scenario, esm="CESM2-WACCM", variable="acabf-anomaly",
                     resolution="8000m", version="v2", data_root=None):
     root = _find_ismip7_data(data_root)
     if root is None:
         return None
-    return os.path.join(root, esm, scenario, f"SDBN1-{resolution}",
-                        variable, version)
+    parent = os.path.join(root, esm, scenario, f"SDBN1-{resolution}", variable)
+    return os.path.join(parent, _resolve_version(parent, version))
 
 
 def ocean_path(scenario, esm="CESM2-WACCM", variable="tf",
@@ -125,7 +184,8 @@ def ocean_path(scenario, esm="CESM2-WACCM", variable="tf",
     root = _find_ismip7_data(data_root)
     if root is None:
         return None
-    return os.path.join(root, esm, scenario, "ocean", variable, version)
+    parent = os.path.join(root, esm, scenario, "ocean", variable)
+    return os.path.join(parent, _resolve_version(parent, version))
 
 
 class ISMIP7Atmosphere:
@@ -151,11 +211,16 @@ class ISMIP7Atmosphere:
     def _load_year(self, variable, year):
         import xarray as xr
 
+        key = (variable, int(year))
+        if key in self._cache:
+            return self._cache[key]
+
         vdir = self._var_dir(variable)
         if vdir is None or not os.path.isdir(vdir):
             return None
 
-        pattern = f"{variable}_AIS_{self.esm}_{self.scenario}_SDBN1-{self.resolution}_{self.version}_{int(year)}.nc"
+        version = os.path.basename(vdir)
+        pattern = f"{variable}_AIS_{self.esm}_{self.scenario}_SDBN1-{self.resolution}_{version}_{int(year)}.nc"
         path = os.path.join(vdir, pattern)
 
         if not os.path.exists(path):
@@ -173,13 +238,27 @@ class ISMIP7Atmosphere:
                     self._grid_y = ds[yname].values
                     break
 
-        data_vars = [v for v in ds.data_vars if v not in ("x", "y", "time")]
-        if data_vars:
-            da = ds[data_vars[0]]
+        if variable in ds.data_vars:
+            da = ds[variable]
+        else:
+            # Skip grid-mapping/bounds variables (crs, *_bnds, mapping):
+            # this dataset family carries them and any of them ordered
+            # first would silently become the forcing field.
+            data_vars = [
+                v for v in ds.data_vars
+                if not v.endswith("_bnds")
+                and v.lower() not in ("x", "y", "time", "crs", "mapping",
+                                      "spatial_ref", "lat", "lon")
+            ]
+            da = ds[data_vars[0]] if data_vars else None
+        if da is not None:
             if "time" in da.dims:
                 da = da.isel(time=0)
             result = da.load()
             ds.close()
+            self._cache[key] = result
+            while len(self._cache) > 4:
+                self._cache.pop(next(iter(self._cache)))
             return result
         ds.close()
         return None
@@ -250,6 +329,7 @@ class ISMIP7Ocean:
         self.scenario = scenario
         self.version = version
         self._ds_cache = {}
+        self._interp_cache = {}
 
     def _var_dir(self, variable):
         return ocean_path(
@@ -278,117 +358,123 @@ class ISMIP7Ocean:
         self._ds_cache[variable] = ds
         return ds
 
-    def get_thermal_forcing(self, year, mesh_x, mesh_y, draft=None):
-        r"""Get thermal forcing at ice shelf base, interpolated to mesh."""
+    def _year_field(self, variable, year, nan_fill):
+        r"""(RegularGridInterpolator, ascending z array) for one variable-year.
+
+        Loads the single year slice out of its decadal chunk file into an
+        in-memory nearest-neighbour interpolator over (z, y, x) — one year
+        of tf is ~66 MB and answers in milliseconds, where the previous
+        pointwise xarray .interp over the open_mfdataset dask graph cost
+        ~10 minutes per step even at 5k mesh nodes. Nearest-neighbour also
+        matches the OI-climatology CTRL path and the per-basin K
+        calibration. The last few (variable, year) fields stay cached, so
+        sub-yearly time steps re-read nothing.
+        """
+        import re
         import xarray as xr
+        from scipy.interpolate import RegularGridInterpolator
 
-        ds = self._load_variable("tf")
-        if ds is None:
-            return np.zeros(len(mesh_x))
+        yr = int(round(year))
+        key = (variable, yr)
+        if key in self._interp_cache:
+            return self._interp_cache[key]
 
-        tf_var = None
+        vdir = self._var_dir(variable)
+        if vdir is None or not os.path.isdir(vdir):
+            return None
+
+        # The chunk file whose YYYY-YYYY range contains the year (nearest
+        # range for years outside coverage).
+        best, best_d = None, None
+        for f in sorted(os.listdir(vdir)):
+            m = re.search(r"_(\d{4})-(\d{4})\.nc$", f)
+            if not m:
+                continue
+            y0, y1 = int(m.group(1)), int(m.group(2))
+            d = 0 if y0 <= yr <= y1 else min(abs(yr - y0), abs(yr - y1))
+            if best_d is None or d < best_d:
+                best, best_d = os.path.join(vdir, f), d
+        if best is None:
+            return None
+
+        ds = xr.open_dataset(best)
+        da = None
         for name in ds.data_vars:
-            if name.lower() in ("tf", "thermal_forcing", "thermalforcing"):
-                tf_var = ds[name]
+            if name.lower() in (variable.lower(), "thermal_forcing",
+                                "thermalforcing", "salinity"):
+                da = ds[name]
                 break
-        if tf_var is None:
-            tf_var = ds[list(ds.data_vars)[0]]
+        if da is None:
+            cands = [v for v in ds.data_vars
+                     if not v.endswith("_bnds") and v.lower() != "crs"]
+            da = ds[cands[0]]
 
-        if "time" in tf_var.dims:
+        if "time" in da.dims:
             times = ds["time"].values
-            # Handle cftime calendars by matching on year
-            if hasattr(times[0], "year"):
-                yr = int(round(year))
-                idx = min(range(len(times)), key=lambda i: abs(times[i].year - yr))
-                tf_slice = tf_var.isel(time=idx)
-            else:
-                tf_slice = tf_var.sel(time=year, method="nearest")
-        else:
-            tf_slice = tf_var
-
-        zdim = None
-        for d in tf_slice.dims:
-            if d.lower() in ("z", "depth", "lev"):
-                zdim = d
-                break
-
-        if zdim is not None:
-            if draft is not None:
-                # z coords are negative (depth below sea level), draft is also negative
-                draft_arr = xr.DataArray(np.asarray(draft), dims="node")
-                tf_slice = tf_slice.interp({zdim: draft_arr}, method="nearest")
-            else:
-                tf_slice = tf_slice.isel({zdim: 0})
-
-        mx = xr.DataArray(np.asarray(mesh_x), dims="node")
-        my = xr.DataArray(np.asarray(mesh_y), dims="node")
-
-        xdim = [d for d in tf_slice.dims if d.lower() == "x"]
-        ydim = [d for d in tf_slice.dims if d.lower() == "y"]
-        if xdim and ydim:
-            vals = tf_slice.interp({xdim[0]: mx, ydim[0]: my}, method="nearest")
-        else:
-            return np.zeros(len(mesh_x))
-
-        return np.nan_to_num(vals.values.flatten(), nan=0.0)
-
-    def get_salinity(self, year, mesh_x, mesh_y, draft=None, fill=34.5):
-        r"""Get ambient salinity at ice draft depth, interpolated to mesh."""
-        import xarray as xr
-
-        ds = self._load_variable("so")
-        if ds is None:
-            return np.full(len(mesh_x), fill)
-
-        so_var = None
-        for name in ds.data_vars:
-            if name.lower() in ("so", "salinity"):
-                so_var = ds[name]
-                break
-        if so_var is None:
-            so_var = ds[list(ds.data_vars)[0]]
-
-        if "time" in so_var.dims:
-            times = ds["time"].values
-            if hasattr(times[0], "year"):
-                yr = int(round(year))
+            if hasattr(times[0], "year"):  # cftime calendars
                 idx = min(range(len(times)),
                           key=lambda i: abs(times[i].year - yr))
-                so_slice = so_var.isel(time=idx)
             else:
-                so_slice = so_var.sel(time=year, method="nearest")
+                years = ds["time"].dt.year.values
+                idx = int(np.argmin(np.abs(years - yr)))
+            da = da.isel(time=idx)
+
+        zdim = [d for d in da.dims if d.lower() in ("z", "depth", "lev")][0]
+        za = ds[zdim].values.astype(float)
+        ya = ds["y"].values.astype(float)
+        xa = ds["x"].values.astype(float)
+        data = da.transpose(zdim, "y", "x").values.astype(np.float32)
+        ds.close()
+        if za[0] > za[-1]:
+            za = za[::-1]; data = data[::-1, :, :]
+        if ya[0] > ya[-1]:
+            ya = ya[::-1]; data = data[:, ::-1, :]
+        if xa[0] > xa[-1]:
+            xa = xa[::-1]; data = data[:, :, ::-1]
+        data = np.nan_to_num(data, nan=nan_fill)
+        interp = RegularGridInterpolator(
+            (za, ya, xa), data,
+            method="nearest", bounds_error=False, fill_value=float(nan_fill),
+        )
+        entry = (interp, za)
+        self._interp_cache[key] = entry
+        while len(self._interp_cache) > 4:
+            self._interp_cache.pop(next(iter(self._interp_cache)))
+        return entry
+
+    def _lookup(self, variable, year, mesh_x, mesh_y, draft, nan_fill):
+        entry = self._year_field(variable, year, nan_fill)
+        if entry is None:
+            return None
+        interp, za = entry
+        mx = np.asarray(mesh_x)
+        my = np.asarray(mesh_y)
+        if draft is None:
+            d = np.full(len(mx), za[-1])   # shallowest level
         else:
-            so_slice = so_var
+            # z and draft are both negative depths below sea level
+            d = np.clip(np.asarray(draft), za[0], za[-1])
+        return interp(np.column_stack([d, my, mx])).astype(float)
 
-        zdim = None
-        for d in so_slice.dims:
-            if d.lower() in ("z", "depth", "lev"):
-                zdim = d
-                break
+    def get_thermal_forcing(self, year, mesh_x, mesh_y, draft=None):
+        r"""Thermal forcing at the shelf base on mesh points [K]."""
+        vals = self._lookup("tf", year, mesh_x, mesh_y, draft, nan_fill=0.0)
+        if vals is None:
+            return np.zeros(len(mesh_x))
+        return vals
 
-        if zdim is not None:
-            if draft is not None:
-                draft_arr = xr.DataArray(np.asarray(draft), dims="node")
-                so_slice = so_slice.interp({zdim: draft_arr}, method="nearest")
-            else:
-                so_slice = so_slice.isel({zdim: 0})
-
-        mx = xr.DataArray(np.asarray(mesh_x), dims="node")
-        my = xr.DataArray(np.asarray(mesh_y), dims="node")
-
-        xdim = [d for d in so_slice.dims if d.lower() == "x"]
-        ydim = [d for d in so_slice.dims if d.lower() == "y"]
-        if xdim and ydim:
-            vals = so_slice.interp({xdim[0]: mx, ydim[0]: my}, method="nearest")
-        else:
+    def get_salinity(self, year, mesh_x, mesh_y, draft=None, fill=34.5):
+        r"""Ambient salinity at ice draft depth on mesh points [PSU]."""
+        vals = self._lookup("so", year, mesh_x, mesh_y, draft, nan_fill=fill)
+        if vals is None:
             return np.full(len(mesh_x), fill)
-
-        return np.nan_to_num(vals.values.flatten(), nan=fill)
+        return vals
 
     def close(self):
         for ds in self._ds_cache.values():
             ds.close()
         self._ds_cache.clear()
+        self._interp_cache.clear()
 
 
 class ISMIP7Fracture:
@@ -414,12 +500,26 @@ class ISMIP7Fracture:
         if fdir is None or not os.path.isdir(fdir):
             return self
 
-        for fn in os.listdir(fdir):
-            path = os.path.join(fdir, fn)
-            if "collapse_mask" in fn:
-                self._collapse_mask = xr.open_dataset(path)
-            elif "excess_melt" in fn:
-                self._excess_melt = xr.open_dataset(path)
+        # Masks may sit flat in fracture/ (legacy mirror) or inside a
+        # versioned fracture/v<N>/ subdir (the share's layout); the highest
+        # version wins when both are present.
+        scan_dirs = [fdir] + [
+            os.path.join(fdir, name) for _, name in _version_subdirs(fdir)
+        ]
+        found = {}
+        for d in scan_dirs:
+            for fn in sorted(os.listdir(d)):
+                path = os.path.join(d, fn)
+                if not os.path.isfile(path):
+                    continue
+                if "collapse_mask" in fn:
+                    found["collapse_mask"] = path
+                elif "excess_melt" in fn:
+                    found["excess_melt"] = path
+        if "collapse_mask" in found:
+            self._collapse_mask = xr.open_dataset(found["collapse_mask"])
+        if "excess_melt" in found:
+            self._excess_melt = xr.open_dataset(found["excess_melt"])
 
         return self
 
@@ -503,14 +603,21 @@ def load_K_per_basin(npz_path, mesh_x, mesh_y, fill=0.0):
     bids = np.asarray(data["basin_ids"]).astype(int)
     Kbas = np.asarray(data["K_basin"]).astype(float)
 
-    imbie2 = os.path.join(
-        os.environ.get("ISMIP7_DATA_ROOT",
-                       os.path.join(os.path.dirname(
-                           os.path.dirname(os.path.abspath(__file__))),
-                           "ISMIP7", "AIS")),
-        "parameterisations", "ocean", "imbie2",
-        "basin_numbers_ismip8km_v2.nc",
+    root = os.environ.get(
+        "ISMIP7_DATA_ROOT",
+        os.path.join(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))), "ISMIP7", "AIS"),
     )
+    # v2 (calibration-era) first; the v3 release from the reorganized share
+    # carries an IDENTICAL basinNumber field (verified Jul 2026), so it is a
+    # safe fallback for fresh clones that only ran the new downloader.
+    candidates = [
+        os.path.join(root, "parameterisations", "ocean", "imbie2",
+                     "basin_numbers_ismip8km_v2.nc"),
+        os.path.join(root, "obs", "ocean", "IMBIE-basins", "v3",
+                     "IMBIE-basins_AIS_obs_ocean_v3.nc"),
+    ]
+    imbie2 = next((p for p in candidates if os.path.exists(p)), candidates[0])
     ds = xr.open_dataset(imbie2)
     xa = ds["x"].values; ya = ds["y"].values
     bn = ds["basinNumber"].values
@@ -551,8 +658,108 @@ def compute_sin_alpha(ctx):
     return gmag / np.sqrt(1.0 + gmag * gmag)
 
 
+def _oi_climatology_path(root, var, version):
+    r"""Path of one OI-climatology variable for a given release.
+
+    `30_sep` is the 2025-09-30 release under meltMIP/ (the one the
+    per-basin K was calibrated against — the default for that reason);
+    `06_nov` is the 2026 re-release (1972-2024) mirrored from the
+    reorganized GHub share under obs/ocean/climatology/.
+    """
+    if version == "30_sep":
+        return os.path.join(
+            root, "meltMIP", f"OI_Climatology_ismip8km_60m_{var}_extrap.nc"
+        )
+    return os.path.join(
+        root, "obs", "ocean", "climatology", f"zhou_annual_{version}",
+        var, "v3",
+        f"{var}_AIS_obs_ocean_climatology_zhou_annual_{version}_v3_1972-2024.nc",
+    )
+
+
+def build_oi_climatology_interpolators(data_root=None, version=None):
+    r"""Load the OI climatology TF and so into (z, y, x)
+    RegularGridInterpolators (nearest, fill 0). Shared by the CTRL and any
+    observationally-forced run (OCX). ISMIP7_OI_VERSION selects the
+    release (default 30_sep, matching the per-basin K calibration;
+    switching to 06_nov without recalibrating K shifts the melt)."""
+    import xarray as xr
+    from scipy.interpolate import RegularGridInterpolator
+
+    root = _find_ismip7_data(data_root)
+    version = version or os.environ.get("ISMIP7_OI_VERSION", "30_sep")
+    interps = {}
+    for var in ("tf", "so"):
+        path = _oi_climatology_path(root, var, version)
+        ds = xr.open_dataset(path)
+        if var not in ds.data_vars:
+            found = [v for v in ds.data_vars
+                     if not v.endswith("_bnds") and v.lower() != "crs"]
+            ds.close()
+            raise KeyError(
+                f"{path} has no '{var}' variable (found {found}). Known "
+                f"upstream packaging bug (Jul 2026): the 06_nov release "
+                f"ships the tf field inside the so/thetao files. Use "
+                f"ISMIP7_OI_VERSION=30_sep until it is fixed."
+            )
+        da = ds[var]
+        zdim = [d for d in da.dims if d.lower() in ("z", "depth", "lev")][0]
+        za = ds[zdim].values
+        ya = ds["y"].values
+        xa = ds["x"].values
+        data = da.transpose(zdim, "y", "x").values.astype(np.float32)
+        if za[0] > za[-1]:
+            za = za[::-1]; data = data[::-1, :, :]
+        if ya[0] > ya[-1]:
+            ya = ya[::-1]; data = data[:, ::-1, :]
+        if xa[0] > xa[-1]:
+            xa = xa[::-1]; data = data[:, :, ::-1]
+        data = np.nan_to_num(data, nan=0.0)
+        interps[var] = (
+            RegularGridInterpolator(
+                (za, ya, xa), data,
+                method="nearest", bounds_error=False, fill_value=0.0,
+            ),
+            za,
+        )
+        ds.close()
+    return interps
+
+
+def make_climatology_ocean_callback(K_field, data_root=None):
+    r"""Ocean-melt callback with CONSTANT OI-climatology TF/so and evolving
+    geometry: the CTRL2015 / observationally-constrained ocean forcing.
+    K_field is a scalar or per-node array (calibrated per-basin K)."""
+    interps = build_oi_climatology_interpolators(data_root)
+
+    def callback(ctx, t_yr):
+        mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
+        mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
+        h = ctx["h"].dat.data_ro
+        b = ctx["b"].dat.data_ro
+        s = ctx["s"].dat.data_ro
+        draft = np.minimum(s - h, 0.0)
+
+        tf_interp, za_tf = interps["tf"]
+        so_interp, za_so = interps["so"]
+        d_tf = np.clip(draft, za_tf[0], za_tf[-1])
+        d_so = np.clip(draft, za_so[0], za_so[-1])
+        tf = tf_interp(np.column_stack([d_tf, mesh_y, mesh_x]))
+        sal = so_interp(np.column_stack([d_so, mesh_y, mesh_x]))
+        sin_a = compute_sin_alpha(ctx)
+
+        melt = quadratic_mixed_slope(tf, sal, sin_a, K=K_field)
+
+        haf = s - (b + (_RHO_WATER / _RHO_ICE) * np.maximum(-b, 0.0))
+        floating = haf <= 0
+        ctx["ocean_melt"].dat.data[:] = np.where(floating, melt, 0.0)
+
+    return callback
+
+
 def make_forcing_callback(atm=None, ocean=None, fracture=None,
-                          K=_K_DEFAULT, K_per_basin_npz=None):
+                          K=_K_DEFAULT, K_per_basin_npz=None,
+                          smb_anomaly=True, smb_baseline=None):
     r"""Build a forcing callback for use with simulation.run_simulation().
 
     Ocean melt uses the ISMIP7 Burgard quadratic_mixed_slope formula
@@ -564,15 +771,30 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
       - left at default while `K_per_basin_npz` points to the output of
         `calibrate_melt.py`; the per-basin K is then looked up on the mesh
         on first call and reused for subsequent steps.
+
+    smb_anomaly selects between `acabf-anomaly` (True) and the full
+    `acabf` field (False). The anomaly files are referenced to the ESM's
+    1960-1989 climatology, so anomaly-only SMB is NOT a usable total:
+    either pass `smb_baseline` (a per-node array added to the anomaly
+    every step — e.g. RACMO climatology minus the anomaly's mean over
+    the control reference window) or set smb_anomaly=False to force
+    with the full field.
+
+    ISMIP7_K_SCALE multiplies whichever K is in effect (the calibrated
+    per-basin K integrates 689 vs 865 Gt/yr observed on the 2500 m mesh,
+    so 1.26 matches the observed total).
     """
     K_field_cache = {"arr": None}
+    K_scale = float(os.environ.get("ISMIP7_K_SCALE", "1.0"))
 
     def callback(ctx, t_yr):
         mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
         mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
 
         if atm is not None:
-            smb = atm.get_smb(t_yr, mesh_x, mesh_y, anomaly=True)
+            smb = atm.get_smb(t_yr, mesh_x, mesh_y, anomaly=smb_anomaly)
+            if smb_baseline is not None:
+                smb = smb + smb_baseline
             ctx["accum"].dat.data[:] = smb
 
         if ocean is not None and "ocean_melt" in ctx:
@@ -596,7 +818,7 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
             else:
                 K_use = K
 
-            melt = quadratic_mixed_slope(tf, sal, sin_alpha, K=K_use)
+            melt = quadratic_mixed_slope(tf, sal, sin_alpha, K=K_use * K_scale)
 
             # Only apply melt where ice is floating (haf <= 0)
             haf = s - (b + (_RHO_WATER / _RHO_ICE) * np.maximum(-b, 0.0))

@@ -87,60 +87,29 @@ class CoupledModel:
         if self.ocean is None:
             return
 
-        mesh_x = self.ice_ctx["mesh"].coordinates.dat.data_ro[:, 0]
-        mesh_y = self.ice_ctx["mesh"].coordinates.dat.data_ro[:, 1]
-
+        plume_mesh = self.plume.ice_draft.function_space().mesh()
+        mesh_x = plume_mesh.coordinates.dat.data_ro[:, 0]
+        mesh_y = plume_mesh.coordinates.dat.data_ro[:, 1]
         draft = self.plume.ice_draft.dat.data_ro
-        tf = self.ocean.get_thermal_forcing(year, mesh_x, mesh_y, draft=draft)
 
-        # TF = T - T_f, so T_ambient ≈ T_f + TF
         # For the plume model we need absolute T and S, not just TF.
-        # Use the ISMIP7 thetao and so fields directly if available.
-        # Fallback: approximate from TF assuming T_f ≈ -1.9°C at surface
-        from icepack2_tools.forcing import ISMIP7Ocean
-        if hasattr(self.ocean, '_load_variable'):
-            ds_thetao = self.ocean._load_variable("thetao")
-            ds_so = self.ocean._load_variable("so")
-            if ds_thetao is not None and ds_so is not None:
-                import xarray as xr
-                times = ds_thetao["time"].values
-                if hasattr(times[0], "year"):
-                    yr = int(round(year))
-                    idx = min(range(len(times)),
-                              key=lambda i: abs(times[i].year - yr))
-                else:
-                    idx = 0
-
-                thetao_var = [v for v in ds_thetao.data_vars
-                              if v.lower() in ("thetao",)][0]
-                so_var = [v for v in ds_so.data_vars
-                          if v.lower() in ("so",)][0]
-
-                thetao = ds_thetao[thetao_var].isel(time=idx)
-                so = ds_so[so_var].isel(time=idx)
-
-                # Interpolate to mesh at draft depth
-                mx = xr.DataArray(np.asarray(mesh_x), dims="node")
-                my = xr.DataArray(np.asarray(mesh_y), dims="node")
-                draft_arr = xr.DataArray(np.asarray(draft), dims="node")
-
-                zdim = [d for d in thetao.dims if d.lower() == "z"][0]
-                t_at_draft = thetao.interp(
-                    {zdim: draft_arr}, method="nearest"
-                ).interp(x=mx, y=my, method="nearest")
-                s_at_draft = so.interp(
-                    {zdim: draft_arr}, method="nearest"
-                ).interp(x=mx, y=my, method="nearest")
-
-                self.plume.ambient_temperature.dat.data[:] = np.nan_to_num(
-                    t_at_draft.values.flatten(), nan=-1.9
-                )
-                self.plume.ambient_salinity.dat.data[:] = np.nan_to_num(
-                    s_at_draft.values.flatten(), nan=34.5
-                )
+        # Use the ISMIP7 thetao and so fields directly if available, via
+        # the same cached in-memory interpolators as get_thermal_forcing.
+        # Fallback: approximate from TF assuming T_f ~ -1.9 C at surface.
+        if hasattr(self.ocean, "_lookup"):
+            t_amb = self.ocean._lookup(
+                "thetao", year, mesh_x, mesh_y, draft=draft, nan_fill=-1.9
+            )
+            s_amb = self.ocean._lookup(
+                "so", year, mesh_x, mesh_y, draft=draft, nan_fill=34.5
+            )
+            if t_amb is not None and s_amb is not None:
+                self.plume.ambient_temperature.dat.data[:] = t_amb
+                self.plume.ambient_salinity.dat.data[:] = s_amb
                 return
 
         # Fallback: estimate T from TF
+        tf = self.ocean.get_thermal_forcing(year, mesh_x, mesh_y, draft=draft)
         self.plume.ambient_temperature.dat.data[:] = tf - 1.9
         self.plume.ambient_salinity.dat.data[:] = 34.5
 

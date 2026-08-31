@@ -37,7 +37,7 @@ sys.path.insert(0, _PROJECT)
 import firedrake as fd
 from firedrake import (
     Function, FunctionSpace, VectorFunctionSpace, CheckpointFile,
-    assemble, dx, Constant, max_value,
+    assemble, dx,
 )
 from firedrake.petsc import PETSc
 
@@ -203,13 +203,6 @@ def main():
     PETSc.Sys.Print(f"  BedMachine: h min={h_np.min():.1f}  med={np.median(h_np):.1f}  "
                     f"max={h_np.max():.1f}; mask: floating(=3) "
                     f"{(np.round(mask_np)==3).sum()} nodes")
-
-    h_geom = Function(Q, name="h_geom").interpolate(
-        max_value(thk, Constant(0.0))
-    )
-    s_geom = Function(Q, name="s_geom").interpolate(
-        max_value(sur, bed + Constant(1.0) - Constant(917.0/1028.0))
-    )
 
     mesh_x = mesh.coordinates.dat.data_ro[:, 0]
     mesh_y = mesh.coordinates.dat.data_ro[:, 1]

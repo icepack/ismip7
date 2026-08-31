@@ -7,7 +7,7 @@ Ice sheet simulations for [ISMIP7](https://www.ismip6.org/ismip7/) using
 
 ```
 ismip7/
-├── icepack2_tools/         # Reusable utilities (eikonal, grounding zone, plotting)
+├── icepack2_tools/         # Reusable utilities (mesh, forcing, regrid, eikonal, grounding zone)
 ├── antarctica/             # Antarctic continent simulations
 │   ├── scripts/            # Pipeline scripts
 │   ├── data/               # Downloaded datasets (see data/README.md)

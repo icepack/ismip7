@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 r"""ISMIP7 Core Experiments 9/10: CTRL2015 -- constant 2015 climate.
 
-Atmosphere: 2000-2029 SMB climatology held fixed.
+Atmosphere: RACMO2.4p1 2000-2029 SMB climatology held fixed (falls back
+            to the pooled ISMIP7 acabf climatology if RACMO is absent).
 Ocean:      OI climatology TF + so held fixed; melt is recomputed each
             step from the evolving geometry using the Burgard quadratic-
             mixed-slope formula with per-basin calibrated K (see
@@ -25,10 +26,11 @@ _PROJECT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 sys.path.insert(0, _PROJECT)
 
 from firedrake import assemble, dx, Constant
-from simulation import setup_model, run_simulation, PETSc, lc
+from simulation import setup_model, run_simulation, latest_checkpoint, PETSc, lc
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere,
     load_racmo_smb_climatology,
+    make_climatology_ocean_callback,
     compute_sin_alpha,
     quadratic_mixed_slope,
     load_K_per_basin,
@@ -41,18 +43,30 @@ DT = float(os.environ.get("ISMIP7_DT", "1.0"))
 OUTPUT_INTERVAL = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "10"))
 
 ESM = os.environ.get("ISMIP7_ESM", "CESM2-WACCM")
-CLIM_START = 2000
-CLIM_END = 2029
+# Reference-climate window for the constant SMB. RACMO2.4p1 (1979-2023)
+# is the primary baseline, so 2000-2029 yields its 2000-2023 mean. The
+# acabf fallback pools historical + projection scenarios and uses
+# whatever subset of the window exists locally (currently ssp585
+# 2015-2029 only; the acabf-anomaly files are referenced to 1960-1989 so
+# an anomaly-based baseline is NOT constructible).
+CLIM_START = int(os.environ.get("ISMIP7_CLIM_START", "2000"))
+CLIM_END = int(os.environ.get("ISMIP7_CLIM_END", "2029"))
+CLIM_SCENARIO = os.environ.get("ISMIP7_CLIM_SCENARIO", "ssp585")
 
 DATA_ROOT = os.environ.get(
     "ISMIP7_DATA_ROOT", os.path.join(_PROJECT, "ISMIP7", "AIS")
 )
 CLIM_TF = os.path.join(DATA_ROOT, "meltMIP", "OI_Climatology_ismip8km_60m_tf_extrap.nc")
 CLIM_SO = os.path.join(DATA_ROOT, "meltMIP", "OI_Climatology_ismip8km_60m_so_extrap.nc")
+# Per-basin K: prefer this mesh's calibration, else the 2500 m one (16
+# basin scalars remapped through the IMBIE2 8 km grid — mesh-independent).
+_K_LC_NPZ = os.path.join(_PROJECT, "antarctica", "results",
+                         f"calibrated_K_per_basin_{lc}.npz")
+_K_2500_NPZ = os.path.join(_PROJECT, "antarctica", "results",
+                           "calibrated_K_per_basin_2500.npz")
 K_NPZ = os.environ.get(
     "ISMIP7_K_PER_BASIN_NPZ",
-    os.path.join(_PROJECT, "antarctica", "results",
-                 f"calibrated_K_per_basin_{lc}.npz"),
+    _K_LC_NPZ if os.path.exists(_K_LC_NPZ) else _K_2500_NPZ,
 )
 
 
@@ -61,88 +75,37 @@ def area_weighted_mean(field, mesh):
     return assemble(field * dx) / assemble(Constant(1.0) * dx(domain=mesh))
 
 
-def compute_climatology(atm, mesh_x, mesh_y):
-    r"""Compute 2000-2029 mean SMB from available acabf files."""
-    years = atm.available_years("acabf")
-    clim_years = [y for y in years if CLIM_START <= y <= CLIM_END]
+def compute_climatology(atms, mesh_x, mesh_y):
+    r"""Mean full-field (acabf) SMB over [CLIM_START, CLIM_END], pooling
+    years across the given atmospheres (historical + projection scenario).
 
-    if not clim_years:
-        PETSc.Sys.Print(f"  No acabf data for {CLIM_START}-{CLIM_END}")
-        years_anom = atm.available_years("acabf-anomaly")
-        clim_years_anom = [y for y in years_anom if CLIM_START <= y <= CLIM_END]
-        if clim_years_anom:
-            PETSc.Sys.Print(f"  Using acabf-anomaly mean over {clim_years_anom[0]}-{clim_years_anom[-1]}")
-            smb_sum = np.zeros(len(mesh_x))
-            for yr in clim_years_anom:
-                smb_sum += atm.get_smb(yr, mesh_x, mesh_y, anomaly=True)
-            return smb_sum / len(clim_years_anom)
-        return None
-
-    PETSc.Sys.Print(f"  Computing {CLIM_START}-{CLIM_END} climatology from {len(clim_years)} years")
+    Full field only: a mean of `acabf-anomaly` is an anomaly wrt the ESM's
+    1960-1989 climatology, not a baseline, so no anomaly fallback exists.
+    """
     smb_sum = np.zeros(len(mesh_x))
-    for yr in clim_years:
-        smb_sum += atm.get_smb(yr, mesh_x, mesh_y, anomaly=False)
-    return smb_sum / len(clim_years)
-
-
-def _build_climatology_interpolators():
-    r"""Load OI climatology TF and so into RegularGridInterpolator (z, y, x)."""
-    interps = {}
-    for path, var in [(CLIM_TF, "tf"), (CLIM_SO, "so")]:
-        ds = xr.open_dataset(path)
-        da = ds[var]
-        zdim = [d for d in da.dims if d.lower() in ("z", "depth", "lev")][0]
-        za = ds[zdim].values
-        ya = ds["y"].values
-        xa = ds["x"].values
-        data = da.transpose(zdim, "y", "x").values.astype(np.float32)
-        if za[0] > za[-1]:
-            za = za[::-1]; data = data[::-1, :, :]
-        if ya[0] > ya[-1]:
-            ya = ya[::-1]; data = data[:, ::-1, :]
-        if xa[0] > xa[-1]:
-            xa = xa[::-1]; data = data[:, :, ::-1]
-        data = np.nan_to_num(data, nan=0.0)
-        interps[var] = (
-            RegularGridInterpolator(
-                (za, ya, xa), data,
-                method="nearest", bounds_error=False, fill_value=0.0,
-            ),
-            za,
-        )
-        ds.close()
-    return interps
+    n = 0
+    for atm in atms:
+        years = [y for y in atm.available_years("acabf")
+                 if CLIM_START <= y <= CLIM_END]
+        for yr in years:
+            smb_sum += atm.get_smb(yr, mesh_x, mesh_y, anomaly=False)
+        n += len(years)
+        if years:
+            PETSc.Sys.Print(
+                f"  {atm.scenario}: {len(years)} acabf years "
+                f"({years[0]}-{years[-1]}) in climatology window"
+            )
+    if n == 0:
+        return None
+    return smb_sum / n
 
 
 def make_ctrl_ocean_callback(K_field):
-    r"""Build a CTRL2015 ocean-melt callback: constant climatology TF/so,
-    evolving geometry, per-node K from calibration."""
+    r"""CTRL2015 ocean melt: constant OI-climatology TF/so, evolving
+    geometry, per-node calibrated K (shared implementation in
+    icepack2_tools.forcing)."""
     PETSc.Sys.Print("  Building OI-climatology interpolators...")
-    interps = _build_climatology_interpolators()
-
-    def callback(ctx, t_yr):
-        mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
-        mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
-        h = ctx["h"].dat.data_ro
-        b = ctx["b"].dat.data_ro
-        s = ctx["s"].dat.data_ro
-        draft = np.minimum(s - h, 0.0)
-
-        tf_interp, za_tf = interps["tf"]
-        so_interp, za_so = interps["so"]
-        d_tf = np.clip(draft, za_tf[0], za_tf[-1])
-        d_so = np.clip(draft, za_so[0], za_so[-1])
-        tf = tf_interp(np.column_stack([d_tf, mesh_y, mesh_x]))
-        sal = so_interp(np.column_stack([d_so, mesh_y, mesh_x]))
-        sin_a = compute_sin_alpha(ctx)
-
-        melt = quadratic_mixed_slope(tf, sal, sin_a, K=K_field)
-
-        haf = s - (b + (_RHO_WATER / _RHO_ICE) * np.maximum(-b, 0.0))
-        floating = haf <= 0
-        ctx["ocean_melt"].dat.data[:] = np.where(floating, melt, 0.0)
-
-    return callback
+    return make_climatology_ocean_callback(K_field)
 
 
 def make_synthetic_ocean_callback(tf_max=1.5, depth_ref=1000.0, K=_K_DEFAULT):
@@ -185,18 +148,41 @@ def main():
                         help="route SNES monitor output to this file (default: stdout)")
     parser.add_argument("--restart", default=os.environ.get("ISMIP7_RESTART"),
                         help="restart from a checkpoint .h5 (default: cold start)")
+    parser.add_argument("--tag", default=os.environ.get("ISMIP7_RUN_TAG", ""),
+                        help="suffix on experiment_name so output files are distinct")
+    parser.add_argument("--checkpoint-interval", type=int,
+                        default=int(os.environ.get("ISMIP7_CHECKPOINT_INTERVAL", "100")),
+                        help="save a thickness+velocity checkpoint every N steps")
     args, _ = parser.parse_known_args()
     if args.snes_monitor or args.snes_log:
         os.environ["ISMIP7_SNES_MONITOR"] = "1"
     if args.snes_log:
         os.environ["ISMIP7_SNES_LOG"] = args.snes_log
 
-    ctx = setup_model(restart_from=args.restart)
+    esm_tag = ESM.lower().replace("-", "_")
+    # --tag lands in experiment_name BEFORE the auto-resume lookup so a tagged
+    # run resumes its own checkpoints, not the untagged experiment's.
+    experiment_name = f"ctrl2015_{esm_tag}" + (f"_{args.tag}" if args.tag else "")
+
+    # Unattended auto-resume (ISMIP7_AUTO_RESUME=1): with no explicit restart,
+    # continue from the newest self-contained checkpoint for this experiment.
+    # A rebooted long run picks up where it left off; the mesh + frozen anchors
+    # + timeline year all come from that checkpoint.
+    restart_from = args.restart
+    if restart_from is None and os.environ.get("ISMIP7_AUTO_RESUME"):
+        restart_from = latest_checkpoint(experiment_name)
+        PETSc.Sys.Print(
+            f"Auto-resume: {restart_from}" if restart_from
+            else "Auto-resume: no prior checkpoint; cold start"
+        )
+
+    ctx = setup_model(restart_from=restart_from)
 
     mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
     mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
 
-    # Atmosphere: RACMO climatology baseline (ISMIP7 acabf fallback)
+    # Atmosphere: RACMO climatology baseline; fall back to the pooled ISMIP7
+    # acabf full-field climatology; refuse to run zero-SMB unless forced.
     try:
         ctx["accum"].assign(
             load_racmo_smb_climatology(ctx["Q"], CLIM_START, CLIM_END)
@@ -208,15 +194,28 @@ def main():
         )
     except FileNotFoundError:
         PETSc.Sys.Print("  No RACMO data; falling back to ISMIP7 acabf climatology")
-        atm = ISMIP7Atmosphere(esm=ESM, scenario="historical")
-        clim_smb = compute_climatology(atm, mesh_x, mesh_y)
-        if clim_smb is not None:
+        atms = [
+            ISMIP7Atmosphere(esm=ESM, scenario="historical"),
+            ISMIP7Atmosphere(esm=ESM, scenario=CLIM_SCENARIO),
+        ]
+        clim_smb = compute_climatology(atms, mesh_x, mesh_y)
+        if clim_smb is None:
+            if os.environ.get("ISMIP7_ALLOW_ZERO_SMB"):
+                PETSc.Sys.Print("  WARNING: no climatology data, using zero SMB")
+                ctx["accum"].assign(0.0)
+            else:
+                raise FileNotFoundError(
+                    f"No RACMO SMB and no acabf data for {ESM} in "
+                    f"{CLIM_START}-{CLIM_END} (historical or {CLIM_SCENARIO}). "
+                    f"A zero-SMB control is almost certainly not what you "
+                    f"want; set ISMIP7_ALLOW_ZERO_SMB=1 to force it."
+                )
+        else:
             ctx["accum"].dat.data[:] = clim_smb
             mean_smb = area_weighted_mean(ctx["accum"], ctx["mesh"])
-            PETSc.Sys.Print(f"  Climatological SMB: area-weighted mean={mean_smb:.4f} m/yr")
-        else:
-            PETSc.Sys.Print("  WARNING: no climatology data, using zero SMB")
-            ctx["accum"].assign(0.0)
+            PETSc.Sys.Print(
+                f"  Climatological SMB: area-weighted mean={mean_smb:.4f} m/yr"
+            )
 
     # Ocean melt: synthetic stopgap (no data) or the real per-basin path.
     if os.environ.get("ISMIP7_SYNTHETIC_MELT"):
@@ -233,6 +232,10 @@ def main():
             )
         PETSc.Sys.Print(f"  Loading per-basin K from: {K_NPZ}")
         K_field = load_K_per_basin(K_NPZ, mesh_x, mesh_y, fill=0.0)
+        K_scale = float(os.environ.get("ISMIP7_K_SCALE", "1.0"))
+        if K_scale != 1.0:
+            K_field = K_field * K_scale
+            PETSc.Sys.Print(f"  K scaled by ISMIP7_K_SCALE={K_scale:.3f}")
         PETSc.Sys.Print(
             f"  K field: nonzero={int((K_field>0).sum())}/{len(K_field)}  "
             f"med={np.median(K_field[K_field>0]) if (K_field>0).any() else 0:.2e}"
@@ -244,14 +247,14 @@ def main():
     PETSc.Sys.Print(f"  Constant {CLIM_START}-{CLIM_END} SMB climatology")
     PETSc.Sys.Print(f"  Constant OI ocean climatology + per-basin K")
 
-    esm_tag = ESM.lower().replace("-", "_")
     run_simulation(
         ctx,
-        experiment_name=f"ctrl2015_{esm_tag}",
+        experiment_name=experiment_name,
         t_start=T_START,
         t_end=T_END,
         dt=DT,
         output_interval=OUTPUT_INTERVAL,
+        checkpoint_interval=args.checkpoint_interval,
         forcing_callback=callback,
     )
 
