@@ -98,8 +98,10 @@ There are **two distinct things** here:
 ```bash
 cd antarctica
 
-# one-time: authenticate (opens a Globus URL, paste back the auth code).
-# Token is cached at ~/.ismip7_globus_tokens.json (chmod 600).
+# one-time: authenticate through the Globus CLI. On a remote Quartz session it
+# prints a URL; open it in your browser and paste the resulting code back.
+# The CLI caches credentials under ~/.globus/cli/.
+python -m pip install --user globus-cli   # if `globus` is not installed
 python scripts/download_forcing.py --login
 
 # browse the legacy climatology subtree to sanity-check paths

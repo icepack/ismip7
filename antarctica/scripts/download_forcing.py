@@ -12,7 +12,12 @@ Usage:
     python scripts/download_forcing.py
 """
 
-import os, sys, json, argparse
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 # Downloads land directly in the runtime tree that icepack2_tools/forcing.py
@@ -211,43 +216,28 @@ def get_globus_client():
 
 
 def do_login():
-    r"""Globus native-app auth flow, storing a REFRESH token so this is a
-    one-time step per machine."""
-    import globus_sdk
+    r"""Authenticate with the official Globus CLI and reuse its token store.
 
-    CLIENT_ID = "c9e8acfa-6c6d-4e68-aa6c-0ee4a12c4e2a"
-    client = globus_sdk.NativeAppAuthClient(CLIENT_ID)
-    client.oauth2_start_flow(
-        requested_scopes=[
-            "urn:globus:auth:scope:transfer.api.globus.org:all",
-        ],
-        refresh_tokens=True,
-    )
+    The previous implementation embedded a native-app client ID that is no
+    longer valid. The CLI owns a current registered client and supports the
+    copy/paste flow needed from a headless Quartz login node. The rest of this
+    downloader already knows how to read the CLI's transfer token store.
+    """
+    globus = shutil.which("globus")
+    if globus is None:
+        raise RuntimeError(
+            "Globus CLI not found. Install it with "
+            "python -m pip install --user globus-cli, then rerun this command."
+        )
 
-    authorize_url = client.oauth2_get_authorize_url()
-    print(f"\nPlease visit this URL to authenticate:")
-    print(f"  {authorize_url}")
-    print()
-    auth_code = input("Enter the authorization code: ").strip()
-
-    token_response = client.oauth2_exchange_code_for_tokens(auth_code)
-    transfer_tokens = token_response.by_resource_server["transfer.api.globus.org"]
-
-    token_file = Path.home() / ".ismip7_globus_tokens.json"
-    token_file.write_text(json.dumps({
-        "client_id": CLIENT_ID,
-        "refresh_token": transfer_tokens["refresh_token"],
-        "transfer_access_token": transfer_tokens["access_token"],
-    }))
-    token_file.chmod(0o600)
-    print("  Tokens saved (refresh token: no more logins needed).")
-
-    authorizer = globus_sdk.RefreshTokenAuthorizer(
-        transfer_tokens["refresh_token"], client,
-        access_token=transfer_tokens["access_token"],
-        expires_at=transfer_tokens["expires_at_seconds"],
-    )
-    return globus_sdk.TransferClient(authorizer=authorizer)
+    subprocess.run([globus, "login", "--no-local-server"], check=True)
+    client = _client_from_cli_storage()
+    if client is None:
+        raise RuntimeError(
+            "Globus CLI login completed, but its token store could not be "
+            "read. Check ~/.globus/cli/storage.db and rerun the login."
+        )
+    return client
 
 
 def get_local_endpoint():
@@ -340,10 +330,10 @@ def download_file_set(tc, file_set, dry_run=False):
         print(f"  Monitor: https://app.globus.org/activity/{task_id}")
         return task_id
 
-    print(f"\n  No local Globus endpoint found. Either:")
-    print(f"  1. Install/start Globus Connect Personal, or")
-    print(f"  2. Set GLOBUS_LOCAL_ENDPOINT=<endpoint-id>, or")
-    print(f"  3. Transfer by hand in the Globus web app from:")
+    print("\n  No local Globus endpoint found. Either:")
+    print("  1. Install/start Globus Connect Personal, or")
+    print("  2. Set GLOBUS_LOCAL_ENDPOINT=<endpoint-id>, or")
+    print("  3. Transfer by hand in the Globus web app from:")
     print(f"     {file_set['remote_dir']}")
 
 
