@@ -18,6 +18,7 @@ INV_LC ?= 2500
 INV_LC_COARSE ?= 25000
 FRICTION ?= budd
 N_FLOW ?= 3.0
+LINEAR_SOLVER ?= iterative
 ifeq ($(N_FLOW),4)
 A4_FACTOR ?= 10.0
 else ifeq ($(N_FLOW),4.0)
@@ -98,11 +99,11 @@ transient:
 	  bndids=$(CURDIR)/mesh/boundary_ids_antarctica_$${lcc}_$${lc}_buffered$(BUFFER).json; \
 	  if command -v sbatch >/dev/null 2>&1; then \
 	    sbatch --job-name=timing_$${lc}_$${lcc}_$${nc} --ntasks-per-node=$$nc \
-	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK),ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_T_END=2020,ISMIP7_DT=1.0 \
+	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK),ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_LINEAR_SOLVER=$(LINEAR_SOLVER),ISMIP7_T_END=2020,ISMIP7_DT=1.0 \
 	      scripts/batch_runners/timing_transient.script; \
 	  else \
 	    ISMIP7_LC=$$lc ISMIP7_LC_COARSE=$$lcc ISMIP7_BUFFER_M=$(BUFFER) ISMIP7_MESH=$$mesh ISMIP7_BNDIDS=$$bndids ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK) \
-	      ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) ISMIP7_T_END=2020 ISMIP7_DT=1.0 \
+	      ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) ISMIP7_LINEAR_SOLVER=$(LINEAR_SOLVER) ISMIP7_T_END=2020 ISMIP7_DT=1.0 \
 	      mpiexec -n $$nc python scripts/run_timing.py; \
 	  fi; \
 	done; done; done

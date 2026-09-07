@@ -500,6 +500,8 @@ how it reaches the core report.
 | `ISMIP7_FIXED_FRONT` | set to hold the calving front at the t=0 extent (inflow beyond it tallied as calving) | _(unset)_ |
 | `ISMIP7_LEGACY_TRANSPORT` | set to restore the pre-Jul-2026 CG-projection transport scheme (requires `ISMIP7_GEOMETRY_SPACE=cg1`) | _(unset)_ |
 | `ISMIP7_SNES_TYPE` / `ISMIP7_SNES_MAXIT` | diagnostic Newton type / max iterations | `newtonls` / `200` |
+| `ISMIP7_LINEAR_SOLVER` | diagnostic linear solver: Schur field split that eliminates DG0 stress/traction and applies GAMG to the condensed velocity operator; `direct` restores LU/MUMPS | `iterative` |
+| `ISMIP7_KSP_RTOL` / `ISMIP7_KSP_MAXIT` | outer FGMRES relative tolerance / iteration limit for the iterative diagnostic solver | `1e-6` / `200` |
 | `ISMIP7_K_MELT` | scalar Burgard K (projections) | `1.15e-4` (Burgard K50) |
 | `ISMIP7_K_PER_BASIN_NPZ` | per-basin K file (control) | `results/calibrated_K_per_basin_<lc>.npz` |
 | `ISMIP7_ESM` | ESM for control (`CESM2-WACCM`, `MRI-ESM2-0`) | `CESM2-WACCM` |
@@ -541,7 +543,10 @@ The pipeline has five idempotent stages (each skips work already done):
    (`2015`–`2020`, `dt=1.0`), zero SMB/melt forcing. Every resolution
    loads its own mesh via `ISMIP7_MESH` and warm-starts θ/φ and the physical
    prior from the single inversion via cross-mesh interpolation
-   (`ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5`).
+   (`ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5`). The default
+   iterative solve statically eliminates the cell-wise stress and traction
+   fields and applies GAMG to the condensed velocity operator; use
+   `make transient LINEAR_SOLVER=direct` for the former MUMPS path.
 5. **Matrix** — aggregate JSON timing records into [`TIMING_MATRIX.md`](TIMING_MATRIX.md).
 
 Individual stages can be run separately: `make meshes`, `make inversion`,
