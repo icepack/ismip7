@@ -30,5 +30,6 @@ module load firedrake/2025.10
 cd "${SLURM_SUBMIT_DIR:-.}"
 
 input="${TIMING_INV_CHK:-mesh/inversion_icepack2_budd_n3_2500.h5}"
+output="${TIMING_INV_CHK:-mesh/inversion_icepack2_budd_n3_2500_output.h5}"
 srun -n 1 python -u scripts/redistribute_checkpoint.py \
-  --input "${input}" --output "${input}"
+  --input "${input}" --output "${output}"

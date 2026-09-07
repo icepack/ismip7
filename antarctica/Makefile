@@ -46,7 +46,8 @@ else
 MAP_N_TAG := _n$(N_FLOW)
 endif
 
-INV_CHK := mesh/inversion_icepack2$(MAP_FRICTION_TAG)$(MAP_N_TAG)_$(INV_LC).h5
+INV_CHK := mesh/inversion_icepack2$(MAP_FRICTION_TAG)$(MAP_N_TAG)_$(INV_LC)_1core.h5
+INV_CHK_MC := mesh/inversion_icepack2$(MAP_FRICTION_TAG)$(MAP_N_TAG)_$(INV_LC).h5
 
 empty :=
 space := $(empty) $(empty)
@@ -71,8 +72,8 @@ meshes:
 	  done; done; \
 	fi
 
-inversion: meshes
-	@[ -f $(INV_CHK) ] && echo "skip inversion" || \
+inversion:
+	@[ -f $(INV_CHK_MC) ] && echo "skip inversion" || \
 	if command -v sbatch >/dev/null 2>&1; then \
 	  sbatch --wait --export=ALL,ISMIP7_LC=$(INV_LC),ISMIP7_LC_COARSE=$(INV_LC_COARSE),ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR) \
 	    scripts/batch_runners/timing_inversion.script; \
@@ -80,15 +81,15 @@ inversion: meshes
 	  ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) \
 	  mpiexec -n 12 python scripts/inversion_icepack2.py; fi
 
-redistribute: inversion
+redistribute:
 	@if command -v sbatch >/dev/null 2>&1; then \
-	  sbatch --wait --job-name=ant_timing_redist --export=ALL,TIMING_INV_CHK=$(INV_CHK) \
+	  sbatch --wait --job-name=ant_timing_redist --export=ALL,TIMING_INV_CHK=$(INV_CHK_MC) \
 	    scripts/batch_runners/timing_redistribute.script; \
 	else \
-	  python scripts/redistribute_checkpoint.py --input $(INV_CHK) --output $(INV_CHK); \
+	  python scripts/redistribute_checkpoint.py --input $(INV_CHK_MC) --output $(INV_CHK); \
 	fi
 
-transient: redistribute
+transient:
 	@mkdir -p results/timing
 	@for lc in $(LCS); do for r in $(RATIOS); do lcc=$$((lc * r)); for nc in $(CORES); do \
 	  out=results/timing/timing_$${lc}_$${lcc}_$${nc}.json; \
@@ -96,7 +97,7 @@ transient: redistribute
 	  mesh=$(CURDIR)/mesh/antarctica_$${lcc}_$${lc}_buffered$(BUFFER).msh; \
 	  bndids=$(CURDIR)/mesh/boundary_ids_antarctica_$${lcc}_$${lc}_buffered$(BUFFER).json; \
 	  if command -v sbatch >/dev/null 2>&1; then \
-	    sbatch --wait --job-name=timing_$${lc}_$${lcc}_$${nc} --ntasks-per-node=$$nc \
+	    sbatch --job-name=timing_$${lc}_$${lcc}_$${nc} --ntasks-per-node=$$nc \
 	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK),ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_T_END=2020,ISMIP7_DT=1.0 \
 	      scripts/batch_runners/timing_transient.script; \
 	  else \
