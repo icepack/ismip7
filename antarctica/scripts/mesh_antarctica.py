@@ -20,6 +20,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PROJECT = os.path.dirname(_ROOT)
 sys.path.insert(0, _PROJECT)
 
+from icepack2_tools.runconfig import lc as _lc, lc_coarse as _lc_coarse
 from icepack2_tools.mesh import (
     load_bedmachine_mask,
     extract_ice_outline,
@@ -40,13 +41,13 @@ def parse_args():
     parser.add_argument(
         "--lc",
         type=int,
-        default=int(os.environ.get("ISMIP7_LC", "2500")),
+        default=_lc(),
         help="Fine element size near the grounding line/calving front, in meters",
     )
     parser.add_argument(
         "--lc-coarse",
         type=int,
-        default=int(os.environ.get("ISMIP7_LC_COARSE", "64000")),
+        default=_lc_coarse(),
         help="Coarse/interior element size, in meters",
     )
     parser.add_argument(
@@ -177,7 +178,7 @@ def main():
     fn_base = os.path.join(MESH_DIR, mesh_basename(lc_coarse, lc, buffer_m))
 
     # Pass 1: raw mesh
-    print(f"\nPass 1: raw mesh...")
+    print("\nPass 1: raw mesh...")
     gmsh.initialize(sys.argv)
     gmsh.option.setNumber("General.Verbosity", 2)
     gmsh.model.add(fn_base + "_raw")

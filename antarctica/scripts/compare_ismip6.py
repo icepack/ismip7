@@ -15,10 +15,11 @@ contribution in mm SLE (positive = sea-level rise). Both CSVs come from
 run_simulation's timeseries output (vaf_mm_sle is already mm SLE on the
 standard 3.625e14 m^2 ocean).
 
-The experiment mapping is deliberately loose: our ssp585-class forcing is
-compared against the RCP8.5-class ISMIP6 experiments by default (exp01-05).
-The point is magnitude and envelope membership, not exact forcing
-equivalence - pass --exps to narrow it.
+The experiment pool is auto-selected from the projection filename's scenario
+(ssp126 -> the RCP2.6 members; ssp370/ssp585 -> the SSP5-8.5 + RCP8.5
+members, per Seroussi et al. 2020). The mapping is deliberately best-effort:
+the point is magnitude and envelope membership, not exact forcing
+equivalence - pass --exps to override the pool explicitly.
 
 Usage:
     python compare_ismip6.py <proj.csv> <ctrl.csv> [--exps exp05,exp07]
@@ -37,6 +38,37 @@ import sys
 import numpy as np
 
 OCEAN_AREA_M2 = 3.625e14  # ISMIP6 convention, matches simulation.py's 362.5e12 km^2
+
+# ISMIP6-AIS experiment -> emission-scenario grouping (Seroussi et al. 2020,
+# The Cryosphere, "ISMIP6 Antarctica projections"). These are the standard
+# core projections; the split by emission scenario gives a broad-consistency
+# envelope for our ISMIP7 scenarios. NB: verify against the protocol before
+# using for anything quantitative; override with --exps to be explicit.
+ISMIP6_POOLS = {
+    "rcp26":  ["exp03", "exp07"],                              # NorESM1-M RCP2.6
+    "rcp85":  ["exp01", "exp02", "exp04", "exp05", "exp06",    # RCP8.5 (CMIP5),
+               "exp08", "exp09", "exp10"],                     #   various ESMs/melt
+    "ssp585": ["exp11", "exp12", "exp13"],                     # SSP5-8.5 (CMIP6)
+}
+# ISMIP7 scenario -> the closest-emission ISMIP6 pool. ssp585 uses the CMIP6
+# SSP5-8.5 members (direct analog) plus the RCP8.5 tier for a fuller envelope;
+# ssp370 (no direct analog) uses the same high-emission envelope as an upper
+# reference; ssp126 uses RCP2.6.
+SCENARIO_TO_POOL = {
+    "ssp126": ISMIP6_POOLS["rcp26"],
+    "ssp370": ISMIP6_POOLS["ssp585"] + ISMIP6_POOLS["rcp85"],
+    "ssp585": ISMIP6_POOLS["ssp585"] + ISMIP6_POOLS["rcp85"],
+}
+
+
+def pool_for(proj_fn):
+    r"""(scenario, exp-list) auto-selected from the projection filename, or
+    (None, None) if no ssp* token is recognized."""
+    base = os.path.basename(proj_fn).lower()
+    for scen, pool in SCENARIO_TO_POOL.items():
+        if scen in base:
+            return scen, pool
+    return None, None
 
 
 def load_csv_vaf(fn):
@@ -102,14 +134,24 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("proj_csv")
     ap.add_argument("ctrl_csv")
-    ap.add_argument("--exps", default="exp01,exp02,exp03,exp04,exp05",
-                    help="ISMIP6 experiments to pool (RCP8.5-class default)")
+    ap.add_argument("--exps", default=None,
+                    help="ISMIP6 experiments to pool (comma list); default: "
+                         "auto-select the emission-scenario analog from the "
+                         "projection filename")
     ap.add_argument("--ismip6-dir",
                     default=os.path.expanduser("~/data/ismip6"))
     args = ap.parse_args()
 
     yrs, ours = our_slr(args.proj_csv, args.ctrl_csv)
-    exps = [e.strip() for e in args.exps.split(",") if e.strip()]
+    if args.exps:
+        exps = [e.strip() for e in args.exps.split(",") if e.strip()]
+        scen = "(explicit --exps)"
+    else:
+        scen, exps = pool_for(args.proj_csv)
+        if exps is None:
+            print(f"no ssp scenario recognized in {os.path.basename(args.proj_csv)}; "
+                  f"pass --exps to choose the ISMIP6 pool")
+            sys.exit(2)
     ens = load_ensemble(args.ismip6_dir, exps)
     if not ens:
         print(f"no ISMIP6 members found under {args.ismip6_dir} for {exps}")
@@ -132,8 +174,8 @@ def main():
 
     print(f"ISMIP6 ensemble comparison: {os.path.basename(args.proj_csv)} "
           f"- {os.path.basename(args.ctrl_csv)}")
-    print(f"  {len(ens)} members from {sorted(set(k[2] for k in ens))}, "
-          f"overlap {yrs[0]:.1f}-{yrs[-1]:.1f}\n")
+    print(f"  scenario pool {scen}: {len(ens)} members from "
+          f"{sorted(set(k[2] for k in ens))}, overlap {yrs[0]:.1f}-{yrs[-1]:.1f}\n")
     print(f"  {'year':>7} {'ours':>8} {'ens p5':>8} {'median':>8} "
           f"{'p95':>8} {'min':>8} {'max':>8}   [mm SLE vs ctrl]")
     marks = [yrs[0]] + [y for y in (2020, 2025, 2050, 2075, 2100)
@@ -151,11 +193,37 @@ def main():
 
     col = grid[:, -1]
     col = col[np.isfinite(col)]
-    inside = col.size and (col.min() <= ours[-1] <= col.max())
-    print(f"\n  at {yrs[-1]:.1f}: ours {ours[-1]:+.2f} mm vs ensemble "
-          f"[{col.min():+.2f}, {col.max():+.2f}] "
-          f"({col.size} members) -> "
+    if not col.size:
+        print(f"\n  no ensemble member covers year {yrs[-1]:.1f}; cannot "
+              f"evaluate envelope membership")
+        sys.exit(2)
+    lo, hi = float(col.min()), float(col.max())
+    med = float(np.median(col))
+    spread = max(hi - lo, 1e-9)
+    ov = float(ours[-1])
+    inside = lo <= ov <= hi
+    print(f"\n  at {yrs[-1]:.1f}: ours {ov:+.2f} mm vs ensemble "
+          f"[{lo:+.2f}, {hi:+.2f}] (median {med:+.2f}, {col.size} members) -> "
           f"{'INSIDE ensemble envelope' if inside else 'OUTSIDE ensemble envelope'}")
+    # SLR here is the sea-level contribution (+ = ice loss). Give a directional
+    # parametrization hint when outside, so 'check how we parametrize' is actionable.
+    if not inside:
+        if ov < lo:
+            gap = (lo - ov) / spread
+            print(f"  BELOW the ensemble by {lo - ov:.2f} mm ({gap:.1f}x the "
+                  f"ensemble spread): too little sea-level contribution -> the "
+                  f"sheet is gaining/holding too much mass. Check SMB (the ~9% "
+                  f"aSMB unit inflation over-adds snowfall), or melt/discharge "
+                  f"being too weak (K_melt, friction).")
+        else:
+            gap = (ov - hi) / spread
+            print(f"  ABOVE the ensemble by {ov - hi:.2f} mm ({gap:.1f}x the "
+                  f"ensemble spread): too much sea-level contribution -> too "
+                  f"much loss. Check melt (K_melt too high), or numerical "
+                  f"discharge/instability at the front.")
+    else:
+        pctl = 100.0 * float((col < ov).sum()) / col.size
+        print(f"  broadly consistent (~{pctl:.0f}th percentile of the ensemble).")
     sys.exit(0 if inside else 1)
 
 

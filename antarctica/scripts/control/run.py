@@ -13,10 +13,8 @@ Usage:
     ISMIP7_ESM=MRI-ESM2-0 mpiexec -n 12 python scripts/control/run.py
 """
 
-import os, sys, glob, argparse
+import os, sys, argparse
 import numpy as np
-import xarray as xr
-from scipy.interpolate import RegularGridInterpolator
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -26,7 +24,7 @@ _PROJECT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 sys.path.insert(0, _PROJECT)
 
 from firedrake import assemble, dx, Constant
-from simulation import setup_model, run_simulation, latest_checkpoint, PETSc, lc
+from simulation import setup_model, run_simulation, latest_checkpoint, RESULTS_DIR, PETSc, lc
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere,
     load_racmo_smb_climatology,
@@ -34,7 +32,11 @@ from icepack2_tools.forcing import (
     compute_sin_alpha,
     quadratic_mixed_slope,
     load_K_per_basin,
+    forcing_coords,
     _RHO_ICE, _RHO_WATER, _K_DEFAULT,
+)
+from icepack2_tools.climatology import (
+    clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
 )
 
 T_START = 2015.0
@@ -43,15 +45,18 @@ DT = float(os.environ.get("ISMIP7_DT", "1.0"))
 OUTPUT_INTERVAL = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "10"))
 
 ESM = os.environ.get("ISMIP7_ESM", "CESM2-WACCM")
-# Reference-climate window for the constant SMB. RACMO2.4p1 (1979-2023)
-# is the primary baseline, so 2000-2029 yields its 2000-2023 mean. The
-# acabf fallback pools historical + projection scenarios and uses
-# whatever subset of the window exists locally (currently ssp585
-# 2015-2029 only; the acabf-anomaly files are referenced to 1960-1989 so
-# an anomaly-based baseline is NOT constructible).
-CLIM_START = int(os.environ.get("ISMIP7_CLIM_START", "2000"))
-CLIM_END = int(os.environ.get("ISMIP7_CLIM_END", "2029"))
-CLIM_SCENARIO = os.environ.get("ISMIP7_CLIM_SCENARIO", "ssp585")
+# Reference-climate window and pool scenario for the constant SMB, owned by
+# icepack2_tools.climatology so the control, the projections, the preflight
+# and the report cannot drift apart. RACMO2.4p1 (1979-2023) is the primary
+# baseline, so 2000-2029 yields its 2000-2023 mean. The acabf fallback pools
+# historical + the protocol scenario (ssp126) and uses whatever subset of the
+# window exists locally; the acabf-anomaly files are referenced to 1960-1989,
+# so an anomaly-based baseline is NOT constructible. CLIM_SCENARIO is only
+# reached when RACMO is unavailable, but the fallback should still be the
+# protocol pool.
+CLIM_START = clim_start()
+CLIM_END = clim_end()
+CLIM_SCENARIO = clim_scenario()
 
 DATA_ROOT = os.environ.get(
     "ISMIP7_DATA_ROOT", os.path.join(_PROJECT, "ISMIP7", "AIS")
@@ -84,12 +89,14 @@ def compute_climatology(atms, mesh_x, mesh_y):
     """
     smb_sum = np.zeros(len(mesh_x))
     n = 0
+    pooled = []
     for atm in atms:
         years = [y for y in atm.available_years("acabf")
                  if CLIM_START <= y <= CLIM_END]
         for yr in years:
             smb_sum += atm.get_smb(yr, mesh_x, mesh_y, anomaly=False)
         n += len(years)
+        pooled += years
         if years:
             PETSc.Sys.Print(
                 f"  {atm.scenario}: {len(years)} acabf years "
@@ -97,6 +104,18 @@ def compute_climatology(atms, mesh_x, mesh_y):
             )
     if n == 0:
         return None
+    PETSc.Sys.Print(f"  {describe_clim_pool(pooled, 'acabf full field')}")
+    missing = clim_pool_missing(pooled)
+    if missing:
+        PETSc.Sys.Print(
+            f"  WARNING: the constant SMB climatology is a mean over "
+            f"{len(set(pooled))} of the {CLIM_END - CLIM_START + 1} window "
+            f"years ({len(missing)} missing, {missing[0]}..{missing[-1]}). "
+            f"This control's baseline is NOT the full-window one, so a "
+            f"projection re-referenced over the full window is differenced "
+            f"against a different baseline. Proceeding: the pool is recorded "
+            f"above and in the per-core report."
+        )
     return smb_sum / n
 
 
@@ -147,7 +166,8 @@ def main():
     parser.add_argument("--snes-log", default=None,
                         help="route SNES monitor output to this file (default: stdout)")
     parser.add_argument("--restart", default=os.environ.get("ISMIP7_RESTART"),
-                        help="restart from a checkpoint .h5 (default: cold start)")
+                        help="restart from a checkpoint .h5 (default: branch from "
+                             "the historical endpoint, else cold start)")
     parser.add_argument("--tag", default=os.environ.get("ISMIP7_RUN_TAG", ""),
                         help="suffix on experiment_name so output files are distinct")
     parser.add_argument("--checkpoint-interval", type=int,
@@ -173,19 +193,59 @@ def main():
         restart_from = latest_checkpoint(experiment_name)
         PETSc.Sys.Print(
             f"Auto-resume: {restart_from}" if restart_from
-            else "Auto-resume: no prior checkpoint; cold start"
+            else "Auto-resume: no prior checkpoint"
         )
+    # ISMIP6/ISMIP7 ctrl_proj convention: the control and the scenario
+    # projections MUST branch from the SAME initial state at the SAME time, so
+    # their shared spin-up/relaxation drift (and the identical frozen a_ref)
+    # cancels in the projection-minus-control difference and leaves only the
+    # forced response. experiment.py restarts every projection from
+    # hist_<esm>_<lc>_final.h5; the CTRL therefore does the same instead of
+    # cold-starting from the 2015 inversion. Cold-starting from the pristine
+    # inversion gives a DIFFERENT initial geometry than the projections, so the
+    # projection's own historical-endpoint relaxation does NOT cancel and the
+    # forced signal is mis-estimated. NB this is a correctness fix, not a
+    # magnitude fix: at 32 km the hist-branched control drifts +37 mm SLE over
+    # 2015-2100 vs the cold-start control's +8 mm, so the (correct) same-state
+    # difference is LARGER, not smaller (ssp126 +161 vs +132 mm at n=4). a_ref is
+    # a t=0 BALANCING correction (zeroes the initial tendency), not a net sink,
+    # so it does not add a standalone SLE trend; an earlier note claiming a
+    # ~160 mm spurious a_ref sink was wrong. The ISMIP6 overshoot is a real
+    # forced-response bias, not a differencing artifact. Falls back to a cold
+    # start (mis-matched control) only when the historical endpoint is absent.
+    if restart_from is None:
+        tag_sfx = f"_{args.tag}" if args.tag else ""
+        hist = os.path.join(RESULTS_DIR, f"hist_{esm_tag}{tag_sfx}_{lc}_final.h5")
+        if os.path.exists(hist):
+            restart_from = hist
+            PETSc.Sys.Print(
+                f"  Branching CTRL from the historical endpoint (same initial "
+                f"state as the projections; shared drift cancels in proj-CTRL): "
+                f"{os.path.basename(hist)}"
+            )
+        else:
+            PETSc.Sys.Print(
+                f"  WARNING: no historical endpoint {os.path.basename(hist)}; "
+                f"cold-starting from the inversion. The CTRL will start from a "
+                f"DIFFERENT geometry than the hist-branched projections, so "
+                f"projection-minus-CTRL will not cleanly isolate the forced "
+                f"response. Run the historical first, or pass --restart."
+            )
+    if restart_from and not os.path.exists(restart_from):
+        raise FileNotFoundError(f"CTRL restart not found: {restart_from}")
 
     ctx = setup_model(restart_from=restart_from)
 
-    mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
-    mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
+    # Forcing fields live on the GEOMETRY space (DG0 by default), whose
+    # dofs are cell centroids, not mesh vertices. Sampling climatologies
+    # at vertices would write a wrong-length array into ctx["accum"].
+    mesh_x, mesh_y = forcing_coords(ctx)
 
     # Atmosphere: RACMO climatology baseline; fall back to the pooled ISMIP7
     # acabf full-field climatology; refuse to run zero-SMB unless forced.
     try:
         ctx["accum"].assign(
-            load_racmo_smb_climatology(ctx["Q"], CLIM_START, CLIM_END)
+            load_racmo_smb_climatology(ctx["Q_g"], CLIM_START, CLIM_END)
         )
         mean_smb = area_weighted_mean(ctx["accum"], ctx["mesh"])
         PETSc.Sys.Print(
@@ -245,7 +305,7 @@ def main():
     PETSc.Sys.Print(f"\nControl experiment: {ESM}")
     PETSc.Sys.Print(f"  Period: {T_START}-{T_END}")
     PETSc.Sys.Print(f"  Constant {CLIM_START}-{CLIM_END} SMB climatology")
-    PETSc.Sys.Print(f"  Constant OI ocean climatology + per-basin K")
+    PETSc.Sys.Print("  Constant OI ocean climatology + per-basin K")
 
     run_simulation(
         ctx,

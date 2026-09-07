@@ -31,11 +31,15 @@ Usage:
 import json
 import os
 import re
+import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
+from icepack2_tools.runconfig import lc as _lc, lc_coarse as _lc_coarse
 from mesh_naming import get_buffer_m, mesh_filename, bndids_filename
 
-lc = int(os.environ.get("ISMIP7_LC", "2500"))
-lc_coarse = int(os.environ.get("ISMIP7_LC_COARSE", "64000"))
+lc = _lc()
+lc_coarse = _lc_coarse()
 
 
 def parse_physical_names(mesh_fn):

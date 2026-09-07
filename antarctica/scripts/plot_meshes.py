@@ -19,11 +19,14 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MESH_DIR = os.path.join(_ROOT, "mesh")
 FIG_DIR = os.path.join(_ROOT, "figs")
 
-_BASENAME_RE = re.compile(r"antarctica_(\d+)_(\d+)_buffered(\d+)$")
+_BASENAME_RE = re.compile(r"antarctica_(\d+)_(\d+)(?:_buffered(\d+))?$")
 
 
 def parse_mesh_basename(basename):
-    """Split 'antarctica_<COARSE>_<FINE>_buffered<BUFFER_M>' into ints.
+    """Split 'antarctica_<COARSE>_<FINE>[_buffered<BUFFER_M>]' into ints.
+
+    The `_buffered<BUFFER_M>` tag postdates most of the meshes on disk, so it
+    is optional; buffer_m is None for a name that doesn't carry it.
 
     Returns (coarse_m, fine_m, buffer_m).
     """
@@ -31,10 +34,27 @@ def parse_mesh_basename(basename):
     if not m:
         raise ValueError(
             f"Mesh filename '{basename}' doesn't match "
-            "antarctica_<COARSE>_<FINE>_buffered<BUFFER_M> (see mesh_naming.py)"
+            "antarctica_<COARSE>_<FINE>[_buffered<BUFFER_M>] (see mesh_naming.py)"
         )
-    coarse_m, fine_m, buffer_m = (int(g) for g in m.groups())
+    coarse_m, fine_m = int(m.group(1)), int(m.group(2))
+    buffer_m = None if m.group(3) is None else int(m.group(3))
     return coarse_m, fine_m, buffer_m
+
+
+def buffer_label(buffer_m):
+    """Buffer tag for a plot title; legacy names carry no buffer."""
+    if buffer_m is None:
+        return "buffer unknown"
+    return f"buffer {buffer_m // 1000} km"
+
+
+def report_skipped(skipped):
+    """Report every unparseable name once, rather than aborting on the first."""
+    if not skipped:
+        return
+    print(f"Skipped {len(skipped)} mesh file(s) with unrecognized names:")
+    for basename in skipped:
+        print(f"  {basename}")
 
 
 def plot_single_mesh(mesh_fn, ax, title):
@@ -57,7 +77,22 @@ def main():
         print("No mesh files found. Run mesh_antarctica.py first.")
         return
 
-    n_meshes = len(mesh_files)
+    plots, skipped = [], []
+    for mesh_fn in mesh_files:
+        basename = os.path.splitext(os.path.basename(mesh_fn))[0]
+        try:
+            coarse_m, fine_m, buffer_m = parse_mesh_basename(basename)
+        except ValueError:
+            skipped.append(basename)
+            continue
+        plots.append((mesh_fn, basename, coarse_m, fine_m, buffer_m))
+
+    if not plots:
+        print(f"Found {len(mesh_files)} mesh file(s), none with a recognized name.")
+        report_skipped(skipped)
+        return
+
+    n_meshes = len(plots)
     print(f"Found {n_meshes} mesh file(s)")
 
     # Multi-panel figure with all resolutions
@@ -65,10 +100,10 @@ def main():
     if n_meshes == 1:
         axes = [axes]
 
-    for ax, mesh_fn in zip(axes, mesh_files):
-        basename = os.path.splitext(os.path.basename(mesh_fn))[0]
-        coarse_m, fine_m, buffer_m = parse_mesh_basename(basename)
-        title = f"{fine_m // 1000}–{coarse_m // 1000} km (buffer {buffer_m // 1000} km)"
+    for ax, (mesh_fn, basename, coarse_m, fine_m, buffer_m) in zip(axes, plots):
+        title = (
+            f"{fine_m // 1000}–{coarse_m // 1000} km ({buffer_label(buffer_m)})"
+        )
 
         print(f"  Plotting {basename}...")
         plot_single_mesh(mesh_fn, ax, title)
@@ -82,19 +117,22 @@ def main():
     plt.close(fig)
 
     # Also make individual plots for each mesh (higher detail)
-    for mesh_fn in mesh_files:
-        basename = os.path.splitext(os.path.basename(mesh_fn))[0]
-        coarse_m, fine_m, buffer_m = parse_mesh_basename(basename)
+    for mesh_fn, basename, coarse_m, fine_m, buffer_m in plots:
         fine_km, coarse_km = fine_m // 1000, coarse_m // 1000
 
         fig, ax = subplots(1, 1, figsize=(10, 10))
-        title = f"Antarctica Mesh: {fine_km}–{coarse_km} km (buffer {buffer_m // 1000} km)"
+        title = (
+            f"Antarctica Mesh: {fine_km}–{coarse_km} km "
+            f"({buffer_label(buffer_m)})"
+        )
         plot_single_mesh(mesh_fn, ax, title)
 
         out_fn = os.path.join(FIG_DIR, f"{basename}.png")
         fig.savefig(out_fn, dpi=200, bbox_inches="tight")
         print(f"Saved: {out_fn}")
         plt.close(fig)
+
+    report_skipped(skipped)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,13 @@
 # Core 9: ctrl2015_cesm2_waccm (32 km)
 
+> **SUPERSEDED - the numbers below are INVALID.** This run predates the two
+> Aug 2026 ice-front fixes: the calving terminus BC covered only ~5% of the
+> ice front (the 2500 m boundary-id sidecar was used on the 32 km mesh), and
+> the CG1 lumped-lift front-thickness bias, now fixed by the `dg0`
+> `ISMIP7_GEOMETRY_SPACE` default. Both defects enter the MAP as well as the
+> forward, so this core needs re-inversion and re-running. Kept for provenance
+> only; see `MATRIX_STATUS.md`, the single owner of the invalidation detail.
+
 - date: 2026-07-20
 - git: 2f55628
 - log: `antarctica/results/logs/core09_ctrl_cesm_20260719_233511.log`

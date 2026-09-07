@@ -41,10 +41,26 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 # matches setup_model (empty for n=4, matching legacy names; _n3 etc. otherwise).
 NFLOW="${ISMIP7_N_FLOW:-3.0}"
 NTAG="$(awk -v n="$NFLOW" 'BEGIN{ if ((n-4.0)^2 < 1e-12) print ""; else printf "_n%d", int(n+0.5) }')"
+# Geometry tag, matching icepack2_tools.naming.map_geom_tag: DG0 (the default)
+# MAPs are _dg0, CG1 keeps the legacy untagged name. A MAP is only valid for
+# the geometry space it was inverted under, so the gate must check the exact
+# name the run will load.
+GEOM="$(printf '%s' "${ISMIP7_GEOMETRY_SPACE:-dg0}" | tr 'A-Z' 'a-z')"
+GTAG="$([ "$GEOM" = "cg1" ] && echo "" || echo "_dg0")"
 LOG="${LOG:-$LOGDIR/budd_ctrl${LC}${NTAG}_${STAMP}.log}"
 GATELOG="${GATELOG:-$LOGDIR/budd_ctrl${LC}${NTAG}_gate.log}"
 LOCK="${LOCK:-$LOGDIR/budd_ctrl${LC}${NTAG}.lock}"
-BNDIDS="${ISMIP7_BNDIDS:-$REPO/antarctica/mesh/boundary_ids.json}"
+# Per-mesh sidecar preferred (icepack2_tools/boundary.py); the shared
+# boundary_ids.json is the fallback and is overwritten by every mesh build.
+MESH_STEM="$(basename "$MESH" .msh)"
+BNDIDS="${ISMIP7_BNDIDS:-}"
+if [ -z "$BNDIDS" ]; then
+  if [ -f "$REPO/antarctica/mesh/boundary_ids_${MESH_STEM}.json" ]; then
+    BNDIDS="$REPO/antarctica/mesh/boundary_ids_${MESH_STEM}.json"
+  else
+    BNDIDS="$REPO/antarctica/mesh/boundary_ids.json"
+  fi
+fi
 
 log(){ echo "[$(date '+%F %T')] $*" | tee -a "$GATELOG"; }
 read_avail_gb(){ awk '/MemAvailable/{printf "%d", $2/1024/1024}' /proc/meminfo; }
@@ -66,8 +82,8 @@ trap 'rm -f "$LOCK"' EXIT
 [ -x "$PY" ]     || { log "ERROR: python not found: $PY"; exit 1; }
 [ -f "$K_NPZ" ]  || { log "ERROR: per-basin K npz not found: $K_NPZ"; exit 1; }
 [ -f "$BNDIDS" ] || { log "ERROR: boundary ids not found: $BNDIDS"; exit 1; }
-[ -f "$REPO/antarctica/mesh/inversion_icepack2_budd${NTAG}_${LC}.h5" ] \
-  || { log "ERROR: Budd MAP inversion_icepack2_budd${NTAG}_${LC}.h5 not found"; exit 1; }
+[ -f "$REPO/antarctica/mesh/inversion_icepack2_budd${NTAG}${GTAG}_${LC}.h5" ] \
+  || { log "ERROR: Budd MAP inversion_icepack2_budd${NTAG}${GTAG}_${LC}.h5 not found (geometry=$GEOM)"; exit 1; }
 log "ARMED: Budd CTRL2015 lc=$LC dt=$DT t_end=$T_END ranks=$NRANKS mesh=$(basename "$MESH")"
 log "  gate: RAM>=${MIN_FREE_GB}G AND idle>=${MIN_FREE_CORES} for ${STABLE}x${INTERVAL}s; run log -> $LOG"
 

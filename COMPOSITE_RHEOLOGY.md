@@ -6,9 +6,12 @@
 > n=4 Goldsby-Kohlstedt composite (`a4_factor ≈ 10`) is on the `antarctica`
 > branch. Everything below is written for the general exponent `n_flow`;
 > read `n_flow = 3`, `a4_factor = 1` here. MAPs inverted at n=3 carry an
-> `_n3` filename tag (`inversion_icepack2_budd_n3_<lc>.h5`) so they coexist
-> with the untagged n=4 MAPs; the forward and its inversion must use the
-> same `ISMIP7_N_FLOW` / `ISMIP7_A4_FACTOR`.
+> `_n3` filename tag so they coexist with the untagged n=4 MAPs (naming rule:
+> `antarctica/N3_FRAMEWORK.md`); the forward and its inversion must use the
+> same `ISMIP7_N_FLOW` / `ISMIP7_A4_FACTOR`. The `a4_factor` default is
+> derived from `ISMIP7_N_FLOW` (10.0 at n=4, 1.0 otherwise), so setting
+> `ISMIP7_N_FLOW=4` alone reproduces the `antarctica` rheology; an explicit
+> `ISMIP7_A4_FACTOR` still wins.
 
 
 The standard formulation lets the membrane stress and basal shear stress
@@ -29,7 +32,7 @@ This mirrors `icepack2/test/dome_test.py` and is used in
 | `u`     | depth-averaged velocity                                  | m/yr      |
 | `M`     | depth-integrated membrane stress tensor                  | MPa       |
 | `τ`     | basal shear stress vector                                | MPa       |
-| `h`     | ice thickness (CG1 control variable)                     | m         |
+| `h`     | ice thickness (geometry space: DG0 by default)            | m         |
 | `s`     | upper surface elevation                                  | m         |
 | `b`     | bed elevation                                            | m         |
 | `A`     | depth-averaged ice fluidity = `A_prior · exp(φ)`         | MPa⁻ⁿ·yr⁻¹|
@@ -152,7 +155,7 @@ dependence — `ψ_fric` doesn't carry an `h` factor in either form).
 |--------------------------|-----------------------|--------------------------------------|
 | `ISMIP7_N_FLOW`          | `3.0` (n=4 on `antarctica`) | both                           |
 | `ISMIP7_M_SLIDE`         | `3.0`                 | both                                 |
-| `ISMIP7_A4_FACTOR`       | `1.0` (10.0 on `antarctica`) | both                          |
+| `ISMIP7_A4_FACTOR`       | derived from `ISMIP7_N_FLOW`: `10.0` at n=4, else `1.0` | both |
 | `ISMIP7_COMPOSITE_ALPHA` | `1e-2` (forward, `budd`/`regularized_coulomb`; `1e-4` legacy) | `simulation.py` / `control/run.py` |
 | `ISMIP7_COMPOSITE_ALPHA` | `1e-2` (inversion) | `inversion_icepack2.py`                 |
 | `ISMIP7_H_REF`           | `100.0` m          | both                                    |

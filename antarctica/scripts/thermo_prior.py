@@ -14,7 +14,7 @@ A_prior comes from a fixed-velocity depth-averaged enthalpy (Stefan) solve
 the OBSERVED geometry/velocity and a mean-annual surface-temperature field.
 
 Usage:
-    OMP_NUM_THREADS=1 ISMIP7_LC=32000 \
+    OMP_NUM_THREADS=1 ISMIP7_LC=32000 ISMIP7_LC_COARSE=320000 \
       ISMIP7_MESH=$PWD/antarctica/mesh/antarctica_320000_32000.msh \
       python antarctica/scripts/thermo_prior.py [--shear_amp 30] [--q_geo 50]
 """
@@ -36,11 +36,16 @@ MESH_DIR = os.path.join(_ROOT, "mesh")
 
 from icepack2_tools.thermo_model import compute_fluidity_prior, DEFAULTS
 from icepack2_tools.dual_friction import weertman_anchor
+from icepack2_tools.mpi_stats import global_range
+from icepack2_tools.runconfig import lc as _lc, lc_coarse as _lc_coarse
 from icepack2_tools.forcing import (load_racmo_smb_climatology,
                                     load_mean_annual_surface_temperature)
 
-lc = int(os.environ.get("ISMIP7_LC", "32000"))
-lc_coarse = int(os.environ.get("ISMIP7_LC_COARSE", str(lc * 10)))
+# 32 km is a coarse probe, not the shipped default: export both knobs (see
+# the usage block above) so the resolution this runs at is visible in the
+# environment rather than disagreeing with the gate about what "unset" means.
+lc = _lc()
+lc_coarse = _lc_coarse()
 
 
 def find_file(d, p):
@@ -89,9 +94,10 @@ def main():
     C = weertman_anchor(H, s, u_obs, m_slide, Q)                # balance friction
     acc = load_racmo_smb_climatology(Q)
     T_srf = load_mean_annual_surface_temperature(Q, var=args.tvar)
-    PETSc.Sys.Print(f"  T_srf ({args.tvar}) [{T_srf.dat.data_ro.min():.1f}, "
-                    f"{T_srf.dat.data_ro.max():.1f}] K; "
-                    f"acc [{acc.dat.data_ro.min():.2f}, {acc.dat.data_ro.max():.2f}] m/yr")
+    _t_lo, _t_hi = global_range(T_srf)
+    _a_lo, _a_hi = global_range(acc)
+    PETSc.Sys.Print(f"  T_srf ({args.tvar}) [{_t_lo:.1f}, {_t_hi:.1f}] K; "
+                    f"acc [{_a_lo:.2f}, {_a_hi:.2f}] m/yr")
 
     A_prior = compute_fluidity_prior(u_obs, H, s, b, C, acc, T_srf, p=P,
                                      max_picard=args.max_picard)

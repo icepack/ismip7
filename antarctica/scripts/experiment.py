@@ -12,7 +12,7 @@ so projection minus control is a clean forced signal:
               mixed-slope, calibrated per-basin K)
 
 The aSMB re-reference pool is historical + ISMIP7_CLIM_SCENARIO (default
-ssp585) over ISMIP7_CLIM_START..END (default 2000-2029) — the SAME pool
+ssp126, per protocol) over ISMIP7_CLIM_START..END (default 2000-2029) — the SAME pool
 for every experiment, so all cores share one baseline and the historical
 -> projection handoff at 2014/2015 is seamless. Without RACMO the run
 falls back to the full acabf(t) field; with no acabf data at all it
@@ -34,12 +34,18 @@ sys.path.insert(0, _SCRIPTS)
 from simulation import setup_model, run_simulation, RESULTS_DIR, PETSc, lc
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere, ISMIP7Ocean, ISMIP7Fracture,
-    make_forcing_callback, load_racmo_smb_climatology,
+    make_forcing_callback, load_racmo_smb_climatology, forcing_coords,
+)
+from icepack2_tools.climatology import (
+    clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
 )
 
-CLIM_START = int(os.environ.get("ISMIP7_CLIM_START", "2000"))
-CLIM_END = int(os.environ.get("ISMIP7_CLIM_END", "2029"))
-CLIM_SCENARIO = os.environ.get("ISMIP7_CLIM_SCENARIO", "ssp585")
+# Owned by icepack2_tools.climatology: this pool must match the CONTROL's
+# climatology, or the projections are re-referenced against a different
+# baseline than the control they are differenced from.
+CLIM_START = clim_start()
+CLIM_END = clim_end()
+CLIM_SCENARIO = clim_scenario()
 
 
 def find_k_npz():
@@ -63,8 +69,9 @@ def smb_scheme(ctx, esm):
     RACMO climatology + aSMB re-referenced over the shared pool; falls back
     to the full acabf(t) field when RACMO (or the pool) is unavailable.
     """
-    mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
-    mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
+    # Sample forcing at the geometry dofs, not the mesh vertices: under
+    # DG0 geometry those are cell centroids (see forcing.forcing_coords).
+    mesh_x, mesh_y = forcing_coords(ctx)
     ref_atms = [
         ISMIP7Atmosphere(esm=esm, scenario="historical"),
         ISMIP7Atmosphere(esm=esm, scenario=CLIM_SCENARIO),
@@ -78,12 +85,23 @@ def smb_scheme(ctx, esm):
             raise FileNotFoundError(
                 f"no acabf-anomaly years in {CLIM_START}-{CLIM_END}"
             )
-        racmo = load_racmo_smb_climatology(ctx["Q"], CLIM_START, CLIM_END)
+        racmo = load_racmo_smb_climatology(ctx["Q_g"], CLIM_START, CLIM_END)
         ref = np.zeros(len(mesh_x))
         for a, y in pool:
             ref += a.get_smb(y, mesh_x, mesh_y, anomaly=True)
         ref /= len(pool)
         years = sorted(y for _, y in pool)
+        PETSc.Sys.Print(f"  {describe_clim_pool(years, 'acabf-anomaly')}")
+        missing = clim_pool_missing(years)
+        if missing:
+            PETSc.Sys.Print(
+                f"  WARNING: aSMB re-referenced over {len(set(years))} of the "
+                f"{CLIM_END - CLIM_START + 1} window years ({len(missing)} "
+                f"missing, {missing[0]}..{missing[-1]}). This core's baseline "
+                f"differs from a full-window sibling's while both are "
+                f"differenced against the same CTRL. Proceeding: the pool is "
+                f"recorded above and in the per-core report."
+            )
         return True, racmo.dat.data_ro - ref, (
             f"RACMO2.4p1 baseline + aSMB re-referenced to "
             f"{years[0]}-{years[-1]} ({len(pool)} yr pooled)"
@@ -102,9 +120,16 @@ def run_core_experiment(*, core, title, name, esm, scenario,
     output_interval = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "10"))
 
     esm_tag = esm.lower().replace("-", "_")
+    # Optional run tag (ISMIP7_RUN_TAG / --tag) suffixed on the experiment name
+    # so parallel method lines (e.g. n=3 vs n=4) write distinct output files
+    # instead of clobbering each other. It also selects the tagged historical
+    # to restart from, keeping the hist->projection chain within one line.
+    tag = os.environ.get("ISMIP7_RUN_TAG", "")
+    tag_sfx = f"_{tag}" if tag else ""
+    experiment_name = f"{name}{tag_sfx}"
     restart = os.environ.get("ISMIP7_RESTART")
     if restart is None and restart_from_hist:
-        cand = os.path.join(RESULTS_DIR, f"hist_{esm_tag}_{lc}_final.h5")
+        cand = os.path.join(RESULTS_DIR, f"hist_{esm_tag}{tag_sfx}_{lc}_final.h5")
         restart = cand if os.path.exists(cand) else None
     if restart and not os.path.exists(restart):
         raise FileNotFoundError(f"ISMIP7_RESTART not found: {restart}")
@@ -173,7 +198,7 @@ def run_core_experiment(*, core, title, name, esm, scenario,
 
     results = run_simulation(
         ctx,
-        experiment_name=name,
+        experiment_name=experiment_name,
         t_start=t_start,
         t_end=t_end,
         dt=dt,

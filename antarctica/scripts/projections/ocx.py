@@ -31,7 +31,7 @@ from experiment import find_k_npz
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere, ISMIP7Ocean, make_forcing_callback,
     make_climatology_ocean_callback, load_racmo_smb_climatology,
-    load_K_per_basin,
+    load_K_per_basin, forcing_coords,
 )
 
 T_START = float(os.environ.get("ISMIP7_T_START", "1990"))
@@ -43,8 +43,9 @@ RACMO_LAST = 2023  # smbgl_monthlyS_ANT11_RACMO2.4p1_ERA5_197901_202312
 
 def main():
     ctx = setup_model()
-    mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
-    mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
+    # Sample forcing at the geometry dofs, not the mesh vertices: under
+    # DG0 geometry those are cell centroids (see forcing.forcing_coords).
+    mesh_x, mesh_y = forcing_coords(ctx)
 
     # Per-basin K (with 2500 m fallback) + optional global scale.
     K_npz = find_k_npz()
@@ -77,7 +78,7 @@ def main():
             yr = min(int(np.floor(t_yr - 1e-9)), RACMO_LAST)
             if yr not in racmo_cache:
                 racmo_cache[yr] = load_racmo_smb_climatology(
-                    ctx_["Q"], yr, yr
+                    ctx_["Q_g"], yr, yr
                 ).dat.data_ro.copy()
                 while len(racmo_cache) > 3:
                     racmo_cache.pop(next(iter(racmo_cache)))
@@ -87,9 +88,10 @@ def main():
     PETSc.Sys.Print("\nCore Experiment 11: OCX (observationally constrained)")
     PETSc.Sys.Print(f"  Period: {T_START}-{T_END}, dt={DT}")
 
+    _tag = os.environ.get("ISMIP7_RUN_TAG", "")
     run_simulation(
         ctx,
-        experiment_name="ocx",
+        experiment_name="ocx" + (f"_{_tag}" if _tag else ""),
         t_start=T_START,
         t_end=T_END,
         dt=DT,

@@ -1,6 +1,7 @@
 r"""ISMIP7 forcing data reader for Antarctic simulations."""
 
 import os
+import warnings
 import numpy as np
 
 _SEC_PER_YEAR = 31556926.0
@@ -37,19 +38,41 @@ def smb_kgm2s_to_myr(smb_kgm2s):
     return smb_kgm2s * _SEC_PER_YEAR / _RHO_ICE * (_RHO_WATER / _RHO_ICE)
 
 
+def _sample_raster(raster, Q):
+    r"""Put an open raster onto ``Q``, as a CELL AVERAGE when ``Q`` is DG0.
+
+    A DG0 dof sits at the cell centroid, so ``icepack.interpolate`` would take
+    a one-point sample of the raster per cell. SMB sets the mass budget and the
+    a_ref balance, so it goes through the same cell-averaging rule the geometry
+    uses (see geometry.sample_to_geometry). CG1 is the nodal interpolant, as
+    before.
+    """
+    import firedrake as fd
+    import icepack
+
+    if Q.ufl_element().degree() > 0:
+        return icepack.interpolate(raster, Q)
+    from .geometry import sample_to_geometry
+    Q_cg = fd.FunctionSpace(Q.mesh(), "CG", 1)
+    return sample_to_geometry(
+        lambda space: icepack.interpolate(raster, space), Q, Q_cg
+    )
+
+
 def load_racmo_smb_climatology(Q, clim_start=2000, clim_end=2029, data_dir=None,
                                target_res=8000.0, rho_ice=_RHO_ICE):
     r"""RACMO2.4p1 mean-annual SMB (m/yr ice equiv) as a Function on Q's mesh.
 
     The RACMO ANT11 grid is rotated-pole, so this reprojects the climatology to
     an intermediate EPSG:3031 raster with rasterio, then samples it onto the mesh
-    with icepack.interpolate -- the same path used for BedMachine -- avoiding any
-    scattered-point interpolation. ``smbgl`` is a monthly mass sum (kg/m^2), so the
-    annual SMB is the sum of the 12 months, averaged over the climatology window.
+    -- the same path used for BedMachine -- avoiding any scattered-point
+    interpolation. On a DG0 ``Q`` the sample is a cell average rather than a
+    centroid point sample (see :func:`_sample_raster`). ``smbgl`` is a monthly
+    mass sum (kg/m^2), so the annual SMB is the sum of the 12 months, averaged
+    over the climatology window.
     """
     import xarray as xr
     import pyproj
-    import icepack
     from affine import Affine
     from rasterio.io import MemoryFile
     from rasterio.warp import reproject, Resampling
@@ -97,7 +120,7 @@ def load_racmo_smb_climatology(Q, clim_start=2000, clim_end=2029, data_dir=None,
         ) as out:
             out.write(dst, 1)
         with mf.open() as raster:
-            return icepack.interpolate(raster, Q)
+            return _sample_raster(raster, Q)
 
 
 def _find_ismip7_data(data_root=None):
@@ -132,10 +155,34 @@ def load_mean_annual_surface_temperature(Q, var="tas", data_root=None,
     if not hits:
         raise FileNotFoundError(f"no {var} climatology under {root}")
     ds = xr.open_dataset(hits[0])
-    da = ds[var] if var in ds else ds[list(ds.data_vars)[0]]
-    T = np.asarray(da.mean(dim="month").values, dtype=float)     # (y, x)
+    if var in ds:
+        da = ds[var]
+    else:
+        # Skip grid-mapping/bounds variables, as _load_year does: any of them
+        # ordered first would silently become the temperature field.
+        cands = [
+            v for v in ds.data_vars
+            if not v.endswith("_bnds")
+            and v.lower() not in ("x", "y", "time", "month", "crs", "mapping",
+                                  "spatial_ref", "lat", "lon")
+        ]
+        if not cands:
+            raise ValueError(f"no usable data variable in {hits[0]}")
+        da = ds[cands[0]]
+    da = da.mean(dim="month")
+    if "y" in da.dims and "x" in da.dims:
+        da = da.transpose("y", "x")
+    T = np.asarray(da.values, dtype=float)                       # (y, x)
     x = np.asarray(ds["x"].values, dtype=float)
     y = np.asarray(ds["y"].values, dtype=float)
+    # RegularGridInterpolator requires ascending axes (same flip as
+    # _year_field / build_oi_climatology_interpolators / load_K_per_basin).
+    if y[0] > y[-1]:
+        y = y[::-1]
+        T = T[::-1, :]
+    if x[0] > x[-1]:
+        x = x[::-1]
+        T = T[:, ::-1]
     T = np.where(T > 100.0, T, np.nan)                           # mask fill (~0 K)
     T_filled = np.where(np.isfinite(T), T, fill_K)
     interp = RegularGridInterpolator((y, x), T_filled, method="nearest",
@@ -186,6 +233,141 @@ def ocean_path(scenario, esm="CESM2-WACCM", variable="tf",
         return None
     parent = os.path.join(root, esm, scenario, "ocean", variable)
     return os.path.join(parent, _resolve_version(parent, version))
+
+
+def _time_axis_days(values):
+    r"""A time (or time-bounds) array as floating-point days.
+
+    Only differences matter to the callers, so the origin is arbitrary and no
+    calendar arithmetic is needed. Handles the three things xarray can hand
+    back for a decoded CF time axis: plain numerics (undecoded), ``datetime64``
+    (standard/proleptic_gregorian calendars) and object arrays of ``cftime``
+    datetimes (noleap, 360_day, all_leap, ...), which have no ``__float__``
+    and so cannot go through ``asarray(..., dtype=float)``.
+    """
+    arr = np.asarray(values)
+    if arr.dtype.kind in "fiub":
+        return arr.astype(float)
+    if arr.dtype.kind in "Mm":
+        unit = "datetime64[s]" if arr.dtype.kind == "M" else "timedelta64[s]"
+        # NaT casts to a huge finite negative, which would sail through the
+        # caller's finite/positive checks as a plausible weight; make it NaN.
+        return np.where(
+            np.isnat(arr), np.nan, arr.astype(unit).astype("float64") / 86400.0
+        )
+    flat = arr.reshape(-1)
+    origin = flat[0]
+    days = np.array(
+        [(t - origin).total_seconds() for t in flat], dtype=float
+    ) / 86400.0
+    return days.reshape(arr.shape)
+
+
+_WEIGHT_FALLBACK_WARNED = set()
+
+# Real month lengths span 28-31 days (ratio 1.11); 360_day is uniform. Anything
+# spanning more than 3x, or handing one month over half the annual weight, is a
+# corrupt weight vector, not a calendar - and would quietly reinstate the
+# single-month forcing this whole helper exists to eliminate.
+_MAX_WEIGHT_RATIO = 3.0
+_MAX_WEIGHT_SHARE = 0.5
+
+
+def _warn_unweighted(da, ds, reason):
+    r"""Warn once per (file, variable, reason) that month-length weighting was
+    unavailable, so the degradation is visible in run logs instead of silent."""
+    source = ds.encoding.get("source") if ds is not None else None
+    source = source or "<unknown file>"
+    name = getattr(da, "name", None) or "<unnamed variable>"
+    key = (source, name, reason)
+    if key in _WEIGHT_FALLBACK_WARNED:
+        return
+    _WEIGHT_FALLBACK_WARNED.add(key)
+    warnings.warn(
+        f"ISMIP7 forcing: {reason}; using the unweighted 12-month mean for "
+        f"'{name}' in {source} (<=1% off a day-weighted annual mean)",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+
+
+def _annual_mean_over_time(da, ds=None):
+    r"""Collapse a per-year forcing file's time axis to the ANNUAL MEAN.
+
+    The ISMIP7 SDBN1 atmosphere files carry 12 MONTHLY slices per year
+    (``time`` = days since <year>-01-15, values 0, 31, 60, ...), so a single
+    slice is one month, not the year. Taking ``isel(time=0)`` grabs JANUARY -
+    peak austral summer, the maximum-ablation month - and applies it as the
+    whole year's forcing. For MRI-ESM2-0 ssp585 2108 that is -16583 Gt/yr
+    against an annual mean of -1276 Gt/yr: a 13x overestimate of ablation
+    that grows with warming (the summer melt trend is far steeper than the
+    annual one), which drove wildly negative post-2100 SMB, unphysical
+    +/-6000 Gt/yr year-to-year swings, and a sea-level contribution above the
+    ISMIP6 envelope.
+
+    Months are weighted by their length (from ``time_bnds`` when present, else
+    from the spacing of the time coordinate) so the result is a true annual
+    mean rather than a 12-month unweighted average. A length-1 time axis
+    collapses to that single value, so annual files are unaffected. Any
+    failure to derive usable weights - an exotic calendar, a malformed bounds
+    variable, an unmasked fill value - degrades to the unweighted mean (<=1%
+    off) with a one-time warning rather than raising: a forcing read must not
+    abort on a calendar variant, and must never let a degenerate weight vector
+    concentrate the year onto one month.
+    """
+    import xarray as xr
+
+    n = da.sizes["time"]
+    if n == 1:
+        return da.isel(time=0)
+
+    w = None
+    reason = None
+    try:
+        bnds_name = da.attrs.get("bounds") or (
+            ds["time"].attrs.get("bounds")
+            if ds is not None and "time" in ds else None
+        )
+        if ds is not None and bnds_name and bnds_name in ds:
+            b = _time_axis_days(ds[bnds_name].values)
+            if b.ndim == 2 and b.shape[0] == n:
+                w = b[:, 1] - b[:, 0]
+        if w is None and ds is not None and "time" in ds:
+            t = _time_axis_days(ds["time"].values)
+            if t.size == n:
+                # month length = spacing to the next slice; the last month
+                # reuses the previous spacing (the file ends at the year
+                # boundary).
+                d = np.diff(t)
+                w = np.concatenate([d, d[-1:]])
+    except Exception as exc:
+        w = None
+        reason = (f"month-length weights could not be read "
+                  f"({type(exc).__name__}: {exc})")
+
+    if w is None:
+        reason = reason or "no time bounds and no usable time coordinate"
+    else:
+        w = np.asarray(w, dtype=float)
+        if not np.all(np.isfinite(w)) or not np.all(w > 0):
+            reason = "month-length weights are non-finite or non-positive"
+        elif w.max() > _MAX_WEIGHT_RATIO * w.min():
+            reason = (f"month lengths span {w.min():.4g}-{w.max():.4g} days, "
+                      f"beyond any real calendar")
+        elif w.max() / w.sum() > _MAX_WEIGHT_SHARE:
+            reason = (f"one slice carries {100 * w.max() / w.sum():.1f}% of "
+                      f"the annual weight")
+        if reason is not None:
+            w = None
+
+    if w is None:
+        _warn_unweighted(da, ds, reason)
+        return da.mean("time")   # equal weights: <=1% off a day-weighted mean
+
+    # weighted().mean() renormalizes by the weights of the non-NaN months, so
+    # a partially masked node matches the unweighted mean instead of being
+    # biased low, and an all-NaN node stays NaN rather than collapsing to 0.
+    return da.weighted(xr.DataArray(w, dims="time")).mean("time")
 
 
 class ISMIP7Atmosphere:
@@ -253,7 +435,7 @@ class ISMIP7Atmosphere:
             da = ds[data_vars[0]] if data_vars else None
         if da is not None:
             if "time" in da.dims:
-                da = da.isel(time=0)
+                da = _annual_mean_over_time(da, ds)
             result = da.load()
             ds.close()
             self._cache[key] = result
@@ -279,7 +461,11 @@ class ISMIP7Atmosphere:
         return years
 
     def get_field(self, variable, year, mesh_x, mesh_y):
-        r"""Get a forcing field interpolated to mesh coordinates."""
+        r"""Get a forcing field interpolated to mesh coordinates.
+
+        The value is that year's ANNUAL MEAN, not a single slice: the SDBN1
+        files are monthly, so ``_load_year`` collapses the time axis via
+        ``_annual_mean_over_time`` (see that docstring for the weighting)."""
         import xarray as xr
 
         yr = int(round(year))
@@ -640,21 +826,56 @@ def load_K_per_basin(npz_path, mesh_x, mesh_y, fill=0.0):
     return K_field
 
 
-def compute_sin_alpha(ctx):
-    r"""Return sin(alpha) of local ice-draft slope at CG1 nodes.
+def forcing_coords(ctx):
+    r"""(x, y) of the dofs the forcing fields are written to.
 
-    Computes draft = s - h, projects grad(draft) into the vector CG1
-    space, and returns sin(arctan(|grad|)) = |grad|/sqrt(1 + |grad|^2).
+    Forcing callbacks assign straight into `ctx["accum"].dat.data` etc., so
+    they must sample the climatology at THOSE dofs. With CG1 geometry those
+    coincide with the mesh vertices, which is what the callbacks used to
+    assume; with DG0 geometry they are cell centroids and there are ~2x as
+    many, so the vertex assumption would mismatch length outright or - worse
+    on a mesh where the counts happened to be close - scramble the mapping.
+    `ctx["geom_xy"]` is supplied by the driver; fall back to vertices for
+    callers that predate it (all of which are CG1).
+    """
+    xy = ctx.get("geom_xy")
+    if xy is not None:
+        return xy
+    coords = ctx["mesh"].coordinates.dat.data_ro
+    return coords[:, 0], coords[:, 1]
+
+
+def compute_sin_alpha(ctx):
+    r"""Return sin(alpha) of the local ice-draft slope, on the geometry space.
+
+    Computes draft = s - h and returns sin(arctan(|grad draft|)) =
+    |grad|/sqrt(1 + |grad|^2), as a plain array aligned with the dofs of the
+    geometry space (so it matches `ocean_melt` elementwise).
+
+    A DG0 draft has an identically zero cell gradient - its slope lives in the
+    inter-cell jumps - so reconstruct a CG1 draft first and differentiate that.
+    Same device as the Weertman anchor uses via geometry.surface_slope, and
+    legitimate for the same reason: this feeds a melt PARAMETERIZATION, not a
+    force in the momentum residual.
     """
     import firedrake as fd
+    from .geometry import cg1_lift
     Q = ctx["Q"]
     V = ctx["V"]
     h = ctx["h"]
     s = ctx["s"]
-    draft = fd.Function(Q).interpolate(s - h)
-    grad_draft = fd.project(fd.grad(draft), V)
-    g = grad_draft.dat.data_ro
-    gmag = np.sqrt(g[:, 0] ** 2 + g[:, 1] ** 2)
+    Q_g = ctx.get("Q_g", Q)
+    if Q_g.ufl_element().degree() == 0:
+        draft = fd.Function(Q_g).interpolate(s - h)
+        gd = fd.grad(cg1_lift(draft))
+        gmag = fd.Function(Q_g).interpolate(
+            fd.sqrt(fd.inner(gd, gd))
+        ).dat.data_ro
+    else:
+        draft = fd.Function(Q).interpolate(s - h)
+        grad_draft = fd.project(fd.grad(draft), V)
+        g = grad_draft.dat.data_ro
+        gmag = np.sqrt(g[:, 0] ** 2 + g[:, 1] ** 2)
     return gmag / np.sqrt(1.0 + gmag * gmag)
 
 
@@ -729,12 +950,25 @@ def build_oi_climatology_interpolators(data_root=None, version=None):
 def make_climatology_ocean_callback(K_field, data_root=None):
     r"""Ocean-melt callback with CONSTANT OI-climatology TF/so and evolving
     geometry: the CTRL2015 / observationally-constrained ocean forcing.
-    K_field is a scalar or per-node array (calibrated per-basin K)."""
+    K_field is a scalar or per-node array (calibrated per-basin K).
+
+    CALIBRATION MISMATCH (open, tracked separately): the per-basin K comes from
+    antarctica/scripts/calibrate_melt.py, which is CG1 throughout - it builds
+    its own CG1 space and vertex-samples BedMachine, sin_alpha and the floating
+    mask, and is not affected by ISMIP7_GEOMETRY_SPACE. Under DG0 geometry this
+    callback evaluates that same K with a cell-wise draft, a cell-wise
+    sin_alpha and a cell-wise `haf <= 0` floating mask, so the melt-receiving
+    area shifts by roughly a one-cell band at the grounding line and the ice
+    front - non-trivial at 32 km, where shelves are only a few cells wide. The
+    integrated DG0 melt total should be checked against the 865 Gt/yr
+    observational target and K recalibrated (against the 2026-07-31 ISMIP7 AIS
+    ocean-melt toolbox re-release, whose new constraint datasets and cold/warm
+    targets call for a re-run of the calibration notebook regardless). Nothing
+    here compensates for the shift; see GEOMETRY_DISCRETIZATION.md."""
     interps = build_oi_climatology_interpolators(data_root)
 
     def callback(ctx, t_yr):
-        mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
-        mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
+        mesh_x, mesh_y = forcing_coords(ctx)
         h = ctx["h"].dat.data_ro
         b = ctx["b"].dat.data_ro
         s = ctx["s"].dat.data_ro
@@ -788,8 +1022,7 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
     K_scale = float(os.environ.get("ISMIP7_K_SCALE", "1.0"))
 
     def callback(ctx, t_yr):
-        mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
-        mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
+        mesh_x, mesh_y = forcing_coords(ctx)
 
         if atm is not None:
             smb = atm.get_smb(t_yr, mesh_x, mesh_y, anomaly=smb_anomaly)

@@ -45,6 +45,7 @@ import rasterio
 import icepack
 
 from icepack2_tools.forcing import quadratic_mixed_slope, _RHO_I
+from icepack2_tools.runconfig import lc as _lc
 
 DATA_ROOT = os.environ.get(
     "ISMIP7_DATA_ROOT", os.path.join(_PROJECT, "ISMIP7", "AIS")
@@ -52,7 +53,7 @@ DATA_ROOT = os.environ.get(
 MESH_DIR = os.path.join(_PROJECT, "antarctica", "mesh")
 BEDMACHINE_DIR = os.path.join(_PROJECT, "antarctica", "data", "bedmachine")
 
-LC = int(os.environ.get("ISMIP7_LC", "2500"))
+LC = _lc()
 INV_H5 = os.environ.get(
     "ISMIP7_INV_H5", os.path.join(MESH_DIR, f"inversion_icepack2_{LC}.h5")
 )

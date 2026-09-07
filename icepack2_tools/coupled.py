@@ -15,8 +15,7 @@ Coupling interface:
     Ocean -> Plume: ambient T, S at ice draft depth (from ISMIP7 ocean data)
 """
 
-import numpy as np
-from firedrake import Constant, Function, max_value, assemble, dx
+from firedrake import Constant, max_value
 
 
 def compute_ice_draft(h, s, rho_I=917.0, rho_W=1024.0):
@@ -134,15 +133,20 @@ class CoupledModel:
         self.subcycle_plume()
 
         melt_ice = self.get_melt_rate()
-        # Convert from m/s to m/yr
-        melt_myr = Function(ctx["Q"])
-        melt_myr.dat.data[:] = melt_ice.dat.data_ro * self._sec_per_year
-        ctx["ocean_melt"].dat.data[:] = melt_myr.dat.data_ro
+        # Convert from m/s to m/yr, onto the GEOMETRY space the forcing fields
+        # live in. The plume's space need not be that one (under DG0 geometry
+        # it is not), so transfer by projection - a cell average, consistent
+        # with the rest of the geometry-space sampling - rather than copying
+        # raw dof arrays, which would mismatch length or scramble the mapping.
+        ocean_melt = ctx["ocean_melt"]
+        if melt_ice.function_space() == ocean_melt.function_space():
+            ocean_melt.dat.data[:] = melt_ice.dat.data_ro * self._sec_per_year
+        else:
+            ocean_melt.project(melt_ice * Constant(self._sec_per_year))
 
         # Also apply atmosphere forcing if available
         if hasattr(self, 'atm') and self.atm is not None:
-            from icepack2_tools.forcing import smb_kgm2s_to_myr
-            mesh_x = ctx["mesh"].coordinates.dat.data_ro[:, 0]
-            mesh_y = ctx["mesh"].coordinates.dat.data_ro[:, 1]
+            from icepack2_tools.forcing import forcing_coords
+            mesh_x, mesh_y = forcing_coords(ctx)
             smb = self.atm.get_smb(t_yr, mesh_x, mesh_y, anomaly=True)
             ctx["accum"].dat.data[:] = smb

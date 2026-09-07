@@ -18,7 +18,6 @@ Usage:
 import os
 import sys
 import glob
-import json
 import numpy as np
 
 import firedrake
@@ -46,15 +45,19 @@ from icepack2.constants import (
 import colorcet as cc
 import matplotlib.pyplot as plt
 
-from mesh_naming import get_buffer_m, mesh_filename, bndids_filename
+from mesh_naming import get_buffer_m, mesh_filename
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(_ROOT, "data")
 MESH_DIR = os.path.join(_ROOT, "mesh")
 FIG_DIR = os.path.join(_ROOT, "figs")
 
-lc = int(os.environ.get("ISMIP7_LC", "8000"))
-lc_coarse = int(os.environ.get("ISMIP7_LC_COARSE", str(lc * 10)))
+sys.path.insert(0, os.path.dirname(_ROOT))
+from icepack2_tools.boundary import load_boundary_ids
+from icepack2_tools.runconfig import lc as _lc, lc_coarse as _lc_coarse
+
+lc = _lc()
+lc_coarse = _lc_coarse()
 buffer_m = get_buffer_m()
 
 
@@ -74,11 +77,9 @@ def main():
     mesh = firedrake.Mesh(mesh_fn)
     PETSc.Sys.Print(f"  {mesh.num_vertices()} vertices, {mesh.num_cells()} cells")
 
-    # Load boundary classification
-    bndids_fn = os.environ.get("ISMIP7_BNDIDS", bndids_filename(lc_coarse, lc, buffer_m))
-    with open(bndids_fn) as f:
-        bnd_ids = json.load(f)
-    calving_ids = tuple(bnd_ids["calving"])
+    # Boundary classification, hard-checked against this mesh (a sidecar built
+    # for another mesh leaves most of the front without terminus back-pressure).
+    bnd_ids, calving_ids, _ = load_boundary_ids(mesh, MESH_DIR, mesh_hint=mesh_fn)
     other_ids = tuple(bnd_ids["other"])
     PETSc.Sys.Print(f"  {len(calving_ids)} calving + {len(other_ids)} other boundaries")
 

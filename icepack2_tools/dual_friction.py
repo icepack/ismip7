@@ -67,6 +67,7 @@ from icepack2.constants import (
     gravity as g,
 )
 
+from .geometry import surface_slope
 from .grounding import height_above_flotation, smooth_heaviside
 
 # Grounding-zone Heaviside width [m height-above-flotation].  Wider => more
@@ -104,8 +105,11 @@ def weertman_anchor(H, s, u_obs, m_slide, Q):
     ``tau_d = rho_I g H |grad s|`` is the driving stress; ``|u_obs|`` is floored
     at 1 m/yr.  At ``u = u_obs`` and ``theta = 0`` the Weertman branch returns
     ``tau_W = tau_d`` -- i.e. the balance is driving-stress-consistent.
+
+    ``s`` may be DG0 (see :func:`surface_slope`).
     """
-    tau_d = rho_I * g * H * sqrt(inner(grad(s), grad(s)) + Constant(1e-12))
+    grad_s = surface_slope(s)
+    tau_d = rho_I * g * H * sqrt(inner(grad_s, grad_s) + Constant(1e-12))
     u_speed = max_value(sqrt(inner(u_obs, u_obs)), Constant(1.0))
     return Function(Q, name="C_w0").interpolate(tau_d / u_speed ** (1.0 / m_slide))
 
@@ -323,6 +327,17 @@ def build_rc_residual(
 
     # ---- momentum balance (hand-written: H_visc on the membrane term, TRUE H on
     # the driving stress and facet term) + calving-front back-pressure ----
+    #
+    # Geometry may be CG1 or DG0, and the pair of terms below is correct for
+    # both: they represent the DISTRIBUTIONAL gradient of a possibly
+    # discontinuous surface as broken cell gradient + facet jump.  With CG1 s
+    # the jump vanishes and the cell term carries everything; with DG0 s the
+    # cell gradient vanishes and the facet term carries everything.  Do not
+    # "fix" the seemingly dead grad(s) under DG0 -- deleting it would break the
+    # CG1 path, and the facet term is not an add-on but the whole driving
+    # stress.  No exterior-boundary counterpart is needed: the distributional
+    # gradient is taken over the open domain, and the terminus traction below
+    # supplies the boundary condition.
     nu = FacetNormal(mesh)
     F += (-H_visc * inner(M, sym(grad(v))) + inner(tau - rho_I * g * H * grad(s), v)) * dx
     F += rho_I * g * avg(H) * inner(jump(s, nu), avg(v)) * dS

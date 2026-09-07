@@ -18,7 +18,6 @@ from firedrake import (
     Constant,
     Function,
     max_value,
-    sqrt,
     inner,
     grad,
     derivative,
@@ -32,7 +31,6 @@ from firedrake import (
     FiniteElement,
     NonlinearVariationalProblem,
     NonlinearVariationalSolver,
-    COMM_WORLD,
 )
 from tlm_adjoint.firedrake import (
     reset_manager,
@@ -45,9 +43,8 @@ from tlm_adjoint.firedrake import (
 )
 from firedrake.petsc import PETSc
 from scipy.optimize import minimize as scipy_minimize
-from time import perf_counter
 
-import rasterio, icepack, glob, os, json
+import rasterio, icepack, glob, os
 import matplotlib.pyplot as plt
 from icepack2 import model
 from icepack2.constants import (
@@ -62,10 +59,14 @@ DATA_DIR = os.path.join(_ROOT, "data")
 MESH_DIR = os.path.join(_ROOT, "mesh")
 FIG_DIR = os.path.join(_ROOT, "figs")
 
-from mesh_naming import get_buffer_m, mesh_filename, bndids_filename
+import sys
+sys.path.insert(0, os.path.dirname(_ROOT))
+from icepack2_tools.boundary import load_boundary_ids
+from icepack2_tools.runconfig import lc as _lc, lc_coarse as _lc_coarse
+from mesh_naming import get_buffer_m, mesh_filename
 
-lc = int(os.environ.get("ISMIP7_LC", "2500"))
-lc_coarse = int(os.environ.get("ISMIP7_LC_COARSE", "64000"))
+lc = _lc()
+lc_coarse = _lc_coarse()
 buffer_m = get_buffer_m()
 
 # Gamma values to sweep
@@ -89,11 +90,14 @@ def main():
     mesh = Mesh(mesh_fn)
     PETSc.Sys.Print(f"  {mesh.num_vertices()} vertices, {mesh.num_cells()} cells")
 
-    bndids_fn = os.environ.get("ISMIP7_BNDIDS", bndids_filename(lc_coarse, lc, buffer_m))
-    with open(bndids_fn) as f:
-        bnd_ids = json.load(f)
-    calving_ids = tuple(bnd_ids["calving"])
+    # Sidecar resolved (per-mesh preferred, parametric fallback) and
+    # HARD-CHECKED against this mesh: an id absent from the mesh makes
+    # ds(id) integrate to zero, i.e. silently wrong physics with no crash.
     use_calving_terminus = os.environ.get("ISMIP7_NO_CALVING_TERMINUS") is None
+    bnd_ids, calving_ids, bndids_fn = load_boundary_ids(
+        mesh, MESH_DIR, mesh_hint=mesh_fn,
+        print_coverage=use_calving_terminus,
+    )
 
     Q = FunctionSpace(mesh, "CG", 1)
     V = VectorFunctionSpace(mesh, "CG", 1)

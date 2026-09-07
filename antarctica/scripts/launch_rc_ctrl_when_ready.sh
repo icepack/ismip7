@@ -45,6 +45,12 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 # matches setup_model (empty for n=4, matching legacy names; _n3 etc. otherwise).
 NFLOW="${ISMIP7_N_FLOW:-3.0}"
 NTAG="$(awk -v n="$NFLOW" 'BEGIN{ if ((n-4.0)^2 < 1e-12) print ""; else printf "_n%d", int(n+0.5) }')"
+# Geometry tag, matching icepack2_tools.naming.map_geom_tag: DG0 (the default)
+# MAPs are _dg0, CG1 keeps the legacy untagged name. A MAP is only valid for
+# the geometry space it was inverted under, so the gate must check the exact
+# name the run will load.
+GEOM="$(printf '%s' "${ISMIP7_GEOMETRY_SPACE:-dg0}" | tr 'A-Z' 'a-z')"
+GTAG="$([ "$GEOM" = "cg1" ] && echo "" || echo "_dg0")"
 LOG="${LOG:-$LOGDIR/rc_ctrl500${NTAG}_${STAMP}.log}"
 GATELOG="${GATELOG:-$LOGDIR/rc_ctrl500${NTAG}_gate.log}"
 LOCK="${LOCK:-$LOGDIR/rc_ctrl500${NTAG}.lock}"
@@ -70,12 +76,20 @@ trap 'rm -f "$LOCK"' EXIT
 [ -f "$MESH" ]  || { log "ERROR: mesh not found: $MESH"; exit 1; }
 [ -x "$PY" ]    || { log "ERROR: python not found: $PY"; exit 1; }
 [ -f "$K_NPZ" ] || { log "ERROR: per-basin K npz not found: $K_NPZ"; exit 1; }
-# boundary_ids.json is untracked on drs/antarctica (generator-based); the RC
-# inversion ran with the odd/even 1..35 set, so the forward must too.
-BNDIDS="${ISMIP7_BNDIDS:-$REPO/antarctica/mesh/boundary_ids.json}"
+# Per-mesh sidecar preferred (icepack2_tools/boundary.py); the shared
+# boundary_ids.json is the fallback and is overwritten by every mesh build.
+MESH_STEM="$(basename "$MESH" .msh)"
+BNDIDS="${ISMIP7_BNDIDS:-}"
+if [ -z "$BNDIDS" ]; then
+  if [ -f "$REPO/antarctica/mesh/boundary_ids_${MESH_STEM}.json" ]; then
+    BNDIDS="$REPO/antarctica/mesh/boundary_ids_${MESH_STEM}.json"
+  else
+    BNDIDS="$REPO/antarctica/mesh/boundary_ids.json"
+  fi
+fi
 [ -f "$BNDIDS" ] || { log "ERROR: boundary ids not found: $BNDIDS (untracked on this branch — restore the local copy or run make_boundary_ids.py)"; exit 1; }
-[ -f "$REPO/antarctica/mesh/inversion_icepack2_rc${NTAG}_${LC}.h5" ] \
-  || { log "ERROR: RC MAP not found: inversion_icepack2_rc${NTAG}_${LC}.h5"; exit 1; }
+[ -f "$REPO/antarctica/mesh/inversion_icepack2_rc${NTAG}${GTAG}_${LC}.h5" ] \
+  || { log "ERROR: RC MAP not found: inversion_icepack2_rc${NTAG}${GTAG}_${LC}.h5 (geometry=$GEOM)"; exit 1; }
 log "ARMED: RC CTRL2015 lc=$LC dt=$DT t_end=$T_END ranks=$NRANKS mesh=$(basename "$MESH")"
 log "  gate: RAM>=${MIN_FREE_GB}G AND idle_cores>=${MIN_FREE_CORES} for ${STABLE} checks @ ${INTERVAL}s; run log -> $LOG"
 

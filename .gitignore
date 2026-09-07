@@ -14,6 +14,15 @@ ISMIP7/
 # mismatching a different build.
 antarctica/mesh/*
 !antarctica/mesh/boundary_ids*.json
+# The pre-per-mesh legacy set stays untracked: these names carry no mesh stem,
+# and boundary_ids.json in particular is the shared-fallback file (overwritten
+# by every mesh build) that is exactly the stale-shared-file vector the
+# per-mesh convention removes. The negation above un-ignores every sidecar
+# name, so without these an `add -A` sweeps them back in.
+antarctica/mesh/boundary_ids.json
+antarctica/mesh/boundary_ids_2500.json
+antarctica/mesh/boundary_ids_aniso.json
+antarctica/mesh/boundary_ids_buffered.json
 antarctica/results/
 antarctica/archive/
 antarctica/figs/*.png
