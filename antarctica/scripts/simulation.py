@@ -447,14 +447,11 @@ def setup_model(restart_from=None):
                 return None
             raise
         target_field = Function(space, name=name)
-        if same_mesh:
-            target_field.dat.data[:] = source_field.dat.data_ro
-        else:
-            target_field.interpolate(
-                source_field,
-                allow_missing_dofs=True,
-                default_missing_val=0.0,
-            )
+        target_field.interpolate(
+            source_field,
+            allow_missing_dofs=True,
+            default_missing_val=0.0,
+        )
         return target_field
 
     with fd.CheckpointFile(source_chk, "r") as chk:
