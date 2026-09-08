@@ -41,7 +41,11 @@ _RHO_I_SI = 917.0
 _RHO_W_SI = 1024.0
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(_ROOT, "data")
+# BedMachine, MEaSUREs velocity, and RACMO may live outside the checkout on a
+# workstation with a local data volume. Keep the repository layout as the
+# default, but make the observational root explicit rather than requiring
+# large files to be copied or symlinked into the tree.
+DATA_DIR = os.environ.get("ISMIP7_OBS_DATA_ROOT", os.path.join(_ROOT, "data"))
 MESH_DIR = os.path.join(_ROOT, "mesh")
 RESULTS_DIR = os.path.join(_ROOT, "results")
 
@@ -92,8 +96,19 @@ def diagnostic_solver_parameters():
     to each rank and can be eliminated by a Schur field split.  The resulting
     assembled Schur approximation acts on the CG1 velocity field and is the
     operator to which GAMG is applied.  Every level, including the distributed
-    coarse grid, uses an iterative method.
+    coarse grid, uses an iterative method by default.  The ``mumps`` mode
+    replaces only that velocity solve with a distributed MUMPS factorization
+    using PT-Scotch parallel nested dissection; the local stress elimination
+    remains in place.
     """
+    linear_solver = os.environ.get(
+        "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER", "iterative"
+    ).strip().lower()
+    if linear_solver not in {"iterative", "mumps"}:
+        raise ValueError(
+            "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER must be 'iterative' or 'mumps', "
+            f"not {linear_solver!r}"
+        )
     params = {
         "snes_type": os.environ.get("ISMIP7_SNES_TYPE", "newtonls"),
         "snes_max_it": int(os.environ.get("ISMIP7_SNES_MAXIT", "200")),
@@ -103,7 +118,7 @@ def diagnostic_solver_parameters():
         "mat_type": "aij",
         "ksp_type": "fgmres",
         "ksp_rtol": float(os.environ.get("ISMIP7_KSP_RTOL", "1e-6")),
-        "ksp_max_it": int(os.environ.get("ISMIP7_KSP_MAXIT", "200")),
+        "ksp_max_it": int(os.environ.get("ISMIP7_KSP_MAXIT", "1000")),
         "pc_type": "fieldsplit",
         "pc_fieldsplit_type": "schur",
         "pc_fieldsplit_schur_fact_type": "full",
@@ -129,6 +144,19 @@ def diagnostic_solver_parameters():
         "fieldsplit_1_mg_coarse_ksp_max_it": 50,
         "fieldsplit_1_mg_coarse_pc_type": "jacobi",
     }
+    if linear_solver == "mumps":
+        # Factor the assembled velocity Schur approximation.  With more than
+        # one MPI rank, MUMPS ICNTL(28)=2 selects parallel analysis and
+        # ICNTL(29)=1 selects PT-Scotch, whose ordering is nested dissection.
+        # Do not use pc_factor_mat_ordering_type here: PETSc documents that
+        # ordering hook as sequential-only for MUMPS.
+        params.update({
+            "fieldsplit_1_ksp_type": "preonly",
+            "fieldsplit_1_pc_type": "lu",
+            "fieldsplit_1_pc_factor_mat_solver_type": "mumps",
+            "fieldsplit_1_mat_mumps_icntl_28": 2,
+            "fieldsplit_1_mat_mumps_icntl_29": 1,
+        })
     return params
 
 
@@ -718,19 +746,43 @@ def setup_model(restart_from=None):
     # patience beats retries. 200 suffices for newtonls eras; raise via env for
     # newtontr pushes through hard geometry.
     sparams = diagnostic_solver_parameters()
-    PETSc.Sys.Print("  Linear solver: iterative fieldsplit Schur + velocity GAMG")
+    linear_solver = os.environ.get(
+        "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER", "iterative"
+    ).strip().lower()
+    if linear_solver == "mumps":
+        PETSc.Sys.Print(
+            "  Linear solver: fieldsplit Schur + MUMPS velocity factor "
+            "(parallel PT-Scotch nested dissection)"
+        )
+    else:
+        PETSc.Sys.Print(
+            "  Linear solver: iterative fieldsplit Schur + velocity GAMG"
+        )
     # Optional SNES/KSP convergence monitoring (ISMIP7_SNES_MONITOR=1).
     # ISMIP7_SNES_LOG routes the output to a file (per run, so concurrent
     # debug runs don't interleave); otherwise it goes to stdout.
+    _solver_log = None
     if os.environ.get("ISMIP7_SNES_MONITOR"):
-        _snes_log = os.environ.get("ISMIP7_SNES_LOG")
-        _viewer = f"ascii:{_snes_log}" if _snes_log else None
+        _solver_log = os.environ.get("ISMIP7_SNES_LOG")
+        if _solver_log:
+            os.makedirs(
+                os.path.dirname(os.path.abspath(_solver_log)), exist_ok=True
+            )
+        # The fourth ASCII-viewer field is the PETSc file mode.  Append mode
+        # keeps our per-solve headers when a monitor opens the same file.
+        _viewer = f"ascii:{_solver_log}::append" if _solver_log else None
         sparams.update({
             "snes_monitor": _viewer,
             "snes_converged_reason": _viewer,
             "snes_linesearch_monitor": _viewer,
+            "ksp_monitor_short": _viewer,
+            "ksp_monitor_true_residual": _viewer,
             "ksp_converged_reason": _viewer,
         })
+        PETSc.Sys.Print(
+            f"  Solver monitor log: {_solver_log}" if _solver_log
+            else "  Solver monitors: stdout"
+        )
     fc_params = {"quadrature_degree": 4}
 
     z = Function(Z)
@@ -803,7 +855,48 @@ def setup_model(restart_from=None):
     prob = NonlinearVariationalProblem(
         F, z, form_compiler_parameters=fc_params
     )
-    slvr = NonlinearVariationalSolver(prob, solver_parameters=sparams)
+    slvr = NonlinearVariationalSolver(
+        prob,
+        solver_parameters=sparams,
+        options_prefix="ismip7_diagnostic_",
+    )
+
+    _solve_count = 0
+    _header_viewer = None
+    if _solver_log and mesh.comm.rank == 0:
+        _header_viewer = PETSc.Viewer().createASCII(
+            _solver_log,
+            mode=PETSc.Viewer.FileMode.APPEND,
+            comm=PETSc.COMM_SELF,
+        )
+
+    def _write_solve_header(label, **metadata):
+        nonlocal _solve_count
+        _solve_count += 1
+        details = " ".join(
+            f"{key}={value}" for key, value in metadata.items()
+        )
+        header = (
+            f"\n=== DIAGNOSTIC SOLVE {_solve_count:04d} | {label} | "
+            f"n_flow={float(n_flow):.6g} m_slide={float(m_slide):.6g} "
+            f"linear={linear_solver} snes={slvr.snes.getType()} "
+            f"ksp={sparams['ksp_type']} "
+            f"ksp_rtol={sparams['ksp_rtol']:.6g} "
+            f"ksp_max_it={sparams['ksp_max_it']}"
+            f"{(' ' + details) if details else ''} ===\n"
+        )
+        if _solver_log:
+            if mesh.comm.rank == 0:
+                _header_viewer.printfASCII(header)
+                _header_viewer.flush()
+            mesh.comm.barrier()
+        else:
+            PETSc.Sys.Print(header.rstrip())
+
+    def solve_diagnostic(label, **metadata):
+        """Write a trace header, then execute one mixed diagnostic solve."""
+        _write_solve_header(label, **metadata)
+        return slvr.solve()
 
     # Adaptive n/m continuation for the cold-start diagnostic solve. On a
     # fine mesh with a rough (mid-optimization) MAP the n=1→n_flow_val jump
@@ -834,7 +927,7 @@ def setup_model(restart_from=None):
         try:
             n_flow.assign(n_flow_val)
             m_slide.assign(m_slide_val)
-            slvr.solve()
+            solve_diagnostic("restart-loaded-state")
             restart_solved = True
             fnorm_conv = slvr.snes.getFunctionNorm()
             if fnorm_conv > 0.0:
@@ -867,10 +960,15 @@ def setup_model(restart_from=None):
         (base_steps, 2 * base_steps, 4 * base_steps) if _run_continuation else ()
     ):
         try:
-            for t in np.linspace(0.0, 1.0, steps):
+            for step, t in enumerate(np.linspace(0.0, 1.0, steps), 1):
                 n_flow.assign(1.0 + t * (n_flow_val - 1.0))
                 m_slide.assign(1.0 + t * (m_slide_val - 1.0))
-                slvr.solve()
+                solve_diagnostic(
+                    "initial-continuation",
+                    attempt=attempt + 1,
+                    step=f"{step}/{steps}",
+                    t=f"{t:.6g}",
+                )
             PETSc.Sys.Print(f"  Done ({steps} continuation steps)")
             # Self-scaled absolute tolerance: a solve that STARTS at the
             # converged state (restart step 1: geometry unchanged since this
@@ -943,6 +1041,7 @@ def setup_model(restart_from=None):
         "s": s,
         "b": b,
         "slvr": slvr,
+        "solve_diagnostic": solve_diagnostic,
         "n_flow": n_flow,
         "n_flow_val": n_flow_val,
         "m_slide": m_slide,
@@ -1000,6 +1099,7 @@ def run_simulation(
     s = ctx["s"]
     b = ctx["b"]
     slvr = ctx["slvr"]
+    solve_diagnostic = ctx["solve_diagnostic"]
     n_flow = ctx["n_flow"]
     n_flow_val = ctx["n_flow_val"]
     m_slide = ctx["m_slide"]
@@ -1163,13 +1263,17 @@ def run_simulation(
                 f"re-solving diagnostic..."
             )
             try:
-                slvr.solve()
+                solve_diagnostic("geometry-lift")
             except fd.ConvergenceError:
                 PETSc.Sys.Print("    warm-start solve failed; re-ramping n...")
-                for _t in np.linspace(0.0, 1.0, 10):
+                for step, _t in enumerate(np.linspace(0.0, 1.0, 10), 1):
                     n_flow.assign(1.0 + _t * (n_flow_val - 1.0))
                     m_slide.assign(1.0 + _t * (m_slide_val - 1.0))
-                    slvr.solve()
+                    solve_diagnostic(
+                        "geometry-lift-continuation",
+                        step=f"{step}/10",
+                        t=f"{_t:.6g}",
+                    )
 
     # Apparent-mass-balance reference (ISMIP7_APPARENT_MB=1): a frozen DG0
     # correction equal to the DISCRETE FV flux divergence of the initial
@@ -1359,11 +1463,15 @@ def run_simulation(
     z_entry = z.copy(deepcopy=True)
     snes_type0 = slvr.snes.getType()
 
-    def _ramp():
-        for t in np.linspace(0.0, 1.0, 10):
+    def _ramp(label):
+        for step, t in enumerate(np.linspace(0.0, 1.0, 10), 1):
             n_flow.assign(1.0 + t * (n_flow_val - 1.0))
             m_slide.assign(1.0 + t * (m_slide_val - 1.0))
-            slvr.solve()
+            solve_diagnostic(
+                label,
+                step=f"{step}/10",
+                t=f"{t:.6g}",
+            )
 
     def _solve_with_rescue(k):
         r"""Diagnostic solve with an escalation ladder for hard eras
@@ -1374,7 +1482,7 @@ def run_simulation(
         always restores the configured SNES type and full n/m on exit.
         Returns True on success."""
         try:
-            slvr.solve()
+            solve_diagnostic(f"step-{k}-direct")
             return True
         except fd.ConvergenceError:
             pass
@@ -1386,16 +1494,45 @@ def run_simulation(
         rescue_maxit = int(os.environ.get("ISMIP7_RESCUE_MAXIT", "600"))
         _rt, _at, _dt_, _mi = slvr.snes.getTolerances()
         attempts = [
-            ("re-doing continuation", snes_type0, _ramp, False),
-            ("trust-region retry", "newtontr", slvr.solve, False),
-            ("trust-region continuation", "newtontr", _ramp, False),
+            (
+                "re-doing continuation",
+                snes_type0,
+                lambda: _ramp(f"step-{k}-rescue-continuation"),
+                False,
+            ),
+            (
+                "trust-region retry",
+                "newtontr",
+                lambda: solve_diagnostic(f"step-{k}-trust-region"),
+                False,
+            ),
+            (
+                "trust-region continuation",
+                "newtontr",
+                lambda: _ramp(f"step-{k}-trust-region-continuation"),
+                False,
+            ),
         ]
         if k_lim_c is not None and k_rescue > 0.0:
             # Deepest rungs: pin the runaway front nodes with the soft speed
             # limiter (only |u| > u_lim feels it) while trust region solves.
             attempts += [
-                ("trust-region + speed limiter", "newtontr", slvr.solve, True),
-                ("trust-region + limiter continuation", "newtontr", _ramp, True),
+                (
+                    "trust-region + speed limiter",
+                    "newtontr",
+                    lambda: solve_diagnostic(
+                        f"step-{k}-trust-region-speed-limiter"
+                    ),
+                    True,
+                ),
+                (
+                    "trust-region + limiter continuation",
+                    "newtontr",
+                    lambda: _ramp(
+                        f"step-{k}-trust-region-limiter-continuation"
+                    ),
+                    True,
+                ),
             ]
         try:
             for label, stype, action, use_lim in attempts:

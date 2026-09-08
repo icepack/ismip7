@@ -34,7 +34,9 @@ from mesh_naming import get_buffer_m, mesh_filename
 
 MESH_DIR = os.path.join(_ANT, "mesh")
 RESULTS_DIR = os.path.join(_ANT, "results")
-DATA_DIR = os.path.join(_ANT, "data")
+DATA_DIR = os.environ.get(
+    "ISMIP7_OBS_DATA_ROOT", os.path.join(_ANT, "data")
+)
 
 lc = _lc()
 lc_coarse = _lc_coarse()

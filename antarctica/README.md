@@ -486,6 +486,7 @@ how it reaches the core report.
 | `ISMIP7_MESH` | mesh `.msh` path (inversion and tools). A forward takes its mesh from the MAP/restart checkpoint, which records its own mesh basename and parameters, so here it only names the boundary sidecar for a legacy checkpoint that carries no such record | `mesh/antarctica_<COARSE>_<LC>_buffered<BUFFER_M>.msh` |
 | `ISMIP7_BNDIDS` | override boundary-id JSON | `mesh/boundary_ids_antarctica_<COARSE>_<LC>_buffered<BUFFER_M>.json` if present, else `mesh/boundary_ids.json` |
 | `ISMIP7_INVERSION` | override inversion checkpoint (θ/φ MAP); fields are interpolated onto `ISMIP7_MESH` when set | `mesh/inversion_icepack2_budd_n3_<LC>.h5` |
+| `ISMIP7_OBS_DATA_ROOT` | BedMachine, MEaSUREs velocity, and RACMO observational-data root; useful when these files live on an external volume | `<repo>/antarctica/data` |
 | `ISMIP7_GEOMETRY_SPACE` | space for `h`/`s`/`b` (`dg0`: one thickness for the terminus force and the mass flux; `cg1`: legacy, for A/B only) - also selects the MAP h5 (see `../GEOMETRY_DISCRETIZATION.md`) | `dg0` |
 | `ISMIP7_DATA_ROOT` | ISMIP7 forcing tree root | `<repo>/ISMIP7/AIS` |
 | `ISMIP7_T_END` / `ISMIP7_DT` | end year / timestep (yr) | `2300` / `1.0` |
@@ -500,7 +501,9 @@ how it reaches the core report.
 | `ISMIP7_FIXED_FRONT` | set to hold the calving front at the t=0 extent (inflow beyond it tallied as calving) | _(unset)_ |
 | `ISMIP7_LEGACY_TRANSPORT` | set to restore the pre-Jul-2026 CG-projection transport scheme (requires `ISMIP7_GEOMETRY_SPACE=cg1`) | _(unset)_ |
 | `ISMIP7_SNES_TYPE` / `ISMIP7_SNES_MAXIT` | diagnostic Newton type / max iterations | `newtonls` / `200` |
-| `ISMIP7_KSP_RTOL` / `ISMIP7_KSP_MAXIT` | outer FGMRES relative tolerance / iteration limit for the iterative diagnostic solver | `1e-6` / `200` |
+| `ISMIP7_DIAGNOSTIC_LINEAR_SOLVER` | diagnostic linear mode: `iterative` (fieldsplit Schur + GAMG) or `mumps` (MUMPS factorization of the velocity Schur block with PT-Scotch nested dissection) | `iterative` |
+| `ISMIP7_KSP_RTOL` / `ISMIP7_KSP_MAXIT` | outer FGMRES relative tolerance / iteration limit for the iterative diagnostic mode | `1e-6` / `1000` |
+| `ISMIP7_SNES_MONITOR` / `ISMIP7_SNES_LOG` | enable diagnostic SNES/KSP monitors and optionally route them to a file; KSP output includes short and true residual lines per iteration, with a header before each mixed solve | _(unset)_ / stdout |
 | `ISMIP7_TRANSPORT_KSP_RTOL` / `ISMIP7_TRANSPORT_KSP_MAXIT` | GMRES relative tolerance / iteration limit for the DG0 transport solver | `1e-10` / `500` |
 | `ISMIP7_K_MELT` | scalar Burgard K (projections) | `1.15e-4` (Burgard K50) |
 | `ISMIP7_K_PER_BASIN_NPZ` | per-basin K file (control) | `results/calibrated_K_per_basin_<lc>.npz` |
@@ -548,6 +551,11 @@ The pipeline has five idempotent stages (each skips work already done):
    fields and applies GAMG to the condensed velocity operator. GAMG's coarse
    grid and the DG0 transport update are iterative as well; no transient solve
    uses a sparse direct factorization.
+   Slurm memory is selected per fine resolution by `make transient`: 128G for
+   LC=500, 96G for LC=1000, 80G for LC=2000, 64G for LC=2500, and 32G for
+   LC=5000. The 500 m allocation is based on a measured ~64 GiB three-rank
+   peak before the first diagnostic solve completed, with headroom for the full
+   run; the 2500 m debug allocation is anchored at 64G.
 5. **Matrix** — aggregate JSON timing records into [`TIMING_MATRIX.md`](TIMING_MATRIX.md).
 
 Individual stages can be run separately: `make meshes`, `make inversion`,
@@ -555,7 +563,11 @@ Individual stages can be run separately: `make meshes`, `make inversion`,
 
 For a one-hour probe on the Slurm debug queue, use `make debug`. It submits one
 transient job with `LCS=2500`, `RATIOS=20`, and `CORES=16`, using
-`--partition=debug --time=01:00:00`.
+`--partition=debug --time=01:00:00 --mem=64G`. It uses MUMPS with PT-Scotch nested
+dissection on the velocity Schur block, enables diagnostic SNES/KSP monitoring,
+and writes
+`results/logs/timing_mumps_ptscotch_debug_lc2500_lcc50000_n<cores>_<stamp>.log`.
+Set `CORES=8` for an 8-core local probe.
 
 Slurm scripts live in `scripts/batch_runners/` (`timing_inversion.script`,
 `timing_meshes.script`, `timing_redistribute.script`, and

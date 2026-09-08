@@ -33,6 +33,13 @@ T_START = 2015.0
 T_END = float(os.environ.get("ISMIP7_T_END", "2020"))
 DT = float(os.environ.get("ISMIP7_DT", "1.0"))
 OUTPUT_INTERVAL = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "5"))
+DIAGNOSTIC_LINEAR_SOLVER = os.environ.get(
+    "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER", "iterative"
+).strip().lower()
+if DIAGNOSTIC_LINEAR_SOLVER == "mumps":
+    LINEAR_SOLVER_LABEL = "fieldsplit-mumps-ptscotch"
+else:
+    LINEAR_SOLVER_LABEL = "fieldsplit-gamg"
 
 
 def main():
@@ -43,7 +50,7 @@ def main():
         f"Timing run: lc={lc} "
         f"lc_coarse={os.environ.get('ISMIP7_LC_COARSE', 'unknown')} "
         f"buffer={os.environ.get('ISMIP7_BUFFER_M', 'unknown')} "
-        f"ncores={ncores} solver=fieldsplit-gamg/transport-gmres "
+        f"ncores={ncores} solver={LINEAR_SOLVER_LABEL}/transport-gmres "
         f"t={T_START}->{T_END} dt={DT}"
     )
 
@@ -82,7 +89,7 @@ def main():
         "t_end": T_END,
         "dt": DT,
         "nsteps": nsteps,
-        "linear_solver": "fieldsplit-gamg",
+        "linear_solver": LINEAR_SOLVER_LABEL,
         "transport_solver": "gmres-bjacobi-ilu",
         "run_seconds": run_seconds,
         "seconds_per_step": run_seconds / max(nsteps, 1),

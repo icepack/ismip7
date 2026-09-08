@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=16
 #SBATCH --time=12:00:00
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH -A r00905
 
 #Load any modules that your program needs
@@ -31,5 +31,7 @@ export OPENBLAS_NUM_THREADS=1
 cd "${SLURM_SUBMIT_DIR:-.}"
 
 # ISMIP7_LC, ISMIP7_LC_COARSE, ISMIP7_BUFFER_M, ISMIP7_INVERSION,
-# ISMIP7_T_END, ISMIP7_DT are forwarded via sbatch --export=ALL,...
+# ISMIP7_T_END, ISMIP7_DT are forwarded via sbatch --export=ALL,... . The
+# Makefile overrides --mem per resolution; 128G is the safe standalone default
+# for the finest 500 m timing case.
 srun -n ${SLURM_NTASKS} python -u scripts/run_timing.py
