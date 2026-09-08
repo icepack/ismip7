@@ -8,7 +8,7 @@
 #   inversion     single LC=2500 / LC_coarse=25000 inversion (Slurm or mpiexec)
 #   redistribute  rewrite the complete inversion checkpoint on 1 core
 #   transient     30 short runs (10 mesh combos x 16/32/64 cores)
-#   debug         transient jobs on the debug partition with a 1-hour limit
+#   debug         one transient job on the debug partition with a 1-hour limit
 #   matrix        write TIMING_MATRIX.md from results/timing/*.json
 
 LCS ?= 500 1000 2000 2500 5000
@@ -111,6 +111,9 @@ transient:
 	  fi; \
 	done; done; done
 
+debug: override LCS := 2500
+debug: override RATIOS := 20
+debug: override CORES := 16
 debug: override SLURM_PARTITION = debug
 debug: override SLURM_TIME = 01:00:00
 debug: transient

@@ -553,9 +553,9 @@ The pipeline has five idempotent stages (each skips work already done):
 Individual stages can be run separately: `make meshes`, `make inversion`,
 `make redistribute`, `make transient`, `make matrix`.
 
-For one-hour jobs on the Slurm debug queue, use `make debug`. It runs the same
-transient matrix with `--partition=debug --time=01:00:00`; `LCS`, `RATIOS`, and
-`CORES` can be narrowed in the usual way for a single probe.
+For a one-hour probe on the Slurm debug queue, use `make debug`. It submits one
+transient job with `LCS=2500`, `RATIOS=20`, and `CORES=16`, using
+`--partition=debug --time=01:00:00`.
 
 Slurm scripts live in `scripts/batch_runners/` (`timing_inversion.script`,
 `timing_meshes.script`, `timing_redistribute.script`, and
