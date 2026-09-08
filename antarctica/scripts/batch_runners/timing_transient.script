@@ -25,6 +25,9 @@ module load petsc/3.25.5
 module load firedrake/2026.04
 . /N/u/dlilien/Quartz/sw/firedrake/2026.04/firedrake/bin/activate
 
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
 cd "${SLURM_SUBMIT_DIR:-.}"
 
 # ISMIP7_LC, ISMIP7_LC_COARSE, ISMIP7_BUFFER_M, ISMIP7_INVERSION,

@@ -3,11 +3,12 @@
 # Run from antarctica/:
 #   make timing
 #
-# Stages (each idempotent — skips already-built artifacts):
+# Targets (each idempotent — skips already-built artifacts):
 #   meshes        build 10 meshes (5 LC x {10,20}*LC, buffer=20000 m)
 #   inversion     single LC=2500 / LC_coarse=25000 inversion (Slurm or mpiexec)
 #   redistribute  rewrite the complete inversion checkpoint on 1 core
 #   transient     30 short runs (10 mesh combos x 16/32/64 cores)
+#   debug         transient jobs on the debug partition with a 1-hour limit
 #   matrix        write TIMING_MATRIX.md from results/timing/*.json
 
 LCS ?= 500 1000 2000 2500 5000
@@ -18,7 +19,8 @@ INV_LC ?= 2500
 INV_LC_COARSE ?= 25000
 FRICTION ?= budd
 N_FLOW ?= 3.0
-LINEAR_SOLVER ?= iterative
+SLURM_PARTITION ?= general
+SLURM_TIME ?= 12:00:00
 ifeq ($(N_FLOW),4)
 A4_FACTOR ?= 10.0
 else ifeq ($(N_FLOW),4.0)
@@ -56,7 +58,7 @@ colon := :
 TIMING_LCS := $(subst $(space),$(colon),$(LCS))
 TIMING_RATIOS := $(subst $(space),$(colon),$(RATIOS))
 
-.PHONY: timing meshes inversion redistribute transient matrix
+.PHONY: timing meshes inversion redistribute transient debug matrix
 
 timing: matrix
 
@@ -99,14 +101,19 @@ transient:
 	  bndids=$(CURDIR)/mesh/boundary_ids_antarctica_$${lcc}_$${lc}_buffered$(BUFFER).json; \
 	  if command -v sbatch >/dev/null 2>&1; then \
 	    sbatch --job-name=timing_$${lc}_$${lcc}_$${nc} --ntasks-per-node=$$nc \
-	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK),ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_LINEAR_SOLVER=$(LINEAR_SOLVER),ISMIP7_T_END=2020,ISMIP7_DT=1.0 \
+	      --partition=$(SLURM_PARTITION) --time=$(SLURM_TIME) \
+	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK),ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_T_END=2020,ISMIP7_DT=1.0 \
 	      scripts/batch_runners/timing_transient.script; \
 	  else \
-	    ISMIP7_LC=$$lc ISMIP7_LC_COARSE=$$lcc ISMIP7_BUFFER_M=$(BUFFER) ISMIP7_MESH=$$mesh ISMIP7_BNDIDS=$$bndids ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK) \
-	      ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) ISMIP7_LINEAR_SOLVER=$(LINEAR_SOLVER) ISMIP7_T_END=2020 ISMIP7_DT=1.0 \
+	    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 ISMIP7_LC=$$lc ISMIP7_LC_COARSE=$$lcc ISMIP7_BUFFER_M=$(BUFFER) ISMIP7_MESH=$$mesh ISMIP7_BNDIDS=$$bndids ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK) \
+	      ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) ISMIP7_T_END=2020 ISMIP7_DT=1.0 \
 	      mpiexec -n $$nc python scripts/run_timing.py; \
 	  fi; \
 	done; done; done
+
+debug: override SLURM_PARTITION = debug
+debug: override SLURM_TIME = 01:00:00
+debug: transient
 
 matrix: transient
 	python scripts/build_timing_matrix.py

@@ -91,8 +91,8 @@ def diagnostic_solver_parameters():
     ``M`` and ``tau`` are DG0 fields, so their joint Jacobian block is local
     to each rank and can be eliminated by a Schur field split.  The resulting
     assembled Schur approximation acts on the CG1 velocity field and is the
-    operator to which GAMG is applied.  Keep the old MUMPS path available for
-    comparisons and recovery runs via ``ISMIP7_LINEAR_SOLVER=direct``.
+    operator to which GAMG is applied.  Every level, including the distributed
+    coarse grid, uses an iterative method.
     """
     params = {
         "snes_type": os.environ.get("ISMIP7_SNES_TYPE", "newtonls"),
@@ -100,50 +100,52 @@ def diagnostic_solver_parameters():
         "snes_linesearch_type": "nleqerr",
         "snes_divergence_tolerance": -1,
         "snes_stol": 0.0,
+        "mat_type": "aij",
+        "ksp_type": "fgmres",
+        "ksp_rtol": float(os.environ.get("ISMIP7_KSP_RTOL", "1e-6")),
+        "ksp_max_it": int(os.environ.get("ISMIP7_KSP_MAXIT", "200")),
+        "pc_type": "fieldsplit",
+        "pc_fieldsplit_type": "schur",
+        "pc_fieldsplit_schur_fact_type": "full",
+        # Split 0 contains the element-local fields; split 1 is velocity.
+        "pc_fieldsplit_0_fields": "1,2",
+        "pc_fieldsplit_1_fields": "0",
+        "fieldsplit_0_ksp_type": "preonly",
+        "fieldsplit_0_pc_type": "bjacobi",
+        "fieldsplit_0_sub_ksp_type": "preonly",
+        "fieldsplit_0_sub_pc_type": "ilu",
+        # A_uu is zero in the dual formulation.  SELFP assembles the
+        # condensed velocity approximation instead of handing GAMG A_uu.
+        "pc_fieldsplit_schur_precondition": "selfp",
+        "fieldsplit_1_mat_schur_complement_ainv_type": "blockdiag",
+        "fieldsplit_1_ksp_type": "preonly",
+        "fieldsplit_1_pc_type": "gamg",
+        # GAMG otherwise defaults to a rank-collapsed LU coarse solve.
+        "fieldsplit_1_pc_gamg_parallel_coarse_grid_solver": None,
+        "fieldsplit_1_mg_levels_ksp_type": "chebyshev",
+        "fieldsplit_1_mg_levels_pc_type": "jacobi",
+        "fieldsplit_1_mg_coarse_ksp_type": "gmres",
+        "fieldsplit_1_mg_coarse_ksp_rtol": 1e-2,
+        "fieldsplit_1_mg_coarse_ksp_max_it": 50,
+        "fieldsplit_1_mg_coarse_pc_type": "jacobi",
     }
+    return params
 
-    linear_solver = os.environ.get(
-        "ISMIP7_LINEAR_SOLVER", "iterative"
-    ).strip().lower()
-    if linear_solver == "iterative":
-        params.update({
-            "mat_type": "aij",
-            "ksp_type": "fgmres",
-            "ksp_rtol": float(os.environ.get("ISMIP7_KSP_RTOL", "1e-6")),
-            "ksp_max_it": int(os.environ.get("ISMIP7_KSP_MAXIT", "200")),
-            "pc_type": "fieldsplit",
-            "pc_fieldsplit_type": "schur",
-            "pc_fieldsplit_schur_fact_type": "full",
-            # Split 0 contains the element-local fields; split 1 is velocity.
-            "pc_fieldsplit_0_fields": "1,2",
-            "pc_fieldsplit_1_fields": "0",
-            "fieldsplit_0_ksp_type": "preonly",
-            "fieldsplit_0_pc_type": "bjacobi",
-            "fieldsplit_0_sub_ksp_type": "preonly",
-            "fieldsplit_0_sub_pc_type": "lu",
-            # A_uu is zero in the dual formulation.  SELFP assembles the
-            # condensed velocity approximation instead of handing GAMG A_uu.
-            "pc_fieldsplit_schur_precondition": "selfp",
-            "fieldsplit_1_mat_schur_complement_ainv_type": "blockdiag",
-            "fieldsplit_1_ksp_type": "preonly",
-            "fieldsplit_1_pc_type": "gamg",
-        })
-    elif linear_solver == "direct":
-        params.update({
-            "ksp_type": "gmres",
-            "pc_type": "lu",
-            "pc_factor_mat_solver_type": "mumps",
-            "mat_mumps_icntl_14": 400,
-            "mat_mumps_icntl_24": 1,
-            "mat_mumps_cntl_3": 1e-12,
-        })
-    else:
-        raise ValueError(
-            "ISMIP7_LINEAR_SOLVER must be 'iterative' or 'direct', got "
-            f"{linear_solver!r}"
-        )
 
-    return linear_solver, params
+def transport_solver_parameters():
+    r"""Iterative PETSc defaults for the nonsymmetric DG0 transport solve."""
+    return {
+        "ksp_type": "gmres",
+        "ksp_rtol": float(
+            os.environ.get("ISMIP7_TRANSPORT_KSP_RTOL", "1e-10")
+        ),
+        "ksp_max_it": int(
+            os.environ.get("ISMIP7_TRANSPORT_KSP_MAXIT", "500")
+        ),
+        "pc_type": "bjacobi",
+        "sub_ksp_type": "preonly",
+        "sub_pc_type": "ilu",
+    }
 
 
 def find_file(d, p):
@@ -715,12 +717,8 @@ def setup_model(restart_from=None):
     # region) and were being executed by the cap while still descending -
     # patience beats retries. 200 suffices for newtonls eras; raise via env for
     # newtontr pushes through hard geometry.
-    linear_solver, sparams = diagnostic_solver_parameters()
-    PETSc.Sys.Print(
-        "  Linear solver: "
-        + ("fieldsplit Schur + velocity GAMG" if linear_solver == "iterative"
-           else "MUMPS direct")
-    )
+    sparams = diagnostic_solver_parameters()
+    PETSc.Sys.Print("  Linear solver: iterative fieldsplit Schur + velocity GAMG")
     # Optional SNES/KSP convergence monitoring (ISMIP7_SNES_MONITOR=1).
     # ISMIP7_SNES_LOG routes the output to a file (per run, so concurrent
     # debug runs don't interleave); otherwise it goes to stdout.
@@ -1167,7 +1165,7 @@ def run_simulation(
             try:
                 slvr.solve()
             except fd.ConvergenceError:
-                PETSc.Sys.Print("    direct solve failed; re-ramping n...")
+                PETSc.Sys.Print("    warm-start solve failed; re-ramping n...")
                 for _t in np.linspace(0.0, 1.0, 10):
                     n_flow.assign(1.0 + _t * (n_flow_val - 1.0))
                     m_slide.assign(1.0 + _t * (m_slide_val - 1.0))
@@ -1509,11 +1507,7 @@ def run_simulation(
         fd.solve(
             fd.lhs(F_prog) == fd.rhs(F_prog),
             h_dg,
-            solver_parameters={
-                "ksp_type": "preonly",
-                "pc_type": "lu",
-                "pc_factor_mat_solver_type": "mumps",
-            },
+            solver_parameters=transport_solver_parameters(),
         )
 
         out_gt = float(assemble(un_plus * h_dg * ds)) * rho_gt * dt_local
