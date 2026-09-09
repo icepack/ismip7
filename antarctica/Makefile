@@ -9,7 +9,10 @@
 #   redistribute  rewrite the complete inversion checkpoint on 1 core
 #   transient     30 short runs (10 mesh combos x 16/32/64 cores),
 #                 with a resolution-specific Slurm memory request
-#   debug         one transient job on the debug partition with a 1-hour limit
+#   qualify       gate one solver through 2-step and 5-year 2.5 km probes
+#   debug         one condensed-MUMPS job with full convergence monitors
+#   reference     one full-Jacobian MUMPS reference job
+#   solver-smoke  tiny two-rank setup test; no Antarctic data or time steps
 #   matrix        write TIMING_MATRIX.md from results/timing/*.json
 
 LCS ?= 500 1000 2000 2500 5000
@@ -20,9 +23,35 @@ INV_LC ?= 2500
 INV_LC_COARSE ?= 25000
 FRICTION ?= budd
 N_FLOW ?= 3.0
-ISMIP7_DIAGNOSTIC_LINEAR_SOLVER ?= iterative
+ISMIP7_DIAGNOSTIC_LINEAR_SOLVER ?= scpc_gamg
+ISMIP7_SOLVER_VIEW ?=
+T_END ?= 2020
+DT ?= 1.0
+TIMING_KIND ?= matrix
+TIMING_TAG ?= $(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_t$(T_END)_dt$(DT)
+TIMING_EXPERIMENT ?= timing
+# Optional exact-input overrides for a single transient lane.  The resolution
+# matrix leaves these empty and constructs each target mesh parametrically.
+TIMING_LC_COARSE ?=
+TIMING_MESH ?=
+TIMING_BNDIDS ?=
+TIMING_INVERSION ?= $(CURDIR)/$(INV_CHK)
+SBATCH_WAIT ?=
+FORCE_TIMING ?=
 SLURM_PARTITION ?= general
 SLURM_TIME ?= 12:00:00
+
+# The active solver qualification/reference lane uses the improved DG0
+# log-velocity/net-balance MAP imported from the other branch and its exact
+# source mesh.  Keep these paths together: MAPs and meshes are not
+# interchangeable, and the per-mesh boundary sidecar is part of the pair.
+SOLVER_TEST_LC ?= 2500
+SOLVER_TEST_LC_COARSE ?= 64000
+SOLVER_TEST_BUFFER ?= 20000
+SOLVER_TEST_TAG ?= dg0_logvelnet
+SOLVER_TEST_MESH ?= $(CURDIR)/mesh/antarctica_64000_2500.msh
+SOLVER_TEST_BNDIDS ?= $(CURDIR)/mesh/boundary_ids_antarctica_64000_2500.json
+SOLVER_TEST_INVERSION ?= $(CURDIR)/mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5
 ifeq ($(N_FLOW),4)
 A4_FACTOR ?= 10.0
 else ifeq ($(N_FLOW),4.0)
@@ -67,9 +96,10 @@ DEBUG_STAMP := $(shell date +%Y%m%d_%H%M%S)
 # meshes are slightly larger than their ratio-20 counterparts, so one
 # conservative budget per fine resolution covers both ratios.
 
-.PHONY: timing meshes inversion redistribute transient debug matrix
+.PHONY: timing meshes inversion redistribute transient qualify debug reference solver-smoke matrix
 
-timing: matrix
+timing: qualify
+	$(MAKE) matrix SBATCH_WAIT=--wait
 
 meshes:
 	@if command -v sbatch >/dev/null 2>&1; then \
@@ -104,8 +134,9 @@ redistribute:
 transient:
 	@mkdir -p results/timing results/logs
 	@for lc in $(LCS); do for r in $(RATIOS); do lcc=$$((lc * r)); for nc in $(CORES); do \
-	  out=results/timing/timing_$${lc}_$${lcc}_$${nc}.json; \
-	  [ -f $$out ] && { echo "skip $$out"; continue; }; \
+	  if [ -n "$(TIMING_LC_COARSE)" ]; then lcc=$(TIMING_LC_COARSE); fi; \
+	  out=results/timing/timing_$(TIMING_TAG)_$${lc}_$${lcc}_$${nc}.json; \
+	  [ -z "$(FORCE_TIMING)" ] && [ -f $$out ] && { echo "skip $$out"; continue; }; \
 	  case "$$lc" in \
 	    500)  mem=128G;; \
 	    1000) mem=96G;; \
@@ -114,29 +145,96 @@ transient:
 	    5000) mem=32G;; \
 	    *) echo "no timing memory budget for LC=$$lc" >&2; exit 2;; \
 	  esac; \
-	  mesh=$(CURDIR)/mesh/antarctica_$${lcc}_$${lc}_buffered$(BUFFER).msh; \
-	  bndids=$(CURDIR)/mesh/boundary_ids_antarctica_$${lcc}_$${lc}_buffered$(BUFFER).json; \
+	  mesh="$(TIMING_MESH)"; \
+	  [ -n "$$mesh" ] || mesh=$(CURDIR)/mesh/antarctica_$${lcc}_$${lc}_buffered$(BUFFER).msh; \
+	  bndids="$(TIMING_BNDIDS)"; \
+	  [ -n "$$bndids" ] || bndids=$(CURDIR)/mesh/boundary_ids_antarctica_$${lcc}_$${lc}_buffered$(BUFFER).json; \
+	  inversion="$(TIMING_INVERSION)"; \
+	  [ -f "$$mesh" ] || { echo "mesh not found: $$mesh" >&2; exit 2; }; \
+	  [ -f "$$bndids" ] || { echo "boundary ids not found: $$bndids" >&2; exit 2; }; \
+	  [ -f "$$inversion" ] || { echo "inversion not found: $$inversion" >&2; exit 2; }; \
 	  if command -v sbatch >/dev/null 2>&1; then \
-	    sbatch --job-name=timing_$${lc}_$${lcc}_$${nc} --ntasks-per-node=$$nc \
+	    sbatch $(SBATCH_WAIT) --job-name=timing_$${lc}_$${lcc}_$${nc} --ntasks-per-node=$$nc \
 	      --partition=$(SLURM_PARTITION) --time=$(SLURM_TIME) --mem=$$mem \
-	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK),ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_T_END=2020,ISMIP7_DT=1.0,ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER),ISMIP7_SNES_MONITOR=$(ISMIP7_SNES_MONITOR),ISMIP7_SNES_LOG=$(ISMIP7_SNES_LOG) \
+	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$$inversion,ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_T_END=$(T_END),ISMIP7_DT=$(DT),ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER),ISMIP7_TIMING_KIND=$(TIMING_KIND),ISMIP7_TIMING_TAG=$(TIMING_TAG),ISMIP7_TIMING_EXPERIMENT=$(TIMING_EXPERIMENT),ISMIP7_SNES_MONITOR=$(ISMIP7_SNES_MONITOR),ISMIP7_SNES_LOG=$(ISMIP7_SNES_LOG),ISMIP7_SOLVER_VIEW=$(ISMIP7_SOLVER_VIEW) \
 	      scripts/batch_runners/timing_transient.script; \
 	  else \
-	    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 ISMIP7_LC=$$lc ISMIP7_LC_COARSE=$$lcc ISMIP7_BUFFER_M=$(BUFFER) ISMIP7_MESH=$$mesh ISMIP7_BNDIDS=$$bndids ISMIP7_INVERSION=$(CURDIR)/$(INV_CHK) ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER) ISMIP7_SNES_MONITOR=$(ISMIP7_SNES_MONITOR) ISMIP7_SNES_LOG=$(ISMIP7_SNES_LOG) \
-	      ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) ISMIP7_T_END=2020 ISMIP7_DT=1.0 \
+	    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 ISMIP7_LC=$$lc ISMIP7_LC_COARSE=$$lcc ISMIP7_BUFFER_M=$(BUFFER) ISMIP7_MESH=$$mesh ISMIP7_BNDIDS=$$bndids ISMIP7_INVERSION=$$inversion ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER) ISMIP7_TIMING_KIND=$(TIMING_KIND) ISMIP7_TIMING_TAG=$(TIMING_TAG) ISMIP7_TIMING_EXPERIMENT=$(TIMING_EXPERIMENT) ISMIP7_SNES_MONITOR=$(ISMIP7_SNES_MONITOR) ISMIP7_SNES_LOG=$(ISMIP7_SNES_LOG) ISMIP7_SOLVER_VIEW=$(ISMIP7_SOLVER_VIEW) \
+	      ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) ISMIP7_T_END=$(T_END) ISMIP7_DT=$(DT) \
 	      mpiexec -n $$nc python scripts/run_timing.py; \
 	  fi; \
 	done; done; done
 
-debug: override LCS := 2500
-debug: override RATIOS := 20
+# Qualification is intentionally a single 2.5 km / 16-rank lane on the exact
+# 64 km-coarse mesh used by the imported DG0 logvelnet MAP.  The checker gates
+# requested versus completed step count, final year, convergence reasons and
+# the mass-budget residual before the longer probe starts.
+qualify:
+	$(MAKE) transient LCS=$(SOLVER_TEST_LC) RATIOS=1 CORES=16 \
+	  BUFFER=$(SOLVER_TEST_BUFFER) TIMING_LC_COARSE=$(SOLVER_TEST_LC_COARSE) \
+	  TIMING_MESH=$(SOLVER_TEST_MESH) TIMING_BNDIDS=$(SOLVER_TEST_BNDIDS) \
+	  TIMING_INVERSION=$(SOLVER_TEST_INVERSION) \
+	  ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER) \
+	  T_END=2015.2 DT=0.1 TIMING_KIND=qualification \
+	  TIMING_TAG=qualification_2step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG) \
+	  TIMING_EXPERIMENT=qualification_2step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG) \
+	  SBATCH_WAIT=--wait FORCE_TIMING=1
+	python scripts/check_solver_qualification.py \
+	  --record results/timing/timing_qualification_2step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_$(SOLVER_TEST_LC_COARSE)_16.json \
+	  --csv results/qualification_2step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_timeseries.csv --min-steps 2
+	$(MAKE) transient LCS=$(SOLVER_TEST_LC) RATIOS=1 CORES=16 \
+	  BUFFER=$(SOLVER_TEST_BUFFER) TIMING_LC_COARSE=$(SOLVER_TEST_LC_COARSE) \
+	  TIMING_MESH=$(SOLVER_TEST_MESH) TIMING_BNDIDS=$(SOLVER_TEST_BNDIDS) \
+	  TIMING_INVERSION=$(SOLVER_TEST_INVERSION) \
+	  ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER) \
+	  T_END=2020 DT=1.0 TIMING_KIND=qualification \
+	  TIMING_TAG=qualification_5year_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG) \
+	  TIMING_EXPERIMENT=qualification_5year_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG) \
+	  SBATCH_WAIT=--wait FORCE_TIMING=1
+	python scripts/check_solver_qualification.py \
+	  --record results/timing/timing_qualification_5year_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_$(SOLVER_TEST_LC_COARSE)_16.json \
+	  --csv results/qualification_5year_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_timeseries.csv --min-steps 5
+
+debug: override LCS := $(SOLVER_TEST_LC)
+debug: override RATIOS := 1
 debug: CORES := 16
-debug: override ISMIP7_DIAGNOSTIC_LINEAR_SOLVER := mumps
+debug: override BUFFER := $(SOLVER_TEST_BUFFER)
+debug: override TIMING_LC_COARSE := $(SOLVER_TEST_LC_COARSE)
+debug: override TIMING_MESH := $(SOLVER_TEST_MESH)
+debug: override TIMING_BNDIDS := $(SOLVER_TEST_BNDIDS)
+debug: override TIMING_INVERSION := $(SOLVER_TEST_INVERSION)
+debug: override TIMING_KIND := debug
+debug: override TIMING_TAG := debug_scpc_mumps_$(SOLVER_TEST_TAG)
+debug: override TIMING_EXPERIMENT := debug_scpc_mumps_$(SOLVER_TEST_TAG)
+debug: override ISMIP7_DIAGNOSTIC_LINEAR_SOLVER := scpc_mumps
 debug: override ISMIP7_SNES_MONITOR := 1
-debug: override ISMIP7_SNES_LOG = $(CURDIR)/results/logs/timing_mumps_ptscotch_debug_lc2500_lcc50000_n$(CORES)_$(DEBUG_STAMP).log
+debug: override ISMIP7_SOLVER_VIEW := 1
+debug: override ISMIP7_SNES_LOG = $(CURDIR)/results/logs/timing_scpc_mumps_debug_lc$(SOLVER_TEST_LC)_lcc$(SOLVER_TEST_LC_COARSE)_n$(CORES)_$(DEBUG_STAMP).log
 debug: override SLURM_PARTITION = debug
 debug: override SLURM_TIME = 01:00:00
 debug: transient
+
+reference: override LCS := $(SOLVER_TEST_LC)
+reference: override RATIOS := 1
+reference: CORES := 16
+reference: override BUFFER := $(SOLVER_TEST_BUFFER)
+reference: override TIMING_LC_COARSE := $(SOLVER_TEST_LC_COARSE)
+reference: override TIMING_MESH := $(SOLVER_TEST_MESH)
+reference: override TIMING_BNDIDS := $(SOLVER_TEST_BNDIDS)
+reference: override TIMING_INVERSION := $(SOLVER_TEST_INVERSION)
+reference: override TIMING_KIND := reference
+reference: override TIMING_TAG := reference_full_mumps_$(SOLVER_TEST_TAG)
+reference: override TIMING_EXPERIMENT := reference_full_mumps_$(SOLVER_TEST_TAG)
+reference: override ISMIP7_DIAGNOSTIC_LINEAR_SOLVER := full_mumps
+reference: override ISMIP7_SNES_MONITOR := 1
+reference: override ISMIP7_SOLVER_VIEW := 1
+reference: override ISMIP7_SNES_LOG = $(CURDIR)/results/logs/timing_full_mumps_reference_lc$(SOLVER_TEST_LC)_lcc$(SOLVER_TEST_LC_COARSE)_n$(CORES)_$(DEBUG_STAMP).log
+reference: override SLURM_PARTITION = debug
+reference: override SLURM_TIME = 01:00:00
+reference: transient
+
+solver-smoke:
+	OMP_NUM_THREADS=1 mpiexec -n 2 python scripts/smoke_solver_modes.py
 
 matrix: transient
 	python scripts/build_timing_matrix.py

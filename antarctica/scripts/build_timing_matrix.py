@@ -2,8 +2,8 @@
 """
 Aggregate per-run timing JSON records into TIMING_MATRIX.md.
 
-Reads results/timing/timing_*.json (one file per mesh/core-count combo)
-and writes a markdown table pivoting resolution vs. wall-clock time.
+Reads results/timing/timing_*.json and writes one table per solver/timing tag.
+Qualification probes and incomplete/non-five-year records are excluded.
 
 Usage:
     python scripts/build_timing_matrix.py
@@ -27,96 +27,92 @@ def load_records():
     return records
 
 
+def matrix_records(records):
+    return [
+        record for record in records
+        if record.get("timing_kind", "matrix") == "matrix"
+        and record.get("t_start") == 2015.0
+        and record.get("t_end") == 2020.0
+        and record.get("dt") == 1.0
+        and record.get("nsteps") == 5
+        and record.get("completed_steps") == 5
+        and record.get("t_final") == 2020.0
+    ]
+
+
+def render_table(records, per_step=False):
+    core_counts = sorted({record["ncores"] for record in records})
+    rows = sorted(
+        {(record["lc"], record["lc_coarse"]) for record in records},
+        key=lambda value: (value[0], value[1]),
+    )
+    index = {
+        (record["lc"], record["lc_coarse"], record["ncores"]): record
+        for record in records
+    }
+    unit = "s/step" if per_step else "s"
+    key = "seconds_per_step" if per_step else "run_seconds"
+    digits = 2 if per_step else 1
+    header = (
+        "| LC (m) | LC_coarse (m) | Vertices | Cells | "
+        + " | ".join(f"{count} cores ({unit})" for count in core_counts)
+        + " |"
+    )
+    lines = [header, "|" + "|".join(["---"] * (4 + len(core_counts))) + "|"]
+    for lc, lc_coarse in rows:
+        candidates = [
+            index.get((lc, lc_coarse, count)) for count in core_counts
+        ]
+        sample = next((record for record in candidates if record), None)
+        vertices = sample["vertices"] if sample else "—"
+        cells = sample["cells"] if sample else "—"
+        timings = [
+            f"{record[key]:.{digits}f}" if record else "—"
+            for record in candidates
+        ]
+        lines.append(
+            f"| {lc} | {lc_coarse} | {vertices} | {cells} | "
+            + " | ".join(timings)
+            + " |"
+        )
+    return lines
+
+
 def main():
-    records = load_records()
+    records = matrix_records(load_records())
     if not records:
         raise SystemExit(
             f"No timing records found in {TIMING_DIR}/. "
             "Run `make timing` (or at least the transient target) first."
         )
 
-    core_counts = sorted({r["ncores"] for r in records})
-    rows = sorted(
-        {(r["lc"], r["lc_coarse"]) for r in records},
-        key=lambda x: (x[0], x[1]),
-    )
-
-    # Index: (lc, lc_coarse, ncores) -> record
-    index = {(r["lc"], r["lc_coarse"], r["ncores"]): r for r in records}
-
-    # Mesh metadata (same for all core counts at a given resolution)
-    meta = {}
-    for lc, lcc in rows:
-        for nc in core_counts:
-            rec = index.get((lc, lcc, nc))
-            if rec:
-                meta[(lc, lcc)] = (rec["vertices"], rec["cells"])
-                break
-
-    header = (
-        "| LC (m) | LC_coarse (m) | Vertices | Cells | "
-        + " | ".join(f"{nc} cores (s)" for nc in core_counts)
-        + " |"
-    )
-    ncols = 4 + len(core_counts)
-    sep = "|" + "|".join(["---"] * ncols) + "|"
-
     lines = [
         "# Antarctica timing matrix",
         "",
         f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
         "",
-        "5-year transient runs (`2015`–`2020`, `dt=1.0`), zero SMB/melt forcing, "
-        "warm-started from a single LC=2500 inversion (cross-mesh interpolated).",
-        "",
-        header,
-        sep,
+        "Only completed 5-year transient runs (`2015`–`2020`, `dt=1.0`) "
+        "with `timing_kind=matrix` are included. Qualification probes are "
+        "reported by their gate and excluded here.",
     ]
 
-    for lc, lcc in rows:
-        verts, cells = meta.get((lc, lcc), ("—", "—"))
-        times = []
-        for nc in core_counts:
-            rec = index.get((lc, lcc, nc))
-            times.append(f"{rec['run_seconds']:.1f}" if rec else "—")
-        lines.append(
-            f"| {lc} | {lcc} | {verts} | {cells} | "
-            + " | ".join(times)
-            + " |"
-        )
+    groups = {}
+    for record in records:
+        tag = record.get("timing_tag", "legacy-untagged")
+        groups.setdefault(tag, []).append(record)
 
-    per_step_header = (
-        "| LC (m) | LC_coarse (m) | Vertices | Cells | "
-        + " | ".join(f"{nc} cores (s/step)" for nc in core_counts)
-        + " |"
-    )
-
-    lines.extend(
-        [
-            "",
-            "## Per-step timing",
-            "",
-            per_step_header,
-            sep,
-        ]
-    )
-
-    for lc, lcc in rows:
-        verts, cells = meta.get((lc, lcc), ("—", "—"))
-        times = []
-        for nc in core_counts:
-            rec = index.get((lc, lcc, nc))
-            times.append(f"{rec['seconds_per_step']:.2f}" if rec else "—")
-        lines.append(
-            f"| {lc} | {lcc} | {verts} | {cells} | "
-            + " | ".join(times)
-            + " |"
-        )
+    for tag, group in sorted(groups.items()):
+        sample = group[0]
+        mode = sample.get("diagnostic_solver_mode", sample["linear_solver"])
+        lines.extend(["", f"## `{tag}`", "", f"Diagnostic solver: `{mode}`", ""])
+        lines.extend(render_table(group))
+        lines.extend(["", "### Per-step timing", ""])
+        lines.extend(render_table(group, per_step=True))
 
     lines.append("")
     with open(OUT_FN, "w") as f:
         f.write("\n".join(lines))
-    print(f"Wrote {OUT_FN} ({len(rows)} resolutions x {len(core_counts)} core counts)")
+    print(f"Wrote {OUT_FN} ({len(records)} completed timing records)")
 
 
 if __name__ == "__main__":

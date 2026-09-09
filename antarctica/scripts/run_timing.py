@@ -9,14 +9,17 @@ job), runs 5 years of zero-forcing time stepping, and writes a JSON record
 under results/timing/.
 
 Usage:
-    ISMIP7_LC=2500 ISMIP7_LC_COARSE=25000 ISMIP7_BUFFER_M=20000 \
-    ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5 \
+    ISMIP7_LC=2500 ISMIP7_LC_COARSE=64000 ISMIP7_BUFFER_M=20000 \
+    ISMIP7_MESH=mesh/antarctica_64000_2500.msh \
+    ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5 \
     mpiexec -n 16 python scripts/run_timing.py
 """
 
 import json
 import os
+import re
 import sys
+from collections import Counter
 from time import perf_counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,6 +28,11 @@ from firedrake import COMM_WORLD
 from firedrake.petsc import PETSc
 
 from simulation import setup_model, run_simulation, lc
+from icepack2_tools.solverconfig import (
+    diagnostic_solver_label,
+    diagnostic_solver_mode,
+    solver_provenance,
+)
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TIMING_DIR = os.path.join(_ROOT, "results", "timing")
@@ -33,13 +41,21 @@ T_START = 2015.0
 T_END = float(os.environ.get("ISMIP7_T_END", "2020"))
 DT = float(os.environ.get("ISMIP7_DT", "1.0"))
 OUTPUT_INTERVAL = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "5"))
-DIAGNOSTIC_LINEAR_SOLVER = os.environ.get(
-    "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER", "iterative"
-).strip().lower()
-if DIAGNOSTIC_LINEAR_SOLVER == "mumps":
-    LINEAR_SOLVER_LABEL = "fieldsplit-mumps-ptscotch"
-else:
-    LINEAR_SOLVER_LABEL = "fieldsplit-gamg"
+DIAGNOSTIC_LINEAR_SOLVER = diagnostic_solver_mode()
+LINEAR_SOLVER_LABEL = diagnostic_solver_label(DIAGNOSTIC_LINEAR_SOLVER)
+TIMING_KIND = os.environ.get("ISMIP7_TIMING_KIND", "matrix")
+_tag_raw = os.environ.get("ISMIP7_TIMING_TAG", DIAGNOSTIC_LINEAR_SOLVER)
+TIMING_TAG = re.sub(r"[^A-Za-z0-9_.-]+", "-", _tag_raw).strip("-.")
+if not TIMING_TAG:
+    raise ValueError("ISMIP7_TIMING_TAG must contain a filename-safe character")
+_experiment_raw = os.environ.get("ISMIP7_TIMING_EXPERIMENT", "timing")
+EXPERIMENT_NAME = re.sub(
+    r"[^A-Za-z0-9_.-]+", "-", _experiment_raw
+).strip("-.")
+if not EXPERIMENT_NAME:
+    raise ValueError(
+        "ISMIP7_TIMING_EXPERIMENT must contain a filename-safe character"
+    )
 
 
 def main():
@@ -66,9 +82,9 @@ def main():
         f"{mesh.num_cells()} cells"
     )
 
-    run_simulation(
+    results = run_simulation(
         ctx,
-        experiment_name="timing",
+        experiment_name=EXPERIMENT_NAME,
         t_start=T_START,
         t_end=T_END,
         dt=DT,
@@ -82,6 +98,10 @@ def main():
         "lc": lc,
         "lc_coarse": target_lc_coarse,
         "buffer_m": target_buffer_m,
+        "mesh_basename": ctx.get("mesh_basename", ""),
+        "mesh_input": os.environ.get("ISMIP7_MESH", ""),
+        "boundary_ids_input": os.environ.get("ISMIP7_BNDIDS", ""),
+        "inversion_input": os.environ.get("ISMIP7_INVERSION", ""),
         "ncores": ncores,
         "vertices": mesh.num_vertices(),
         "cells": mesh.num_cells(),
@@ -89,15 +109,44 @@ def main():
         "t_end": T_END,
         "dt": DT,
         "nsteps": nsteps,
+        "completed_steps": len(results),
+        "t_final": results[-1][0] if results else T_START,
+        "timing_kind": TIMING_KIND,
+        "timing_tag": TIMING_TAG,
+        "experiment_name": EXPERIMENT_NAME,
+        "diagnostic_solver_mode": DIAGNOSTIC_LINEAR_SOLVER,
         "linear_solver": LINEAR_SOLVER_LABEL,
         "transport_solver": "gmres-bjacobi-ilu",
+        "solver_configuration": solver_provenance(),
         "run_seconds": run_seconds,
-        "seconds_per_step": run_seconds / max(nsteps, 1),
+        "seconds_per_step": run_seconds / max(len(results), 1),
+    }
+
+    solve_stats = ctx["solver_stats"]
+    record["diagnostic_solve_summary"] = {
+        "count": len(solve_stats),
+        "reason_counts": dict(Counter(
+            stat["snes_reason"] for stat in solve_stats
+        )),
+        "snes_iterations_total": sum(
+            stat["snes_iterations"] for stat in solve_stats
+        ),
+        "snes_iterations_max": max(
+            (stat["snes_iterations"] for stat in solve_stats), default=0
+        ),
+        "linear_iterations_total": sum(
+            stat["linear_iterations"] for stat in solve_stats
+        ),
+        "linear_iterations_max": max(
+            (stat["linear_iterations"] for stat in solve_stats), default=0
+        ),
+        "seconds_total": sum(stat["seconds"] for stat in solve_stats),
     }
 
     if COMM_WORLD.rank == 0:
         out_fn = os.path.join(
-            TIMING_DIR, f"timing_{lc}_{target_lc_coarse}_{ncores}.json"
+            TIMING_DIR,
+            f"timing_{TIMING_TAG}_{lc}_{target_lc_coarse}_{ncores}.json",
         )
         with open(out_fn, "w") as f:
             json.dump(record, f, indent=2)

@@ -54,7 +54,8 @@
 #   FRESH=1 antarctica/scripts/run_core_matrix.sh        # ignore all prior output
 #
 # Env: ISMIP7_LC (32000), ISMIP7_N_FLOW (3), ISMIP7_RUN_TAG, ISMIP7_DT (0.1),
-#      ISMIP7_FRICTION (budd), ISMIP7_FIXED_FRONT (1), ISMIP7_SUBCYCLES
+#      ISMIP7_FRICTION (budd), ISMIP7_DIAGNOSTIC_LINEAR_SOLVER (full_mumps),
+#      ISMIP7_FIXED_FRONT (1), ISMIP7_SUBCYCLES
 #      (1,4,16,64), NRANKS (8), MAX_LOAD (cores-8, floored at 1),
 #      MAX_ATTEMPTS (6), CORES (comma list, default all), FRESH, REUSE,
 #      PROV_REF (icepack2_tools/forcing.py), ENS_HORIZON (2101),
@@ -87,6 +88,10 @@ export ISMIP7_LC="${ISMIP7_LC:-32000}"
 # legacy MAP that predates the recorded attribute.
 export ISMIP7_N_FLOW="${ISMIP7_N_FLOW:-3}"
 export ISMIP7_FRICTION="${ISMIP7_FRICTION:-budd}"
+# Production is pinned to the complete mixed-Jacobian reference until a
+# condensed scalable mode passes the qualification target.  Never inherit the
+# simulation module's development default for a scientific campaign.
+export ISMIP7_DIAGNOSTIC_LINEAR_SOLVER="${ISMIP7_DIAGNOSTIC_LINEAR_SOLVER:-full_mumps}"
 export ISMIP7_DT="${ISMIP7_DT:-0.1}"
 export ISMIP7_OUTPUT_INTERVAL="${ISMIP7_OUTPUT_INTERVAL:-10}"
 export ISMIP7_APPARENT_MB="${ISMIP7_APPARENT_MB:-1}"
@@ -372,6 +377,7 @@ run_core () {  # core label driver esm stem target kind
 echo "ISMIP7 core matrix | lc=$LC n=$ISMIP7_N_FLOW tag='${TAG:-none}' dt=$ISMIP7_DT ranks=$NRANKS"
 echo "cores: $CORES | max load $MAX_LOAD/$NCPU | wall retries up to $MAX_ATTEMPTS"
 echo "fixed front=$ISMIP7_FIXED_FRONT subcycles=$ISMIP7_SUBCYCLES friction=$ISMIP7_FRICTION"
+echo "diagnostic solver=$ISMIP7_DIAGNOSTIC_LINEAR_SOLVER"
 if [ -n "$FRESH" ]; then
   echo "reuse: FRESH=1, every selected core re-runs from scratch"
 elif [ -n "$REUSE" ]; then

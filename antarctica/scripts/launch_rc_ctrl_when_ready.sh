@@ -35,6 +35,7 @@ K_NPZ="${ISMIP7_K_PER_BASIN_NPZ:-$REPO/antarctica/results/calibrated_K_per_basin
 NRANKS="${NRANKS:-24}"
 MIN_FREE_GB="${MIN_FREE_GB:-128}"          # ~7M-DOF MUMPS, conservative
 MIN_FREE_CORES="${MIN_FREE_CORES:-28}"     # >= NRANKS with headroom
+LINEAR_SOLVER="${ISMIP7_DIAGNOSTIC_LINEAR_SOLVER:-full_mumps}"
 STABLE="${STABLE:-5}"                      # consecutive passing checks
 INTERVAL="${INTERVAL:-180}"                # seconds between checks
 
@@ -90,7 +91,7 @@ fi
 [ -f "$BNDIDS" ] || { log "ERROR: boundary ids not found: $BNDIDS (untracked on this branch — restore the local copy or run make_boundary_ids.py)"; exit 1; }
 [ -f "$REPO/antarctica/mesh/inversion_icepack2_rc${NTAG}${GTAG}_${LC}.h5" ] \
   || { log "ERROR: RC MAP not found: inversion_icepack2_rc${NTAG}${GTAG}_${LC}.h5 (geometry=$GEOM)"; exit 1; }
-log "ARMED: RC CTRL2015 lc=$LC dt=$DT t_end=$T_END ranks=$NRANKS mesh=$(basename "$MESH")"
+log "ARMED: RC CTRL2015 lc=$LC dt=$DT t_end=$T_END ranks=$NRANKS solver=$LINEAR_SOLVER mesh=$(basename "$MESH")"
 log "  gate: RAM>=${MIN_FREE_GB}G AND idle_cores>=${MIN_FREE_CORES} for ${STABLE} checks @ ${INTERVAL}s; run log -> $LOG"
 
 ok=0
@@ -107,6 +108,7 @@ while :; do
       # cheaper in expectation than failing at 8 then re-ramping.
       export OMP_NUM_THREADS=1 ISMIP7_LC="$LC" ISMIP7_MESH="$MESH" \
              ISMIP7_FRICTION=regularized_coulomb ISMIP7_N_FLOW="$NFLOW" \
+             ISMIP7_DIAGNOSTIC_LINEAR_SOLVER="$LINEAR_SOLVER" \
              ISMIP7_DT="$DT" ISMIP7_T_END="$T_END" \
              ISMIP7_K_PER_BASIN_NPZ="$K_NPZ" ISMIP7_BNDIDS="$BNDIDS" \
              ISMIP7_CONTINUATION_STEPS="${ISMIP7_CONTINUATION_STEPS:-16}"

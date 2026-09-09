@@ -31,6 +31,7 @@ K_NPZ="${ISMIP7_K_PER_BASIN_NPZ:-$REPO/antarctica/results/calibrated_K_per_basin
 NRANKS="${NRANKS:-16}"
 MIN_FREE_GB="${MIN_FREE_GB:-64}"           # 2500 m MUMPS is lighter than 500 m
 MIN_FREE_CORES="${MIN_FREE_CORES:-20}"
+LINEAR_SOLVER="${ISMIP7_DIAGNOSTIC_LINEAR_SOLVER:-full_mumps}"
 STABLE="${STABLE:-5}"
 INTERVAL="${INTERVAL:-180}"
 
@@ -84,7 +85,7 @@ trap 'rm -f "$LOCK"' EXIT
 [ -f "$BNDIDS" ] || { log "ERROR: boundary ids not found: $BNDIDS"; exit 1; }
 [ -f "$REPO/antarctica/mesh/inversion_icepack2_budd${NTAG}${GTAG}_${LC}.h5" ] \
   || { log "ERROR: Budd MAP inversion_icepack2_budd${NTAG}${GTAG}_${LC}.h5 not found (geometry=$GEOM)"; exit 1; }
-log "ARMED: Budd CTRL2015 lc=$LC dt=$DT t_end=$T_END ranks=$NRANKS mesh=$(basename "$MESH")"
+log "ARMED: Budd CTRL2015 lc=$LC dt=$DT t_end=$T_END ranks=$NRANKS solver=$LINEAR_SOLVER mesh=$(basename "$MESH")"
 log "  gate: RAM>=${MIN_FREE_GB}G AND idle>=${MIN_FREE_CORES} for ${STABLE}x${INTERVAL}s; run log -> $LOG"
 
 ok=0
@@ -98,6 +99,7 @@ while :; do
       cd "$REPO" || { log "ERROR: cd $REPO failed"; exit 1; }
       export OMP_NUM_THREADS=1 ISMIP7_LC="$LC" ISMIP7_MESH="$MESH" \
              ISMIP7_FRICTION=budd ISMIP7_N_FLOW="$NFLOW" \
+             ISMIP7_DIAGNOSTIC_LINEAR_SOLVER="$LINEAR_SOLVER" \
              ISMIP7_DT="$DT" ISMIP7_T_END="$T_END" \
              ISMIP7_K_PER_BASIN_NPZ="$K_NPZ" ISMIP7_BNDIDS="$BNDIDS" \
              ISMIP7_H_CLAMP_INIT=0 ISMIP7_FIXED_FRONT=1 \

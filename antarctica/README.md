@@ -433,6 +433,9 @@ knobs below; the runner's own knobs (`CORES`, `MAX_LOAD`, `MAX_ATTEMPTS`,
 `FRESH`, `REUSE`, `NRANKS`, `PROV_REF`) and the exact reuse/dependency rules
 are documented in its header, which is their authoritative reference. Its one
 non-obvious behavior, wall retry, is described under "Known issues" below.
+The runner explicitly pins `ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=full_mumps`; it
+does not inherit the development default. Override it only with a solver mode
+that has passed `make qualify` at the target configuration.
 
 Each completed core is recorded with
 `python scripts/core_report.py --core <N> --name <exp> --csv <timeseries.csv>
@@ -442,6 +445,9 @@ tracked markdown record under `reports/`; `reports/MATRIX_STATUS.md` carries
 the matrix-wide status. `--superseded "<reason>"` stamps an existing record
 with a validity banner when a later run replaces it, so a superseded result
 cannot be read as current.
+The report resolves unset solver defaults and embeds the complete diagnostic
+and transport PETSc dictionaries, continuation/rescue settings, tolerance
+policy, and requested-versus-canonical solver mode.
 
 ### Environment knobs (inversion)
 
@@ -478,6 +484,11 @@ it, so an unset knob cannot mean one resolution to the inversion and another
 to the preflight. A run that wants something else exports it, which is also
 how it reaches the core report.
 
+PETSc and recovery defaults have the same single-owner rule:
+`icepack2_tools/solverconfig.py` supplies the runtime dictionaries, the timing
+metadata, and the core-report provenance block. `simulation.py` must not
+redeclare those literals.
+
 | Env var | Meaning | Default |
 |---------|---------|---------|
 | `ISMIP7_LC` | fine mesh resolution tag (selects mesh + inversion h5) | `2500` |
@@ -501,10 +512,16 @@ how it reaches the core report.
 | `ISMIP7_FIXED_FRONT` | set to hold the calving front at the t=0 extent (inflow beyond it tallied as calving) | _(unset)_ |
 | `ISMIP7_LEGACY_TRANSPORT` | set to restore the pre-Jul-2026 CG-projection transport scheme (requires `ISMIP7_GEOMETRY_SPACE=cg1`) | _(unset)_ |
 | `ISMIP7_SNES_TYPE` / `ISMIP7_SNES_MAXIT` | diagnostic Newton type / max iterations | `newtonls` / `200` |
-| `ISMIP7_DIAGNOSTIC_LINEAR_SOLVER` | diagnostic linear mode: `iterative` (fieldsplit Schur + GAMG) or `mumps` (MUMPS factorization of the velocity Schur block with PT-Scotch nested dissection) | `iterative` |
+| `ISMIP7_SNES_LINESEARCH` | line search used by `newtonls` | `nleqerr` |
+| `ISMIP7_SNES_RTOL` / `ISMIP7_SNES_ATOL` / `ISMIP7_SNES_STOL` | initial nonlinear relative, absolute and step tolerances. After the initial/restart solve, the absolute tolerance follows the self-scaled policy below | `1e-8` / `1e-50` / `0` |
+| `ISMIP7_SNES_DIVERGENCE_TOL` | residual-growth divergence threshold; negative disables this PETSc test | `-1` |
+| `ISMIP7_SNES_ATOL_SCALE` / `ISMIP7_SNES_RESTART_FAILURE_ATOL_SCALE` | persistent absolute tolerance after a converged setup solve (`scale * achieved norm`) / after accepting a loaded hard-era state (`scale * loaded-state norm`) | `100` / `1e-6` |
+| `ISMIP7_SNES_KSP_EW` | enable PETSc Eisenstat-Walker variable inner tolerance for an A/B test | `0` |
+| `ISMIP7_DIAGNOSTIC_LINEAR_SOLVER` | `schur_gamg` or `schur_mumps`: legacy PETSc `selfp` approximation; `scpc_gamg` or `scpc_mumps`: exact cell-local Slate elimination and an assembled velocity solve; `full_mumps`: complete mixed-Jacobian reference. Legacy `iterative`/`mumps` aliases mean `schur_gamg`/`schur_mumps` | `full_mumps` for forward drivers and the core runner; `scpc_gamg` in the timing Makefile |
 | `ISMIP7_KSP_RTOL` / `ISMIP7_KSP_MAXIT` | outer FGMRES relative tolerance / iteration limit for the iterative diagnostic mode | `1e-6` / `1000` |
-| `ISMIP7_SNES_MONITOR` / `ISMIP7_SNES_LOG` | enable diagnostic SNES/KSP monitors and optionally route them to a file; KSP output includes short and true residual lines per iteration, with a header before each mixed solve | _(unset)_ / stdout |
-| `ISMIP7_TRANSPORT_KSP_RTOL` / `ISMIP7_TRANSPORT_KSP_MAXIT` | GMRES relative tolerance / iteration limit for the DG0 transport solver | `1e-10` / `500` |
+| `ISMIP7_SNES_MONITOR` / `ISMIP7_SNES_LOG` | enable diagnostic SNES/KSP monitors and optionally route them to a file; KSP output includes short and true residual lines per iteration, with a header before each mixed solve | `0` / stdout |
+| `ISMIP7_SOLVER_VIEW` | emit `snes_view`, outer `ksp_view`, and the SCPC condensed `ksp_view`; enabled by `make debug` and `make reference` to expose the actual block sizes and hierarchy | `0` |
+| `ISMIP7_TRANSPORT_KSP_RTOL` / `ISMIP7_TRANSPORT_KSP_MAXIT` | GMRES relative tolerance / iteration limit for the persistent DG0 transport solver (`ismip7_transport_` PETSc prefix) | `1e-10` / `500` |
 | `ISMIP7_K_MELT` | scalar Burgard K (projections) | `1.15e-4` (Burgard K50) |
 | `ISMIP7_K_PER_BASIN_NPZ` | per-basin K file (control) | `results/calibrated_K_per_basin_<lc>.npz` |
 | `ISMIP7_ESM` | ESM for control (`CESM2-WACCM`, `MRI-ESM2-0`) | `CESM2-WACCM` |
@@ -529,10 +546,13 @@ from `antarctica/` (needs §1 data, Firedrake, and Slurm on the cluster):
 cd antarctica
 make timing
 # → TIMING_MATRIX.md
-# → results/timing/timing_<LC>_<LC_coarse>_<ncores>.json  (one per cell)
+# → results/timing/timing_<tag>_<LC>_<LC_coarse>_<ncores>.json
 ```
 
-The pipeline has five idempotent stages (each skips work already done):
+`make timing` first runs the qualification gate for the selected solver; the
+30-job matrix is not submitted unless both probes pass. Its Slurm submissions
+also use `--wait`, preventing concurrent benchmark cells from contaminating
+one another's timing. The pipeline has six stages:
 
 1. **Meshes** — build 10 meshes at `buffer=20000 m`: LC ∈ {500, 1000, 2000,
    2500, 5000} m with LC_coarse = 10×LC and 20×LC.
@@ -542,32 +562,48 @@ The pipeline has five idempotent stages (each skips work already done):
 3. **Redistribute** — rewrite the complete tagged MAP checkpoint on a single
    core (`scripts/redistribute_checkpoint.py`) so any rank count can load it;
    fields, root metadata, and mesh provenance are retained.
-4. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): 5 years
+4. **Qualification** — at 2.5 km / 16 ranks, use
+   `inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5` on its exact
+   `antarctica_64000_2500.msh` source mesh (with the matching per-mesh
+   boundary sidecar), complete the cold continuation and two zero-forcing
+   `dt=0.1` steps, then a five-year `dt=1` probe. Each stage must finish,
+   contain no diverged diagnostic solve, and close the persisted mass budget
+   to zero. Run separately with `make qualify`; it uses `--wait` on Slurm and
+   reruns rather than trusting a stale record. Qualification filenames include
+   `dg0_logvelnet` and coarse resolution `64000`, so they cannot be confused
+   with results from the superseded test input.
+5. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): 5 years
    (`2015`–`2020`, `dt=1.0`), zero SMB/melt forcing. Every resolution
    loads its own mesh via `ISMIP7_MESH` and warm-starts θ/φ and the physical
    prior from the single inversion via cross-mesh interpolation
    (`ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5`). The default
-   iterative solve statically eliminates the cell-wise stress and traction
-   fields and applies GAMG to the condensed velocity operator. GAMG's coarse
-   grid and the DG0 transport update are iterative as well; no transient solve
-   uses a sparse direct factorization.
+   `scpc_gamg` solve uses Slate to eliminate the cell-wise stress and traction
+   fields exactly, then applies GAMG to the assembled condensed velocity
+   operator. GAMG's coarse grid and the DG0 transport update remain iterative.
    Slurm memory is selected per fine resolution by `make transient`: 128G for
    LC=500, 96G for LC=1000, 80G for LC=2000, 64G for LC=2500, and 32G for
    LC=5000. The 500 m allocation is based on a measured ~64 GiB three-rank
    peak before the first diagnostic solve completed, with headroom for the full
    run; the 2500 m debug allocation is anchored at 64G.
-5. **Matrix** — aggregate JSON timing records into [`TIMING_MATRIX.md`](TIMING_MATRIX.md).
+6. **Matrix** — aggregate only completed five-year matrix JSON records into
+   [`TIMING_MATRIX.md`](TIMING_MATRIX.md), grouped by solver/timing tag.
 
 Individual stages can be run separately: `make meshes`, `make inversion`,
-`make redistribute`, `make transient`, `make matrix`.
+`make redistribute`, `make qualify`, `make transient`, `make matrix`.
+`make solver-smoke` is the cheap setup check: on a 2×2 mesh and two MPI ranks
+it exercises the real mixed field shapes, all new condensation/MUMPS modes,
+and two coefficient updates through the persistent transport solver. It does
+not replace the Antarctic qualification probes.
 
 For a one-hour probe on the Slurm debug queue, use `make debug`. It submits one
-transient job with `LCS=2500`, `RATIOS=20`, and `CORES=16`, using
-`--partition=debug --time=01:00:00 --mem=64G`. It uses MUMPS with PT-Scotch nested
-dissection on the velocity Schur block, enables diagnostic SNES/KSP monitoring,
-and writes
-`results/logs/timing_mumps_ptscotch_debug_lc2500_lcc50000_n<cores>_<stamp>.log`.
-Set `CORES=8` for an 8-core local probe.
+transient job on the same `antarctica_64000_2500.msh` / DG0-logvelnet MAP pair
+with `CORES=16`, using `--partition=debug --time=01:00:00 --mem=64G`. It uses
+exact Slate local condensation plus MUMPS/PT-Scotch on the velocity system,
+enables diagnostic SNES/KSP monitoring, and writes
+`results/logs/timing_scpc_mumps_debug_lc2500_lcc64000_n<cores>_<stamp>.log`.
+`make reference` uses that same input pair with the memory-heavy full
+mixed-Jacobian MUMPS baseline. Both are diagnostic probes, not substitutes for
+`make qualify`. Set `CORES=8` for an 8-core local probe.
 
 Slurm scripts live in `scripts/batch_runners/` (`timing_inversion.script`,
 `timing_meshes.script`, `timing_redistribute.script`, and

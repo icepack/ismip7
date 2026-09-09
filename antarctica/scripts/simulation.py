@@ -22,6 +22,8 @@ from firedrake import (
     VectorFunctionSpace,
     TensorFunctionSpace,
     FiniteElement,
+    LinearVariationalProblem,
+    LinearVariationalSolver,
     NonlinearVariationalProblem,
     NonlinearVariationalSolver,
     exp,
@@ -61,6 +63,19 @@ from icepack2_tools.runconfig import (
     friction as _friction, geometry_space as _geometry_space,
     lc as _lc, lc_coarse as _lc_coarse, n_flow as _n_flow,
 )
+from icepack2_tools.solverconfig import (
+    continuation_steps,
+    diagnostic_solver_label,
+    diagnostic_solver_mode,
+    diagnostic_solver_parameters,
+    rescue_max_it,
+    snes_atol_scale,
+    snes_monitor_enabled,
+    snes_restart_failure_atol_scale,
+    solver_view_enabled,
+    subcycles,
+    transport_solver_parameters,
+)
 
 lc = _lc()
 lc_coarse = _lc_coarse()
@@ -87,93 +102,6 @@ def a4_factor_default():
     and needs none. ISMIP7_A4_FACTOR still overrides."""
     n = _n_flow()
     return A4_FACTOR_N4 if abs(n - 4.0) < 1e-9 else A4_FACTOR_DEFAULT
-
-
-def diagnostic_solver_parameters():
-    r"""PETSc defaults for the mixed ``(u, M, tau)`` diagnostic solve.
-
-    ``M`` and ``tau`` are DG0 fields, so their joint Jacobian block is local
-    to each rank and can be eliminated by a Schur field split.  The resulting
-    assembled Schur approximation acts on the CG1 velocity field and is the
-    operator to which GAMG is applied.  Every level, including the distributed
-    coarse grid, uses an iterative method by default.  The ``mumps`` mode
-    replaces only that velocity solve with a distributed MUMPS factorization
-    using PT-Scotch parallel nested dissection; the local stress elimination
-    remains in place.
-    """
-    linear_solver = os.environ.get(
-        "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER", "iterative"
-    ).strip().lower()
-    if linear_solver not in {"iterative", "mumps"}:
-        raise ValueError(
-            "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER must be 'iterative' or 'mumps', "
-            f"not {linear_solver!r}"
-        )
-    params = {
-        "snes_type": os.environ.get("ISMIP7_SNES_TYPE", "newtonls"),
-        "snes_max_it": int(os.environ.get("ISMIP7_SNES_MAXIT", "200")),
-        "snes_linesearch_type": "nleqerr",
-        "snes_divergence_tolerance": -1,
-        "snes_stol": 0.0,
-        "mat_type": "aij",
-        "ksp_type": "fgmres",
-        "ksp_rtol": float(os.environ.get("ISMIP7_KSP_RTOL", "1e-6")),
-        "ksp_max_it": int(os.environ.get("ISMIP7_KSP_MAXIT", "1000")),
-        "pc_type": "fieldsplit",
-        "pc_fieldsplit_type": "schur",
-        "pc_fieldsplit_schur_fact_type": "full",
-        # Split 0 contains the element-local fields; split 1 is velocity.
-        "pc_fieldsplit_0_fields": "1,2",
-        "pc_fieldsplit_1_fields": "0",
-        "fieldsplit_0_ksp_type": "preonly",
-        "fieldsplit_0_pc_type": "bjacobi",
-        "fieldsplit_0_sub_ksp_type": "preonly",
-        "fieldsplit_0_sub_pc_type": "ilu",
-        # A_uu is zero in the dual formulation.  SELFP assembles the
-        # condensed velocity approximation instead of handing GAMG A_uu.
-        "pc_fieldsplit_schur_precondition": "selfp",
-        "fieldsplit_1_mat_schur_complement_ainv_type": "blockdiag",
-        "fieldsplit_1_ksp_type": "preonly",
-        "fieldsplit_1_pc_type": "gamg",
-        # GAMG otherwise defaults to a rank-collapsed LU coarse solve.
-        "fieldsplit_1_pc_gamg_parallel_coarse_grid_solver": None,
-        "fieldsplit_1_mg_levels_ksp_type": "chebyshev",
-        "fieldsplit_1_mg_levels_pc_type": "jacobi",
-        "fieldsplit_1_mg_coarse_ksp_type": "gmres",
-        "fieldsplit_1_mg_coarse_ksp_rtol": 1e-2,
-        "fieldsplit_1_mg_coarse_ksp_max_it": 50,
-        "fieldsplit_1_mg_coarse_pc_type": "jacobi",
-    }
-    if linear_solver == "mumps":
-        # Factor the assembled velocity Schur approximation.  With more than
-        # one MPI rank, MUMPS ICNTL(28)=2 selects parallel analysis and
-        # ICNTL(29)=1 selects PT-Scotch, whose ordering is nested dissection.
-        # Do not use pc_factor_mat_ordering_type here: PETSc documents that
-        # ordering hook as sequential-only for MUMPS.
-        params.update({
-            "fieldsplit_1_ksp_type": "preonly",
-            "fieldsplit_1_pc_type": "lu",
-            "fieldsplit_1_pc_factor_mat_solver_type": "mumps",
-            "fieldsplit_1_mat_mumps_icntl_28": 2,
-            "fieldsplit_1_mat_mumps_icntl_29": 1,
-        })
-    return params
-
-
-def transport_solver_parameters():
-    r"""Iterative PETSc defaults for the nonsymmetric DG0 transport solve."""
-    return {
-        "ksp_type": "gmres",
-        "ksp_rtol": float(
-            os.environ.get("ISMIP7_TRANSPORT_KSP_RTOL", "1e-10")
-        ),
-        "ksp_max_it": int(
-            os.environ.get("ISMIP7_TRANSPORT_KSP_MAXIT", "500")
-        ),
-        "pc_type": "bjacobi",
-        "sub_ksp_type": "preonly",
-        "sub_pc_type": "ilu",
-    }
 
 
 def find_file(d, p):
@@ -746,23 +674,18 @@ def setup_model(restart_from=None):
     # patience beats retries. 200 suffices for newtonls eras; raise via env for
     # newtontr pushes through hard geometry.
     sparams = diagnostic_solver_parameters()
-    linear_solver = os.environ.get(
-        "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER", "iterative"
-    ).strip().lower()
-    if linear_solver == "mumps":
-        PETSc.Sys.Print(
-            "  Linear solver: fieldsplit Schur + MUMPS velocity factor "
-            "(parallel PT-Scotch nested dissection)"
-        )
-    else:
-        PETSc.Sys.Print(
-            "  Linear solver: iterative fieldsplit Schur + velocity GAMG"
-        )
+    linear_solver = diagnostic_solver_mode()
+    PETSc.Sys.Print(
+        f"  Linear solver: {linear_solver} "
+        f"({diagnostic_solver_label(linear_solver)})"
+    )
     # Optional SNES/KSP convergence monitoring (ISMIP7_SNES_MONITOR=1).
     # ISMIP7_SNES_LOG routes the output to a file (per run, so concurrent
     # debug runs don't interleave); otherwise it goes to stdout.
     _solver_log = None
-    if os.environ.get("ISMIP7_SNES_MONITOR"):
+    _solver_monitor = snes_monitor_enabled()
+    _solver_view = solver_view_enabled()
+    if _solver_monitor or _solver_view:
         _solver_log = os.environ.get("ISMIP7_SNES_LOG")
         if _solver_log:
             os.makedirs(
@@ -771,17 +694,34 @@ def setup_model(restart_from=None):
         # The fourth ASCII-viewer field is the PETSc file mode.  Append mode
         # keeps our per-solve headers when a monitor opens the same file.
         _viewer = f"ascii:{_solver_log}::append" if _solver_log else None
-        sparams.update({
-            "snes_monitor": _viewer,
-            "snes_converged_reason": _viewer,
-            "snes_linesearch_monitor": _viewer,
-            "ksp_monitor_short": _viewer,
-            "ksp_monitor_true_residual": _viewer,
-            "ksp_converged_reason": _viewer,
-        })
+        if _solver_monitor:
+            sparams.update({
+                "snes_monitor": _viewer,
+                "snes_converged_reason": _viewer,
+                "snes_linesearch_monitor": _viewer,
+                "ksp_monitor_short": _viewer,
+                "ksp_monitor_true_residual": _viewer,
+                "ksp_converged_reason": _viewer,
+            })
+        if _solver_monitor and linear_solver.startswith("scpc_"):
+            # The top-level FGMRES is still useful, but SCPC's condensed KSP
+            # identifies whether the velocity solve or the exact local
+            # elimination is responsible for a failure.
+            sparams.update({
+                "condensed_field_ksp_monitor_short": _viewer,
+                "condensed_field_ksp_monitor_true_residual": _viewer,
+                "condensed_field_ksp_converged_reason": _viewer,
+            })
+        if _solver_view:
+            sparams.update({
+                "snes_view": _viewer,
+                "ksp_view": _viewer,
+            })
+            if linear_solver.startswith("scpc_"):
+                sparams["condensed_field_ksp_view"] = _viewer
         PETSc.Sys.Print(
-            f"  Solver monitor log: {_solver_log}" if _solver_log
-            else "  Solver monitors: stdout"
+            f"  Solver diagnostics log: {_solver_log}" if _solver_log
+            else "  Solver diagnostics: stdout"
         )
     fc_params = {"quadrature_degree": 4}
 
@@ -852,6 +792,19 @@ def setup_model(restart_from=None):
             L += model.minimization.calving_terminus(**fields, outflow_ids=calving_ids)
         F = derivative(L, z)
 
+    if linear_solver.startswith("scpc_"):
+        # Firedrake's three-field SCPC expects both off-diagonal entries of the
+        # eliminated (M, tau) block to be present in split_form.  These fields
+        # are physically uncoupled, so UFL otherwise omits both structural-zero
+        # blocks and SCPC raises KeyError before assembly.  A runtime Constant
+        # preserves the block metadata while contributing exactly zero to the
+        # residual and Jacobian.  Do not replace it with the literal 0: UFL
+        # simplifies that away and recreates the missing-block failure.
+        scpc_structural_zero = Constant(0.0)
+        F += derivative(
+            scpc_structural_zero * M_s[0, 0] * tau_s[0] * dx, z
+        )
+
     prob = NonlinearVariationalProblem(
         F, z, form_compiler_parameters=fc_params
     )
@@ -862,6 +815,7 @@ def setup_model(restart_from=None):
     )
 
     _solve_count = 0
+    solver_stats = []
     _header_viewer = None
     if _solver_log and mesh.comm.rank == 0:
         _header_viewer = PETSc.Viewer().createASCII(
@@ -881,8 +835,8 @@ def setup_model(restart_from=None):
             f"n_flow={float(n_flow):.6g} m_slide={float(m_slide):.6g} "
             f"linear={linear_solver} snes={slvr.snes.getType()} "
             f"ksp={sparams['ksp_type']} "
-            f"ksp_rtol={sparams['ksp_rtol']:.6g} "
-            f"ksp_max_it={sparams['ksp_max_it']}"
+            f"ksp_rtol={sparams.get('ksp_rtol', 'direct')} "
+            f"ksp_max_it={sparams.get('ksp_max_it', 'direct')}"
             f"{(' ' + details) if details else ''} ===\n"
         )
         if _solver_log:
@@ -894,16 +848,40 @@ def setup_model(restart_from=None):
             PETSc.Sys.Print(header.rstrip())
 
     def solve_diagnostic(label, **metadata):
-        """Write a trace header, then execute one mixed diagnostic solve."""
+        """Execute one solve and always emit one compact convergence record."""
         _write_solve_header(label, **metadata)
-        return slvr.solve()
+        t0_solve = perf_counter()
+        try:
+            return slvr.solve()
+        finally:
+            elapsed = perf_counter() - t0_solve
+            reason = slvr.snes.getConvergedReason()
+            reason_name = getattr(reason, "name", str(int(reason)))
+            stat = {
+                "solve": _solve_count,
+                "label": label,
+                "snes_reason": reason_name,
+                "snes_iterations": slvr.snes.getIterationNumber(),
+                "linear_iterations": slvr.snes.getLinearSolveIterations(),
+                "function_norm": slvr.snes.getFunctionNorm(),
+                "seconds": elapsed,
+            }
+            solver_stats.append(stat)
+            PETSc.Sys.Print(
+                "=== DIAGNOSTIC RESULT "
+                f"{_solve_count:04d} | {label} | reason={reason_name} "
+                f"snes_its={stat['snes_iterations']} "
+                f"linear_its={stat['linear_iterations']} "
+                f"fnorm={stat['function_norm']:.6e} "
+                f"seconds={elapsed:.3f} ==="
+            )
 
     # Adaptive n/m continuation for the cold-start diagnostic solve. On a
     # fine mesh with a rough (mid-optimization) MAP the n=1→n_flow_val jump
     # can outrun Newton (DIVERGED_MAX_IT); restore the initial guess and
     # re-ramp with more, smaller steps rather than crashing. Escalates
     # ISMIP7_CONTINUATION_STEPS (default 8) → 2× → 4×.
-    base_steps = int(os.environ.get("ISMIP7_CONTINUATION_STEPS", "8"))
+    base_steps = continuation_steps()
     z_init = z.copy(deepcopy=True)
 
     # Restart fast path: the checkpoint holds the last CONVERGED (u, M, tau)
@@ -931,7 +909,9 @@ def setup_model(restart_from=None):
             restart_solved = True
             fnorm_conv = slvr.snes.getFunctionNorm()
             if fnorm_conv > 0.0:
-                slvr.snes.setTolerances(atol=100.0 * fnorm_conv)
+                slvr.snes.setTolerances(
+                    atol=snes_atol_scale() * fnorm_conv
+                )
             PETSc.Sys.Print(
                 f"Restart diagnostic re-solved at loaded state "
                 f"(||F|| {fnorm0:.2e} -> {fnorm_conv:.2e})"
@@ -939,13 +919,14 @@ def setup_model(restart_from=None):
         except fd.ConvergenceError:
             z.assign(z_init)
             restart_solved = True
+            restart_atol_scale = snes_restart_failure_atol_scale()
             if fnorm0 > 0.0:
-                slvr.snes.setTolerances(atol=1e-6 * fnorm0)
+                slvr.snes.setTolerances(atol=restart_atol_scale * fnorm0)
             PETSc.Sys.Print(
                 f"Restart solve did not converge at loaded geometry "
                 f"(hard era); keeping the loaded converged state and "
                 f"handing the step to the run's rescue ladder "
-                f"(atol={1e-6 * fnorm0:.2e})"
+                f"(atol={restart_atol_scale * fnorm0:.2e})"
             )
 
     if not restart_solved:
@@ -980,10 +961,11 @@ def setup_model(restart_from=None):
             # usual rtol path is untouched.
             fnorm_conv = slvr.snes.getFunctionNorm()
             if fnorm_conv > 0.0:
-                slvr.snes.setTolerances(atol=100.0 * fnorm_conv)
+                atol_scale = snes_atol_scale()
+                slvr.snes.setTolerances(atol=atol_scale * fnorm_conv)
                 PETSc.Sys.Print(
-                    f"  snes_atol set to {100.0 * fnorm_conv:.2e} "
-                    f"(100x converged residual norm)"
+                    f"  snes_atol set to {atol_scale * fnorm_conv:.2e} "
+                    f"({atol_scale:g}x converged residual norm)"
                 )
             break
         except fd.ConvergenceError:
@@ -1042,6 +1024,7 @@ def setup_model(restart_from=None):
         "b": b,
         "slvr": slvr,
         "solve_diagnostic": solve_diagnostic,
+        "solver_stats": solver_stats,
         "n_flow": n_flow,
         "n_flow_val": n_flow_val,
         "m_slide": m_slide,
@@ -1340,6 +1323,38 @@ def run_simulation(
                 + (f" (cap [-{amb_cap:.0f}, +{5*amb_cap:.0f}])" if amb_cap > 0 else "")
             )
 
+    # The transport operator has fixed topology; only its Function/Constant
+    # coefficients change.  Reuse one solver so every substep does not rebuild
+    # the variational problem and PETSc objects.  The stable prefix also makes
+    # transport-only PETSc inspection possible without touching the diagnostic
+    # solve.
+    u_transport = z.subfunctions[0]
+    un_transport = fd.dot(u_transport, n_facet)
+    un_transport_plus = (un_transport + abs(un_transport)) / 2
+    F_transport = (
+        (h_dg_trial - h_dg_old) / dt_c * phi_dg * dx
+        + (
+            un_transport_plus("+") * h_dg_trial("+")
+            - un_transport_plus("-") * h_dg_trial("-")
+        )
+        * fd.jump(phi_dg)
+        * dS
+        + un_transport_plus * h_dg_trial * phi_dg * ds
+        - src_dg * phi_dg * dx
+    )
+    if legacy_transport:
+        F_transport += -h_dg_trial * fd.div(
+            u_transport * phi_dg
+        ) * dx
+    transport_problem = LinearVariationalProblem(
+        fd.lhs(F_transport), fd.rhs(F_transport), h_dg
+    )
+    transport_solver = LinearVariationalSolver(
+        transport_problem,
+        solver_parameters=transport_solver_parameters(),
+        options_prefix="ismip7_transport_",
+    )
+
     mass_prev = float(assemble(h * dx)) * rho_gt
 
     def _save_state(final_path, t_now):
@@ -1491,7 +1506,7 @@ def run_simulation(
         # gia: hard-era steps under trust region converge LINEARLY and are
         # executed by the iteration cap while still descending - rescue
         # rungs get extra patience, restored afterwards.
-        rescue_maxit = int(os.environ.get("ISMIP7_RESCUE_MAXIT", "600"))
+        rescue_maxit = rescue_max_it()
         _rt, _at, _dt_, _mi = slvr.snes.getTolerances()
         attempts = [
             (
@@ -1598,13 +1613,9 @@ def run_simulation(
         (transport-first ordering: the velocity was solved at the current
         geometry). Mutates h_dg and the derived CG fields; returns the
         advance's mass tallies [Gt]."""
-        u_vel = z.subfunctions[0]
         if legacy_transport:
             h_dg.project(h)
         h_dg_old.assign(h_dg)
-
-        un = fd.dot(u_vel, n_facet)
-        un_plus = (un + abs(un)) / 2
 
         src = accum - ocean_melt
         if a_ref is not None:
@@ -1631,23 +1642,11 @@ def run_simulation(
             ((src_dg.dat.data_ro - _src_want) * cell_area).sum()
         )) * rho_gt * dt_local
         dt_c.assign(dt_local)
-        F_prog = (
-            (h_dg_trial - h_dg_old) / dt_c * phi_dg * dx
-            + (un_plus("+") * h_dg_trial("+") - un_plus("-") * h_dg_trial("-"))
-            * fd.jump(phi_dg)
-            * dS
-            + un_plus * h_dg_trial * phi_dg * ds
-            - src_dg * phi_dg * dx
-        )
-        if legacy_transport:
-            F_prog += -h_dg_trial * fd.div(u_vel * phi_dg) * dx
-        fd.solve(
-            fd.lhs(F_prog) == fd.rhs(F_prog),
-            h_dg,
-            solver_parameters=transport_solver_parameters(),
-        )
+        transport_solver.solve()
 
-        out_gt = float(assemble(un_plus * h_dg * ds)) * rho_gt * dt_local
+        out_gt = float(assemble(
+            un_transport_plus * h_dg * ds
+        )) * rho_gt * dt_local
         m1 = float(assemble(h_dg * dx)) * rho_gt
 
         # Floor to h_clamp, EXCEPT beyond the fixed front: those cells are
@@ -1689,8 +1688,7 @@ def run_simulation(
     # dt=0.025 approach crosses them - smaller geometry increments let
     # Newton track the branch through the event). Checkpoints improve too:
     # saved (h, u) are now mutually consistent.
-    SUBCYCLES = tuple(int(s) for s in
-                      os.environ.get("ISMIP7_SUBCYCLES", "1,4,16").split(","))
+    SUBCYCLES = subcycles()
 
     for k in range(1, nsteps + 1):
         t_step_start = perf_counter()

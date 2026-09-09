@@ -27,6 +27,7 @@ Usage (from the run shell, so the env is the run env):
 
 import argparse
 import csv
+import json
 import os
 import subprocess
 import sys
@@ -43,6 +44,7 @@ from icepack2_tools.climatology import (
 from icepack2_tools.runconfig import (
     N_FLOW_DEFAULT, friction, geometry_space, lc, lc_coarse,
 )
+from icepack2_tools.solverconfig import effective_solver_env, solver_provenance
 
 
 def effective_env():
@@ -76,6 +78,11 @@ def effective_env():
         "ISMIP7_CLIM_START": str(clim_start()),
         "ISMIP7_CLIM_END": str(clim_end()),
     }
+    resolved.update(effective_solver_env())
+    canonical_key = "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER_CANONICAL"
+    env[canonical_key] = (
+        f"{resolved.pop(canonical_key)}    # resolved canonical mode"
+    )
     for k, v in resolved.items():
         if k not in env:
             env[k] = f"{v}    # default (not exported)"
@@ -208,7 +215,9 @@ def main():
         f.write("\n## Run environment\n\n```\n")
         for k, v in env.items():
             f.write(f"{k}={v}\n")
-        f.write("```\n\n## Budget at marker years\n\n")
+        f.write("```\n\n## Solver configuration\n\n```json\n")
+        f.write(json.dumps(solver_provenance(), indent=2, sort_keys=True))
+        f.write("\n```\n\n## Budget at marker years\n\n")
         f.write(csv_marker_rows(args.csv))
         f.write("\n\n## Observational audit\n\n```\n" + audit + "\n```\n")
         if ens:

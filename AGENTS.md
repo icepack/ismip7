@@ -95,6 +95,14 @@ without reading the linked rationale and stating why.
   cannot validate either one**. MAP filenames are tagged by friction law and
   geometry space for this reason. Driving a DG0 forward with a CG1 MAP at
   32 km raises the initial misfit from 8.6e3 to 1.5e5.
+- **The zero-valued `M_s[0,0] * tau_s[0]` term in the SCPC path is structural.**
+  Membrane and basal stress are physically uncoupled local fields, so UFL
+  normally omits their two zero Jacobian blocks. Firedrake's three-field SCPC
+  requires those block keys to exist, and its stock helper also misindexes
+  eliminated fields 1,2 after slicing. The runtime-zero `Constant` preserves
+  the block structure without changing the residual; `ISMIP7SCPC` fixes the
+  retained-first indexing. Deleting the term or replacing the `Constant` with
+  literal zero makes UFL simplify it away and SCPC fails during setup.
 
 The inverse also holds - one line that looks fine and is always a bug:
 
