@@ -569,8 +569,9 @@ one another's timing. The pipeline has six stages:
    boundary sidecar), complete the cold continuation and two zero-forcing
    `dt=0.1` steps, then continue from that full-state checkpoint for five more
    `dt=0.1` steps (`2015.2`–`2015.7`). The restart restores geometry, velocity,
-   membrane stress and basal stress, performs one direct consistency solve at
-   full `n=3`, and does not repeat the cold continuation. Each stage must
+   membrane stress and basal stress, checks that their full-`n=3` residual is
+   finite, and does not repeat either the setup solve or cold continuation.
+   Each stage must
    finish, contain no diverged diagnostic or transport solve, and close both
    the transport identity and persisted mass budget to zero. Run separately
    with `make qualify`; it uses `--wait` on Slurm and

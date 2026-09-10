@@ -889,50 +889,63 @@ def setup_model(restart_from=None):
     base_steps = continuation_steps()
     z_init = z.copy(deepcopy=True)
 
-    # Restart fast path: the checkpoint holds the last CONVERGED (u, M, tau)
-    # at the saved (post-transport) geometry, so the setup solve is just an
-    # ordinary warm step-solve - do it directly at full n/m with the normal
-    # rtol machinery. Re-ramping n back to 1 from a converged n=4 state is
-    # not only wasteful, it can be FATAL at a hard-era geometry (both 1873
-    # historical walls: the resume's setup ramp diverged before the time
-    # loop's rescue ladder ever ran). If even the direct solve fails, ACCEPT
-    # the loaded state as-is (it is the last converged solution; the time
-    # loop's rescue ladder then fights the hard step properly) - but with a
-    # TIGHT run tolerance derived from the loaded-state residual (1e-6 x
-    # ||F(z_loaded)||, a proxy for the converged scale), never the loose
-    # acceptance value: a loose persistent atol lets every later step
-    # "converge" at iteration 0 and silently freezes the velocity (the bug
-    # that invalidated the first 1873->2014 resume).
+    # Restart fast path: a current checkpoint holds the last CONVERGED full
+    # mixed state (u, M, tau) at its saved post-transport geometry. Trust that
+    # cache after checking that its residual at FULL n/m is finite; solving the
+    # unchanged state again is both redundant and pathological at the residual
+    # floor. The 2015.2 qualification cache drove such a solve for 200 Newton
+    # iterations even though it reached ||F||=4e-5, wasting eight minutes and
+    # recording DIVERGED_MAX_IT before five otherwise-clean steps.
+    #
+    # Install a TIGHT run tolerance derived from the loaded-state residual
+    # (1e-6 x ||F(z_loaded)||); geometry changes then use the normal relative
+    # convergence path. Never use the cache-acceptance residual itself as a
+    # loose persistent atol: that can let later steps "converge" at iteration
+    # zero and silently freeze the velocity (the bug that invalidated the first
+    # 1873->2014 resume). Older velocity-only checkpoints still take the direct
+    # solve path because (u, 0, 0) is not a cached mixed solution.
     restart_solved = False
     if is_restart and u_guess is not None:
+        n_flow.assign(n_flow_val)
+        m_slide.assign(m_slide_val)
         with assemble(F).dat.vec_ro as _rv:
             fnorm0 = _rv.norm()
-        try:
-            n_flow.assign(n_flow_val)
-            m_slide.assign(m_slide_val)
-            solve_diagnostic("restart-loaded-state")
+        if not np.isfinite(fnorm0):
+            raise RuntimeError(
+                "Restart checkpoint has a non-finite full-state residual"
+            )
+        restart_atol_scale = snes_restart_failure_atol_scale()
+        restart_atol = restart_atol_scale * fnorm0
+        if fnorm0 > 0.0:
+            slvr.snes.setTolerances(atol=restart_atol)
+
+        if M_guess is not None and tau_guess is not None:
             restart_solved = True
-            fnorm_conv = slvr.snes.getFunctionNorm()
-            if fnorm_conv > 0.0:
-                slvr.snes.setTolerances(
-                    atol=snes_atol_scale() * fnorm_conv
+            PETSc.Sys.Print(
+                "Restart full mixed state accepted without a setup solve "
+                f"(||F||={fnorm0:.2e}, run atol={restart_atol:.2e})"
+            )
+        else:
+            try:
+                solve_diagnostic("restart-loaded-velocity")
+                restart_solved = True
+                fnorm_conv = slvr.snes.getFunctionNorm()
+                if fnorm_conv > 0.0:
+                    slvr.snes.setTolerances(
+                        atol=snes_atol_scale() * fnorm_conv
+                    )
+                PETSc.Sys.Print(
+                    "Restart velocity-only state re-solved "
+                    f"(||F|| {fnorm0:.2e} -> {fnorm_conv:.2e})"
                 )
-            PETSc.Sys.Print(
-                f"Restart diagnostic re-solved at loaded state "
-                f"(||F|| {fnorm0:.2e} -> {fnorm_conv:.2e})"
-            )
-        except fd.ConvergenceError:
-            z.assign(z_init)
-            restart_solved = True
-            restart_atol_scale = snes_restart_failure_atol_scale()
-            if fnorm0 > 0.0:
-                slvr.snes.setTolerances(atol=restart_atol_scale * fnorm0)
-            PETSc.Sys.Print(
-                f"Restart solve did not converge at loaded geometry "
-                f"(hard era); keeping the loaded converged state and "
-                f"handing the step to the run's rescue ladder "
-                f"(atol={restart_atol_scale * fnorm0:.2e})"
-            )
+            except fd.ConvergenceError:
+                z.assign(z_init)
+                restart_solved = True
+                PETSc.Sys.Print(
+                    "Restart velocity-only solve did not converge; keeping "
+                    "the loaded state and handing the step to the rescue "
+                    f"ladder (atol={restart_atol:.2e})"
+                )
 
     if not restart_solved:
         PETSc.Sys.Print(
