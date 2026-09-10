@@ -5,8 +5,9 @@ Run a short transient simulation and record wall-clock timing.
 Used by the `make timing` benchmark to measure resolution vs. core-count
 performance. Loads the mesh/inversion for the current ISMIP7_LC /
 ISMIP7_LC_COARSE / ISMIP7_BUFFER_M env vars (set by the Makefile or Slurm
-job), runs 5 years of zero-forcing time stepping, and writes a JSON record
-under results/timing/.
+job), runs the requested zero-forcing time steps, and writes a JSON record
+under results/timing/. The timing Makefile uses five steps and scales ``dt``
+linearly with the fine resolution.
 
 Usage:
     ISMIP7_LC=2500 ISMIP7_LC_COARSE=64000 ISMIP7_BUFFER_M=20000 \
@@ -195,6 +196,11 @@ def main():
         PETSc.Sys.Print(
             f"Timing record: {run_seconds:.1f}s total "
             f"({record['seconds_per_step']:.2f}s/step) -> {out_fn}"
+        )
+
+    if len(results) != nsteps:
+        raise RuntimeError(
+            f"Timing run completed only {len(results)} of {nsteps} steps"
         )
 
 

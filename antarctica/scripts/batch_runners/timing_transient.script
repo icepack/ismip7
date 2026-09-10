@@ -31,7 +31,27 @@ export OPENBLAS_NUM_THREADS=1
 cd "${SLURM_SUBMIT_DIR:-.}"
 
 # ISMIP7_LC, ISMIP7_LC_COARSE, ISMIP7_BUFFER_M, ISMIP7_INVERSION,
-# ISMIP7_T_END, ISMIP7_DT are forwarded via sbatch --export=ALL,... . The
+# ISMIP7_T_END, ISMIP7_DT, and ISMIP7_TIMING_STATUS are forwarded via
+# sbatch --export=ALL,... . The
 # Makefile overrides --mem per resolution; 128G is the safe standalone default
 # for the finest 500 m timing case.
+write_status() {
+    if [ -n "${ISMIP7_TIMING_STATUS:-}" ]; then
+        status_tmp="${ISMIP7_TIMING_STATUS}.tmp.${SLURM_JOB_ID:-$$}"
+        printf '%s job_id=%s timestamp=%s\n' \
+            "$1" "${SLURM_JOB_ID:-unknown}" "$2" > "${status_tmp}"
+        mv -f "${status_tmp}" "${ISMIP7_TIMING_STATUS}"
+    fi
+}
+
+write_status running "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+set +e
 srun -n ${SLURM_NTASKS} python -u scripts/run_timing.py
+run_rc=$?
+set -e
+if [ ${run_rc} -eq 0 ]; then
+    write_status "finished exit_code=0" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+else
+    write_status "failed exit_code=${run_rc}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+fi
+exit ${run_rc}

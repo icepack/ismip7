@@ -29,8 +29,11 @@ ISMIP7_SOLVER_VIEW ?=
 ISMIP7_RESCUE_ENABLED ?= 1
 T_END ?= 2020
 DT ?= 1.0
+MATRIX_STEPS ?= 5
+MATRIX_DT_2500 ?= 0.25
+MATRIX_DT_2500_TAG := $(subst .,p,$(MATRIX_DT_2500))
 TIMING_KIND ?= matrix
-TIMING_TAG ?= $(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_t$(T_END)_dt$(DT)
+TIMING_TAG ?= $(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(MATRIX_STEPS)step_dt$(MATRIX_DT_2500_TAG)at2500
 TIMING_EXPERIMENT ?= timing
 # Optional exact-input overrides for a single transient lane.  The resolution
 # matrix leaves these empty and constructs each target mesh parametrically.
@@ -57,7 +60,7 @@ SOLVER_TEST_BNDIDS ?= $(CURDIR)/mesh/boundary_ids_antarctica_64000_2500.json
 SOLVER_TEST_INVERSION ?= $(CURDIR)/mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5
 SOLVER_TEST_RESTART ?= $(CURDIR)/results/qualification_2step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_final.h5
 TIMESTEP_PROBE_SOLVER ?= scpc_mumps
-TIMESTEP_PROBE_DT ?= 0.375
+TIMESTEP_PROBE_DT ?= 0.25
 TIMESTEP_PROBE_STEPS ?= 5
 TIMESTEP_PROBE_END = $(shell awk 'BEGIN { printf "%.12g", 2015.2 + $(TIMESTEP_PROBE_STEPS) * $(TIMESTEP_PROBE_DT) }')
 TIMESTEP_PROBE_DT_TAG = $(subst .,p,$(TIMESTEP_PROBE_DT))
@@ -99,6 +102,7 @@ space := $(empty) $(empty)
 colon := :
 TIMING_LCS := $(subst $(space),$(colon),$(LCS))
 TIMING_RATIOS := $(subst $(space),$(colon),$(RATIOS))
+TIMING_CORES := $(subst $(space),$(colon),$(CORES))
 DEBUG_STAMP := $(shell date +%Y%m%d_%H%M%S)
 
 # Total-memory requests for timing jobs. These are keyed to the fine
@@ -110,7 +114,8 @@ DEBUG_STAMP := $(shell date +%Y%m%d_%H%M%S)
 .PHONY: timing meshes inversion redistribute transient qualify qualify-2step qualify-5step timestep-probe debug reference solver-smoke matrix
 
 timing: qualify
-	$(MAKE) matrix SBATCH_WAIT=--wait
+	$(MAKE) transient
+	@echo "Timing jobs submitted; run 'make matrix' after jobs finish or outputs are rsynced."
 
 meshes:
 	@if command -v sbatch >/dev/null 2>&1; then \
@@ -144,10 +149,27 @@ redistribute:
 
 transient:
 	@mkdir -p results/timing results/logs
-	@for lc in $(LCS); do for r in $(RATIOS); do lcc=$$((lc * r)); for nc in $(CORES); do \
+	@if [ "$(TIMING_KIND)" = matrix ]; then \
+	  printf '%s\n' "$(TIMING_TAG)" > results/timing/latest_matrix_campaign.txt; \
+	fi
+	@submit_fail=0; \
+	for lc in $(LCS); do for r in $(RATIOS); do lcc=$$((lc * r)); for nc in $(CORES); do \
 	  if [ -n "$(TIMING_LC_COARSE)" ]; then lcc=$(TIMING_LC_COARSE); fi; \
+	  run_dt="$(DT)"; run_t_end="$(T_END)"; \
+	  if [ "$(TIMING_KIND)" = matrix ]; then \
+	    run_dt=$$(awk -v lc="$$lc" -v base="$(MATRIX_DT_2500)" 'BEGIN { printf "%.12g", base * lc / 2500 }'); \
+	    run_t_end=$$(awk -v dt="$$run_dt" -v steps="$(MATRIX_STEPS)" 'BEGIN { printf "%.12g", 2015 + steps * dt }'); \
+	  fi; \
+	  run_experiment="$(TIMING_EXPERIMENT)"; \
+	  if [ "$(TIMING_KIND)" = matrix ]; then \
+	    run_experiment="$${run_experiment}_$(TIMING_TAG)_lcc$${lcc}_n$${nc}"; \
+	  fi; \
 	  out=results/timing/timing_$(TIMING_TAG)_$${lc}_$${lcc}_$${nc}.json; \
-	  [ -z "$(FORCE_TIMING)" ] && [ -f $$out ] && { echo "skip $$out"; continue; }; \
+	  status=results/timing/status_$(TIMING_TAG)_$${lc}_$${lcc}_$${nc}.txt; \
+	  status_state=; \
+	  if [ -f "$$status" ]; then read -r status_state _ < "$$status"; fi; \
+	  [ -z "$(FORCE_TIMING)" ] && { [ "$$status_state" = submitted ] || [ "$$status_state" = running ]; } && { echo "skip $$out ($$status_state stamp)"; continue; }; \
+	  [ -z "$(FORCE_TIMING)" ] && [ -f "$$out" ] && [ "$$status_state" = finished ] && { echo "skip $$out (finished stamp)"; continue; }; \
 	  case "$$lc" in \
 	    500)  mem=128G;; \
 	    1000) mem=96G;; \
@@ -162,21 +184,51 @@ transient:
 	  [ -n "$$bndids" ] || bndids=$(CURDIR)/mesh/boundary_ids_antarctica_$${lcc}_$${lc}_buffered$(BUFFER).json; \
 	  inversion="$(TIMING_INVERSION)"; \
 	  restart="$(TIMING_RESTART)"; \
-	  [ -f "$$mesh" ] || { echo "mesh not found: $$mesh" >&2; exit 2; }; \
-	  [ -f "$$bndids" ] || { echo "boundary ids not found: $$bndids" >&2; exit 2; }; \
-	  [ -f "$$inversion" ] || { echo "inversion not found: $$inversion" >&2; exit 2; }; \
-	  [ -z "$$restart" ] || [ -f "$$restart" ] || { echo "restart not found: $$restart" >&2; exit 2; }; \
-	  if command -v sbatch >/dev/null 2>&1; then \
-	    sbatch $(SBATCH_WAIT) --job-name=timing_$${lc}_$${lcc}_$${nc} --ntasks-per-node=$$nc \
-	      --partition=$(SLURM_PARTITION) --time=$(SLURM_TIME) --mem=$$mem \
-	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$$inversion,ISMIP7_RESTART=$$restart,ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_T_END=$(T_END),ISMIP7_DT=$(DT),ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER),ISMIP7_RESCUE_ENABLED=$(ISMIP7_RESCUE_ENABLED),ISMIP7_TIMING_KIND=$(TIMING_KIND),ISMIP7_TIMING_TAG=$(TIMING_TAG),ISMIP7_TIMING_EXPERIMENT=$(TIMING_EXPERIMENT),ISMIP7_SNES_MONITOR=$(ISMIP7_SNES_MONITOR),ISMIP7_SNES_LOG=$(ISMIP7_SNES_LOG),ISMIP7_SOLVER_VIEW=$(ISMIP7_SOLVER_VIEW) \
-	      scripts/batch_runners/timing_transient.script; \
-	  else \
-	    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 ISMIP7_LC=$$lc ISMIP7_LC_COARSE=$$lcc ISMIP7_BUFFER_M=$(BUFFER) ISMIP7_MESH=$$mesh ISMIP7_BNDIDS=$$bndids ISMIP7_INVERSION=$$inversion ISMIP7_RESTART=$$restart ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER) ISMIP7_RESCUE_ENABLED=$(ISMIP7_RESCUE_ENABLED) ISMIP7_TIMING_KIND=$(TIMING_KIND) ISMIP7_TIMING_TAG=$(TIMING_TAG) ISMIP7_TIMING_EXPERIMENT=$(TIMING_EXPERIMENT) ISMIP7_SNES_MONITOR=$(ISMIP7_SNES_MONITOR) ISMIP7_SNES_LOG=$(ISMIP7_SNES_LOG) ISMIP7_SOLVER_VIEW=$(ISMIP7_SOLVER_VIEW) \
-	      ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) ISMIP7_T_END=$(T_END) ISMIP7_DT=$(DT) \
-	      mpiexec -n $$nc python scripts/run_timing.py; \
+	  if [ ! -f "$$mesh" ]; then \
+	    echo "mesh not found: $$mesh" >&2; printf 'not_runnable reason=missing_mesh path=%s\n' "$$mesh" > "$$status"; submit_fail=1; continue; \
 	  fi; \
-	done; done; done
+	  if [ ! -f "$$bndids" ]; then \
+	    echo "boundary ids not found: $$bndids" >&2; printf 'not_runnable reason=missing_boundary_ids path=%s\n' "$$bndids" > "$$status"; submit_fail=1; continue; \
+	  fi; \
+	  if [ ! -f "$$inversion" ]; then \
+	    echo "inversion not found: $$inversion" >&2; printf 'not_runnable reason=missing_inversion path=%s\n' "$$inversion" > "$$status"; submit_fail=1; continue; \
+	  fi; \
+	  if [ -n "$$restart" ] && [ ! -f "$$restart" ]; then \
+	    echo "restart not found: $$restart" >&2; printf 'not_runnable reason=missing_restart path=%s\n' "$$restart" > "$$status"; submit_fail=1; continue; \
+	  fi; \
+	  if command -v sbatch >/dev/null 2>&1; then \
+	    printf 'submitted timestamp=%s\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
+	    if job_id=$$(sbatch $(SBATCH_WAIT) --parsable --job-name=timing_$${lc}_$${lcc}_$${nc} --ntasks-per-node=$$nc \
+	      --partition=$(SLURM_PARTITION) --time=$(SLURM_TIME) --mem=$$mem \
+	      --export=ALL,ISMIP7_LC=$$lc,ISMIP7_LC_COARSE=$$lcc,ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_MESH=$$mesh,ISMIP7_BNDIDS=$$bndids,ISMIP7_INVERSION=$$inversion,ISMIP7_RESTART=$$restart,ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR),ISMIP7_T_END=$$run_t_end,ISMIP7_DT=$$run_dt,ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER),ISMIP7_RESCUE_ENABLED=$(ISMIP7_RESCUE_ENABLED),ISMIP7_TIMING_KIND=$(TIMING_KIND),ISMIP7_TIMING_TAG=$(TIMING_TAG),ISMIP7_TIMING_EXPERIMENT=$$run_experiment,ISMIP7_TIMING_STATUS=$$status,ISMIP7_SNES_MONITOR=$(ISMIP7_SNES_MONITOR),ISMIP7_SNES_LOG=$(ISMIP7_SNES_LOG),ISMIP7_SOLVER_VIEW=$(ISMIP7_SOLVER_VIEW) \
+	      scripts/batch_runners/timing_transient.script); then \
+	      job_id=$${job_id%%;*}; \
+	      read -r status_state _ < "$$status"; \
+	      if [ "$$status_state" = submitted ]; then \
+	        printf 'submitted job_id=%s timestamp=%s\n' "$$job_id" "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
+	      fi; \
+	      echo "submitted timing_$${lc}_$${lcc}_$${nc} as job $$job_id"; \
+	    else \
+	      read -r status_state _ < "$$status"; \
+	      if [ "$$status_state" = submitted ]; then \
+	        printf 'submission_failed timestamp=%s\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
+	      fi; \
+	      submit_fail=1; \
+	    fi; \
+	  else \
+	    printf 'running timestamp=%s\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
+	    if OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 ISMIP7_LC=$$lc ISMIP7_LC_COARSE=$$lcc ISMIP7_BUFFER_M=$(BUFFER) ISMIP7_MESH=$$mesh ISMIP7_BNDIDS=$$bndids ISMIP7_INVERSION=$$inversion ISMIP7_RESTART=$$restart ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER) ISMIP7_RESCUE_ENABLED=$(ISMIP7_RESCUE_ENABLED) ISMIP7_TIMING_KIND=$(TIMING_KIND) ISMIP7_TIMING_TAG=$(TIMING_TAG) ISMIP7_TIMING_EXPERIMENT=$$run_experiment ISMIP7_SNES_MONITOR=$(ISMIP7_SNES_MONITOR) ISMIP7_SNES_LOG=$(ISMIP7_SNES_LOG) ISMIP7_SOLVER_VIEW=$(ISMIP7_SOLVER_VIEW) \
+	      ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) ISMIP7_T_END=$$run_t_end ISMIP7_DT=$$run_dt \
+	      mpiexec -n $$nc python scripts/run_timing.py; then \
+	      printf 'finished exit_code=0 timestamp=%s\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
+	    else \
+	      rc=$$?; \
+	      printf 'failed exit_code=%s timestamp=%s\n' "$$rc" "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
+	      submit_fail=1; \
+	    fi; \
+	  fi; \
+	done; done; done; \
+	exit $$submit_fail
 
 # Qualification is intentionally a single 2.5 km / 16-rank lane on the exact
 # 64 km-coarse mesh used by the imported DG0 logvelnet MAP.  The checker gates
@@ -276,5 +328,10 @@ reference: transient
 solver-smoke:
 	OMP_NUM_THREADS=1 mpiexec -n 2 python scripts/smoke_solver_modes.py
 
-matrix: transient
-	python scripts/build_timing_matrix.py
+matrix:
+	@tag="$(TIMING_TAG)"; \
+	if [ "$(origin TIMING_TAG)" = file ] && [ -f results/timing/latest_matrix_campaign.txt ]; then \
+	  read -r tag < results/timing/latest_matrix_campaign.txt; \
+	fi; \
+	python scripts/build_timing_matrix.py --tag "$$tag" \
+	  --lcs $(TIMING_LCS) --ratios $(TIMING_RATIOS) --cores $(TIMING_CORES)

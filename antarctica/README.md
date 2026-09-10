@@ -547,14 +547,25 @@ from `antarctica/` (needs §1 data, Firedrake, and Slurm on the cluster):
 ```bash
 cd antarctica
 make timing
-# → TIMING_MATRIX.md
+# after the submitted jobs settle (and outputs are rsynced, if needed):
+make matrix
+# → TIMING_MATRIX.md, including the status of all 30 expected lanes
 # → results/timing/timing_<tag>_<LC>_<LC_coarse>_<ncores>.json
 ```
 
 `make timing` first runs the qualification gate for the selected solver; the
-30-job matrix is not submitted unless both probes pass. Its Slurm submissions
-also use `--wait`, preventing concurrent benchmark cells from contaminating
-one another's timing. The pipeline has six stages:
+30-job matrix is not submitted unless both probes pass. It then submits all
+matrix cells without `--wait`, so they can queue and run concurrently. Use
+`make transient` to submit just the matrix cells without repeating
+qualification. Each lane has a status stamp under `results/timing/`; a later
+`make transient` skips finished, queued, and running lanes, while retrying
+failed or incomplete lanes. Set `FORCE_TIMING=1` to override that guard.
+Timeseries and final-checkpoint names include the campaign tag, coarse mesh,
+and core count, so concurrent lanes never share an output path. The most
+recent matrix tag is stamped in `results/timing/latest_matrix_campaign.txt`,
+allowing a plain later `make matrix` to select the same campaign even if the
+solver/tag was overridden when it was submitted.
+The pipeline has six stages:
 
 1. **Meshes** — build 10 meshes at `buffer=20000 m`: LC ∈ {500, 1000, 2000,
    2500, 5000} m with LC_coarse = 10×LC and 20×LC.
@@ -584,15 +595,19 @@ one another's timing. The pipeline has six stages:
    checkpoint is absent. To measure the timestep limit before changing the
    matrix, `make timestep-probe` continues that same checkpoint for five steps
    with `scpc_mumps`. The measured `dt=0.25` probe passed all five steps;
-   `dt=0.5` failed its direct solve on step 2 and was stopped after entering
-   continuation. The default is therefore the midpoint, `dt=0.375`, to bracket
-   the direct-step limit. Override with `TIMESTEP_PROBE_DT=<value>`; the end
-   year is derived so every probe still takes exactly five steps. Probe jobs
-   disable rescue and fail immediately when a direct step fails. They use the
-   Slurm debug partition with a one-hour limit; the other qualification and
+   `dt=0.375` failed its direct solve on step 4, and `dt=0.5` failed on step 2.
+   The provisionally safe 2.5 km value is therefore `dt=0.25`, which remains
+   the probe default. Override with `TIMESTEP_PROBE_DT=<value>`; the end year is
+   derived so every probe still takes exactly five steps. Probe jobs disable
+   rescue and fail immediately when a direct step fails. They use the Slurm
+   debug partition with a one-hour limit; the other qualification and
    production timing targets retain normal rescue and remain on general.
-5. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): 5 years
-   (`2015`–`2020`, `dt=1.0` by default), zero SMB/melt forcing. Every resolution
+5. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): five
+   zero-SMB/melt steps with a timestep scaled linearly from the qualified
+   2.5 km value: `dt = 0.25 × LC / 2500`. Thus LC = 500, 1000, 2000, 2500,
+   and 5000 m use `dt` = 0.05, 0.10, 0.20, 0.25, and 0.50 yr. Holding the
+   step count fixed makes per-step timings comparable while respecting the
+   resolution dependence of the stable timestep. Every resolution
    loads its own mesh via `ISMIP7_MESH` and warm-starts θ/φ and the physical
    prior from the single inversion via cross-mesh interpolation
    (`ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5`). The default
@@ -604,8 +619,11 @@ one another's timing. The pipeline has six stages:
    LC=5000. The 500 m allocation is based on a measured ~64 GiB three-rank
    peak before the first diagnostic solve completed, with headroom for the full
    run; the 2500 m debug allocation is anchored at 64G.
-6. **Matrix** — aggregate only completed five-year matrix JSON records into
-   [`TIMING_MATRIX.md`](TIMING_MATRIX.md), grouped by solver/timing tag.
+6. **Matrix** — `make matrix` is read-only with respect to jobs: it never runs
+   or submits `transient`. It writes [`TIMING_MATRIX.md`](TIMING_MATRIX.md)
+   immediately, includes timing tables for every successful five-step record,
+   and reports every expected lane as successful, failed, incomplete,
+   queued/running, or not run. Re-run it whenever more outputs arrive.
 
 Individual stages can be run separately: `make meshes`, `make inversion`,
 `make redistribute`, `make qualify`, `make timestep-probe`, `make transient`,
