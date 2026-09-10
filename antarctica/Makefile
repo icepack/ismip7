@@ -10,6 +10,7 @@
 #   transient     30 short runs (10 mesh combos x 16/32/64 cores),
 #                 with a resolution-specific Slurm memory request
 #   qualify       gate one solver through 2-step and 5-step 2.5 km probes
+#   timestep-probe restart at 2.5 km for 5 steps at a selectable coarser dt
 #   debug         one condensed-MUMPS job with full convergence monitors
 #   reference     one full-Jacobian MUMPS reference job
 #   solver-smoke  tiny two-rank setup test; no Antarctic data or time steps
@@ -54,6 +55,13 @@ SOLVER_TEST_MESH ?= $(CURDIR)/mesh/antarctica_64000_2500.msh
 SOLVER_TEST_BNDIDS ?= $(CURDIR)/mesh/boundary_ids_antarctica_64000_2500.json
 SOLVER_TEST_INVERSION ?= $(CURDIR)/mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5
 SOLVER_TEST_RESTART ?= $(CURDIR)/results/qualification_2step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_final.h5
+TIMESTEP_PROBE_SOLVER ?= scpc_mumps
+TIMESTEP_PROBE_DT ?= 0.25
+TIMESTEP_PROBE_STEPS ?= 5
+TIMESTEP_PROBE_END = $(shell awk 'BEGIN { printf "%.12g", 2015.2 + $(TIMESTEP_PROBE_STEPS) * $(TIMESTEP_PROBE_DT) }')
+TIMESTEP_PROBE_DT_TAG = $(subst .,p,$(TIMESTEP_PROBE_DT))
+TIMESTEP_PROBE_TAG = timestep_probe_$(TIMESTEP_PROBE_STEPS)step_dt$(TIMESTEP_PROBE_DT_TAG)_$(TIMESTEP_PROBE_SOLVER)_$(SOLVER_TEST_TAG)
+TIMESTEP_PROBE_RESTART ?= $(CURDIR)/results/qualification_2step_$(TIMESTEP_PROBE_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_final.h5
 ifeq ($(N_FLOW),4)
 A4_FACTOR ?= 10.0
 else ifeq ($(N_FLOW),4.0)
@@ -98,7 +106,7 @@ DEBUG_STAMP := $(shell date +%Y%m%d_%H%M%S)
 # meshes are slightly larger than their ratio-20 counterparts, so one
 # conservative budget per fine resolution covers both ratios.
 
-.PHONY: timing meshes inversion redistribute transient qualify qualify-2step qualify-5step debug reference solver-smoke matrix
+.PHONY: timing meshes inversion redistribute transient qualify qualify-2step qualify-5step timestep-probe debug reference solver-smoke matrix
 
 timing: qualify
 	$(MAKE) matrix SBATCH_WAIT=--wait
@@ -204,6 +212,26 @@ qualify-5step:
 	python scripts/check_solver_qualification.py \
 	  --record results/timing/timing_qualification_5step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_$(SOLVER_TEST_LC_COARSE)_16.json \
 	  --csv results/qualification_5step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_timeseries.csv --min-steps 5
+
+# Hold the exact 2.5 km state, solver, and number of steps fixed while varying
+# only dt.  This is deliberately separate from `timing`: the matrix timestep
+# stays unchanged until the largest passing value has been measured.
+timestep-probe:
+	$(MAKE) transient LCS=$(SOLVER_TEST_LC) RATIOS=1 CORES=16 \
+	  BUFFER=$(SOLVER_TEST_BUFFER) TIMING_LC_COARSE=$(SOLVER_TEST_LC_COARSE) \
+	  TIMING_MESH=$(SOLVER_TEST_MESH) TIMING_BNDIDS=$(SOLVER_TEST_BNDIDS) \
+	  TIMING_INVERSION=$(SOLVER_TEST_INVERSION) \
+	  TIMING_RESTART=$(TIMESTEP_PROBE_RESTART) \
+	  ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=$(TIMESTEP_PROBE_SOLVER) \
+	  T_END=$(TIMESTEP_PROBE_END) DT=$(TIMESTEP_PROBE_DT) \
+	  TIMING_KIND=qualification TIMING_TAG=$(TIMESTEP_PROBE_TAG) \
+	  TIMING_EXPERIMENT=$(TIMESTEP_PROBE_TAG) \
+	  SLURM_PARTITION=debug SLURM_TIME=01:00:00 \
+	  SBATCH_WAIT=--wait FORCE_TIMING=1
+	python scripts/check_solver_qualification.py \
+	  --record results/timing/timing_$(TIMESTEP_PROBE_TAG)_$(SOLVER_TEST_LC)_$(SOLVER_TEST_LC_COARSE)_16.json \
+	  --csv results/$(TIMESTEP_PROBE_TAG)_$(SOLVER_TEST_LC)_timeseries.csv \
+	  --min-steps $(TIMESTEP_PROBE_STEPS)
 
 debug: override LCS := $(SOLVER_TEST_LC)
 debug: override RATIOS := 1

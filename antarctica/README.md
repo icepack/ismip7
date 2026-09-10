@@ -580,7 +580,13 @@ one another's timing. The pipeline has six stages:
    with results from the superseded test input. Once the two-step stage is
    already known good, `make qualify-5step` runs only the exact-resolution
    five-step restart probe and fails immediately if the two-step full-state
-   checkpoint is absent.
+   checkpoint is absent. To measure the timestep limit before changing the
+   matrix, `make timestep-probe` continues that same checkpoint for five steps
+   with `scpc_mumps` at `dt=0.25` (2015.2–2016.45). Override only the timestep,
+   for example `make timestep-probe TIMESTEP_PROBE_DT=0.5`; the end year is
+   derived so every probe still takes exactly five steps. These probes use the
+   Slurm debug partition with a one-hour limit; the other qualification and
+   production timing targets remain on the general partition.
 5. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): 5 years
    (`2015`–`2020`, `dt=1.0` by default), zero SMB/melt forcing. Every resolution
    loads its own mesh via `ISMIP7_MESH` and warm-starts θ/φ and the physical
@@ -598,7 +604,8 @@ one another's timing. The pipeline has six stages:
    [`TIMING_MATRIX.md`](TIMING_MATRIX.md), grouped by solver/timing tag.
 
 Individual stages can be run separately: `make meshes`, `make inversion`,
-`make redistribute`, `make qualify`, `make transient`, `make matrix`.
+`make redistribute`, `make qualify`, `make timestep-probe`, `make transient`,
+`make matrix`.
 `make solver-smoke` is the cheap setup check: on a 2×2 mesh and two MPI ranks
 it exercises the real mixed field shapes, all new condensation/MUMPS modes,
 and two coefficient updates through the persistent transport solver. It does
