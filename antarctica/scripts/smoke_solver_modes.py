@@ -22,6 +22,7 @@ from icepack2_tools.solverconfig import (  # noqa: E402
     diagnostic_solver_parameters,
     transport_solver_parameters,
 )
+from icepack2_tools.mpi_stats import global_extreme_location  # noqa: E402
 
 
 def mixed_problem(mesh):
@@ -93,12 +94,42 @@ def test_persistent_transport(mesh):
         source.assign(value)
         dt.assign(timestep)
         solver.solve()
+        ksp = solver.snes.getKSP()
+        if ksp.getConvergedReason() <= 0:
+            raise RuntimeError(
+                "persistent transport solver diverged with KSP reason "
+                f"{ksp.getConvergedReason()}"
+            )
         expected = (expected + timestep * value) / (1.0 + timestep)
         target = fd.Function(space).assign(expected)
         if fd.errornorm(target, thickness) > 1e-12:
             raise RuntimeError("persistent transport solver used stale coefficients")
     PETSc.Sys.Print(
-        "PASS persistent transport solver: source and dt coefficient updates"
+        "PASS persistent transport solver: source and dt coefficient updates; "
+        f"last reason={ksp.getConvergedReason()} "
+        f"iterations={ksp.getIterationNumber()} "
+        f"residual={ksp.getResidualNorm():.3e}"
+    )
+
+
+def test_global_extrema(mesh):
+    space = fd.FunctionSpace(mesh, "DG", 0)
+    coordinates = fd.Function(
+        fd.VectorFunctionSpace(mesh, space.ufl_element())
+    ).interpolate(fd.SpatialCoordinate(mesh))
+    x, y = fd.SpatialCoordinate(mesh)
+    field = fd.Function(space).interpolate(x + 2.0 * y)
+    lo, lo_xy = global_extreme_location(field, coordinates, mode="min")
+    hi, hi_xy = global_extreme_location(field, coordinates, mode="max")
+    if not (
+        abs(lo - (lo_xy[0] + 2.0 * lo_xy[1])) < 1e-12
+        and abs(hi - (hi_xy[0] + 2.0 * hi_xy[1])) < 1e-12
+        and lo < hi
+    ):
+        raise RuntimeError("global extreme locations do not match field values")
+    PETSc.Sys.Print(
+        f"PASS global extrema: min={lo:.3f} at {lo_xy}, "
+        f"max={hi:.3f} at {hi_xy}"
     )
 
 
@@ -114,6 +145,7 @@ def main():
     for mode in args.modes:
         test_mode(mesh, mode)
     test_persistent_transport(mesh)
+    test_global_extrema(mesh)
 
 
 if __name__ == "__main__":

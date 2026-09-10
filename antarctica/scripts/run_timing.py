@@ -56,6 +56,7 @@ if not EXPERIMENT_NAME:
     raise ValueError(
         "ISMIP7_TIMING_EXPERIMENT must contain a filename-safe character"
     )
+RESTART_FROM = os.environ.get("ISMIP7_RESTART") or None
 
 
 def main():
@@ -68,14 +69,26 @@ def main():
         f"buffer={os.environ.get('ISMIP7_BUFFER_M', 'unknown')} "
         f"ncores={ncores} solver={LINEAR_SOLVER_LABEL}/transport-gmres "
         f"t={T_START}->{T_END} dt={DT}"
+        + (f" restart={RESTART_FROM}" if RESTART_FROM else "")
     )
 
     t0 = perf_counter()
-    ctx = setup_model()
+    ctx = setup_model(restart_from=RESTART_FROM)
     mesh = ctx["mesh"]
     target_lc_coarse = ctx["lc_coarse"]
     target_buffer_m = ctx["buffer_m"]
-    nsteps = int(round((T_END - T_START) / DT))
+    restart_time = ctx.get("t_restart")
+    if RESTART_FROM is not None and restart_time is None:
+        raise RuntimeError(
+            f"Timing restart {RESTART_FROM} has no t_yr checkpoint attribute"
+        )
+    effective_t_start = T_START if restart_time is None else restart_time
+    nsteps = int(round((T_END - effective_t_start) / DT))
+    if nsteps < 1:
+        raise RuntimeError(
+            f"Timing interval {effective_t_start}->{T_END} with dt={DT} "
+            "contains no steps"
+        )
 
     PETSc.Sys.Print(
         f"Timing compute mesh: {mesh.num_vertices()} vertices, "
@@ -105,15 +118,16 @@ def main():
         "ncores": ncores,
         "vertices": mesh.num_vertices(),
         "cells": mesh.num_cells(),
-        "t_start": T_START,
+        "t_start": effective_t_start,
         "t_end": T_END,
         "dt": DT,
         "nsteps": nsteps,
         "completed_steps": len(results),
-        "t_final": results[-1][0] if results else T_START,
+        "t_final": results[-1][0] if results else effective_t_start,
         "timing_kind": TIMING_KIND,
         "timing_tag": TIMING_TAG,
         "experiment_name": EXPERIMENT_NAME,
+        "restart_input": RESTART_FROM or "",
         "diagnostic_solver_mode": DIAGNOSTIC_LINEAR_SOLVER,
         "linear_solver": LINEAR_SOLVER_LABEL,
         "transport_solver": "gmres-bjacobi-ilu",
@@ -142,6 +156,34 @@ def main():
         ),
         "seconds_total": sum(stat["seconds"] for stat in solve_stats),
     }
+
+    transport_stats = ctx.get("transport_stats", [])
+    transport_mass_residuals = [
+        abs(stat["mass_residual_gt"])
+        for stat in transport_stats
+        if stat.get("mass_residual_gt") is not None
+    ]
+    record["transport_solve_summary"] = {
+        "count": len(transport_stats),
+        "reason_counts": dict(Counter(
+            stat["ksp_reason"] for stat in transport_stats
+        )),
+        "ksp_iterations_total": sum(
+            stat["ksp_iterations"] for stat in transport_stats
+        ),
+        "ksp_iterations_max": max(
+            (stat["ksp_iterations"] for stat in transport_stats), default=0
+        ),
+        "residual_norm_max": max(
+            (stat["residual_norm"] for stat in transport_stats), default=0.0
+        ),
+        "mass_residual_gt_max": max(
+            transport_mass_residuals, default=None
+        ),
+        "seconds_total": sum(stat["seconds"] for stat in transport_stats),
+    }
+    record["transport_solves"] = transport_stats
+    record["field_extrema"] = ctx.get("field_stats", [])
 
     if COMM_WORLD.rank == 0:
         out_fn = os.path.join(

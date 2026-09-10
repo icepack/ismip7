@@ -522,6 +522,7 @@ redeclare those literals.
 | `ISMIP7_SNES_MONITOR` / `ISMIP7_SNES_LOG` | enable diagnostic SNES/KSP monitors and optionally route them to a file; KSP output includes short and true residual lines per iteration, with a header before each mixed solve | `0` / stdout |
 | `ISMIP7_SOLVER_VIEW` | emit `snes_view`, outer `ksp_view`, and the SCPC condensed `ksp_view`; enabled by `make debug` and `make reference` to expose the actual block sizes and hierarchy | `0` |
 | `ISMIP7_TRANSPORT_KSP_RTOL` / `ISMIP7_TRANSPORT_KSP_MAXIT` | GMRES relative tolerance / iteration limit for the persistent DG0 transport solver (`ismip7_transport_` PETSc prefix) | `1e-10` / `500` |
+| `ISMIP7_MASS_RESIDUAL_TOL_GT` | fail-loud absolute tolerance for both the discrete transport identity and the complete step mass budget | `5e-5` Gt |
 | `ISMIP7_K_MELT` | scalar Burgard K (projections) | `1.15e-4` (Burgard K50) |
 | `ISMIP7_K_PER_BASIN_NPZ` | per-basin K file (control) | `results/calibrated_K_per_basin_<lc>.npz` |
 | `ISMIP7_ESM` | ESM for control (`CESM2-WACCM`, `MRI-ESM2-0`) | `CESM2-WACCM` |
@@ -566,14 +567,21 @@ one another's timing. The pipeline has six stages:
    `inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5` on its exact
    `antarctica_64000_2500.msh` source mesh (with the matching per-mesh
    boundary sidecar), complete the cold continuation and two zero-forcing
-   `dt=0.1` steps, then a five-year `dt=1` probe. Each stage must finish,
-   contain no diverged diagnostic solve, and close the persisted mass budget
-   to zero. Run separately with `make qualify`; it uses `--wait` on Slurm and
+   `dt=0.1` steps, then continue from that full-state checkpoint for five more
+   `dt=0.1` steps (`2015.2`–`2015.7`). The restart restores geometry, velocity,
+   membrane stress and basal stress, performs one direct consistency solve at
+   full `n=3`, and does not repeat the cold continuation. Each stage must
+   finish, contain no diverged diagnostic or transport solve, and close both
+   the transport identity and persisted mass budget to zero. Run separately
+   with `make qualify`; it uses `--wait` on Slurm and
    reruns rather than trusting a stale record. Qualification filenames include
    `dg0_logvelnet` and coarse resolution `64000`, so they cannot be confused
-   with results from the superseded test input.
+   with results from the superseded test input. Once the two-step stage is
+   already known good, `make qualify-5step` runs only the exact-resolution
+   five-step restart probe and fails immediately if the two-step full-state
+   checkpoint is absent.
 5. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): 5 years
-   (`2015`–`2020`, `dt=1.0`), zero SMB/melt forcing. Every resolution
+   (`2015`–`2020`, `dt=1.0` by default), zero SMB/melt forcing. Every resolution
    loads its own mesh via `ISMIP7_MESH` and warm-starts θ/φ and the physical
    prior from the single inversion via cross-mesh interpolation
    (`ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5`). The default

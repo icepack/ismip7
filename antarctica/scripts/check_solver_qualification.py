@@ -57,6 +57,34 @@ def main():
     if diverged:
         raise SystemExit(f"FAIL: diagnostic solve divergence recorded: {diverged}")
 
+    transport_summary = record.get("transport_solve_summary", {})
+    transport_reasons = transport_summary.get("reason_counts", {})
+    transport_diverged = {
+        name: count for name, count in transport_reasons.items()
+        if _is_diverged(name)
+    }
+    if transport_diverged:
+        raise SystemExit(
+            f"FAIL: transport KSP divergence recorded: {transport_diverged}"
+        )
+    if transport_summary.get("count", 0) < args.min_steps:
+        raise SystemExit(
+            "FAIL: record contains only "
+            f"{transport_summary.get('count', 0)} transport solves; "
+            f"need at least {args.min_steps}"
+        )
+    transport_mass_resid = transport_summary.get("mass_residual_gt_max")
+    if (
+        transport_mass_resid is None
+        or not math.isfinite(transport_mass_resid)
+        or transport_mass_resid > args.residual_tol_gt
+    ):
+        raise SystemExit(
+            "FAIL: max |transport mass residual| is "
+            f"{transport_mass_resid!r} Gt; limit is "
+            f"{args.residual_tol_gt:.6g} Gt"
+        )
+
     with open(args.csv, newline="") as stream:
         rows = list(csv.DictReader(stream))
     if len(rows) < args.min_steps:
@@ -84,7 +112,8 @@ def main():
     print(
         f"PASS: {mode}: {len(rows)} transient steps, "
         f"{summary.get('count', 0)} diagnostic solves, "
-        f"max |mass residual|={max_residual:.3g} Gt"
+        f"max |transport/step mass residual|="
+        f"{transport_mass_resid:.3g}/{max_residual:.3g} Gt"
     )
 
 

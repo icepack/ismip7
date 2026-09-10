@@ -42,6 +42,45 @@ def global_range(f, comm=None):
             comm.allreduce(float(d.max()) if d.size else -np.inf, op=MPI.MAX))
 
 
+def global_extreme_location(f, coordinates, mode="max", comm=None):
+    r"""Return a global scalar extreme and the coordinates where it occurs.
+
+    ``f`` may be a scalar Firedrake Function, or a bare array when ``comm`` is
+    supplied. ``coordinates`` must have one row per owned scalar dof. Only one
+    candidate per rank is communicated; ties are resolved by rank so every
+    rank receives the same deterministic result.
+    """
+    d = _data(f)
+    xy = _data(coordinates)
+    comm = _comm_of(f, comm)
+    if d.ndim == 2 and d.shape[1] == 1:
+        d = d[:, 0]
+    if d.ndim != 1:
+        raise ValueError("global_extreme_location requires scalar data")
+    if xy.ndim != 2 or xy.shape[0] != d.shape[0]:
+        raise ValueError(
+            "coordinates must have one row per owned scalar dof"
+        )
+    if mode not in {"min", "max"}:
+        raise ValueError("mode must be 'min' or 'max'")
+
+    if d.size:
+        index = int(np.argmin(d) if mode == "min" else np.argmax(d))
+        candidate = (
+            float(d[index]), int(comm.rank), tuple(float(v) for v in xy[index])
+        )
+    else:
+        sentinel = np.inf if mode == "min" else -np.inf
+        candidate = (sentinel, int(comm.rank), ())
+
+    candidates = comm.allgather(candidate)
+    if mode == "min":
+        value, _rank, location = min(candidates, key=lambda item: (item[0], item[1]))
+    else:
+        value, _rank, location = max(candidates, key=lambda item: (item[0], -item[1]))
+    return value, location
+
+
 def global_max(f, comm=None):
     r"""Maximum of a Function over all ranks."""
     d = _data(f)

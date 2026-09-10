@@ -55,7 +55,11 @@ RESULTS_DIR = os.path.join(_ROOT, "results")
 sys.path.insert(0, os.path.dirname(_ROOT))
 from mesh_naming import mesh_filename
 
-from icepack2_tools.mpi_stats import global_mean, global_range
+from icepack2_tools.mpi_stats import (
+    global_extreme_location,
+    global_mean,
+    global_range,
+)
 from icepack2_tools.boundary import load_boundary_ids
 from icepack2_tools.geometry import sample_to_geometry
 from icepack2_tools.naming import map_basename
@@ -68,6 +72,7 @@ from icepack2_tools.solverconfig import (
     diagnostic_solver_label,
     diagnostic_solver_mode,
     diagnostic_solver_parameters,
+    mass_residual_tol_gt,
     rescue_max_it,
     snes_atol_scale,
     snes_monitor_enabled,
@@ -1355,6 +1360,93 @@ def run_simulation(
         options_prefix="ismip7_transport_",
     )
 
+    # Transport and field telemetry is retained in ctx so timing jobs can
+    # persist it beside the diagnostic-solver summary.  The extrema use owned
+    # dofs plus collective reductions; a rank-0 .dat statistic would depend on
+    # the mesh partition and can miss the cell where a runaway starts.
+    transport_stats = []
+    field_stats = []
+    ctx["transport_stats"] = transport_stats
+    ctx["field_stats"] = field_stats
+    transport_solve_count = 0
+    mass_tol_gt = mass_residual_tol_gt()
+    h_diag_xy = Function(
+        VectorFunctionSpace(mesh, Q_dg.ufl_element())
+    ).interpolate(fd.SpatialCoordinate(mesh))
+    speed_diag = Function(Q, name="speed_diagnostic")
+    speed_diag_xy = Function(
+        VectorFunctionSpace(mesh, Q.ufl_element())
+    ).interpolate(fd.SpatialCoordinate(mesh))
+
+    def _field_diagnostics(label):
+        r"""Log global h and |u| extrema, including their locations."""
+        speed_diag.interpolate(sqrt(fd.dot(u_transport, u_transport)))
+        h_min, h_min_xy = global_extreme_location(
+            h_dg, h_diag_xy, mode="min"
+        )
+        h_max, h_max_xy = global_extreme_location(
+            h_dg, h_diag_xy, mode="max"
+        )
+        u_min, u_min_xy = global_extreme_location(
+            speed_diag, speed_diag_xy, mode="min"
+        )
+        u_max, u_max_xy = global_extreme_location(
+            speed_diag, speed_diag_xy, mode="max"
+        )
+        stat = {
+            "label": label,
+            "thickness_min": h_min,
+            "thickness_min_xy": h_min_xy,
+            "thickness_max": h_max,
+            "thickness_max_xy": h_max_xy,
+            "speed_min": u_min,
+            "speed_min_xy": u_min_xy,
+            "speed_max": u_max,
+            "speed_max_xy": u_max_xy,
+        }
+        field_stats.append(stat)
+
+        def _xy(location):
+            return "(" + ", ".join(f"{value:.0f}" for value in location) + ")"
+
+        PETSc.Sys.Print(
+            f"=== FIELD RANGE | {label} | "
+            f"h=[{h_min:.6e} at {_xy(h_min_xy)}, "
+            f"{h_max:.6e} at {_xy(h_max_xy)}] m "
+            f"speed=[{u_min:.6e} at {_xy(u_min_xy)}, "
+            f"{u_max:.6e} at {_xy(u_max_xy)}] m/yr ==="
+        )
+        return stat
+
+    def _record_transport(label, elapsed, mass_residual_gt=None):
+        nonlocal transport_solve_count
+        transport_solve_count += 1
+        ksp = transport_solver.snes.getKSP()
+        reason = ksp.getConvergedReason()
+        reason_name = getattr(reason, "name", str(int(reason)))
+        stat = {
+            "solve": transport_solve_count,
+            "label": label,
+            "ksp_reason": reason_name,
+            "ksp_iterations": ksp.getIterationNumber(),
+            "residual_norm": ksp.getResidualNorm(),
+            "mass_residual_gt": mass_residual_gt,
+            "seconds": elapsed,
+        }
+        transport_stats.append(stat)
+        mass_text = (
+            "unavailable" if mass_residual_gt is None
+            else f"{mass_residual_gt:+.6e}"
+        )
+        PETSc.Sys.Print(
+            "=== TRANSPORT RESULT "
+            f"{transport_solve_count:04d} | {label} | reason={reason_name} "
+            f"ksp_its={stat['ksp_iterations']} "
+            f"rnorm={stat['residual_norm']:.6e} "
+            f"mass_resid_gt={mass_text} seconds={elapsed:.3f} ==="
+        )
+        return stat, int(reason)
+
     mass_prev = float(assemble(h * dx)) * rho_gt
 
     def _save_state(final_path, t_now):
@@ -1608,7 +1700,7 @@ def run_simulation(
             )
         )
 
-    def _advance(dt_local):
+    def _advance(dt_local, label):
         r"""One transport advance of dt_local with the CURRENT velocity
         (transport-first ordering: the velocity was solved at the current
         geometry). Mutates h_dg and the derived CG fields; returns the
@@ -1641,13 +1733,46 @@ def run_simulation(
         limit_gt = mesh.comm.allreduce(float(
             ((src_dg.dat.data_ro - _src_want) * cell_area).sum()
         )) * rho_gt * dt_local
+        m0 = float(assemble(h_dg_old * dx)) * rho_gt
+        source_gt = float(assemble(src_dg * dx)) * rho_gt * dt_local
         dt_c.assign(dt_local)
-        transport_solver.solve()
+        transport_t0 = perf_counter()
+        try:
+            transport_solver.solve()
+        except Exception:
+            elapsed = perf_counter() - transport_t0
+            _record_transport(label, elapsed)
+            _field_diagnostics(f"{label}-transport-failed")
+            raise
 
         out_gt = float(assemble(
             un_transport_plus * h_dg * ds
         )) * rho_gt * dt_local
         m1 = float(assemble(h_dg * dx)) * rho_gt
+        transport_resid_gt = None
+        if not legacy_transport:
+            transport_resid_gt = (m1 - m0) - (source_gt - out_gt)
+        elapsed = perf_counter() - transport_t0
+        _transport_stat, transport_reason = _record_transport(
+            label, elapsed, transport_resid_gt
+        )
+        if transport_reason <= 0:
+            _field_diagnostics(f"{label}-transport-diverged")
+            raise RuntimeError(
+                f"Transport KSP diverged in {label}: "
+                f"reason={_transport_stat['ksp_reason']}"
+            )
+        if transport_resid_gt is not None and (
+            not np.isfinite(transport_resid_gt)
+            or abs(transport_resid_gt) > mass_tol_gt
+        ):
+            _field_diagnostics(f"{label}-transport-budget-failed")
+            message = (
+                f"Transport mass residual {transport_resid_gt:+.6e} Gt "
+                f"exceeds {mass_tol_gt:.6e} Gt in {label}"
+            )
+            PETSc.Sys.Print(f"ERROR: {message}")
+            raise RuntimeError(message)
 
         # Floor to h_clamp, EXCEPT beyond the fixed front: those cells are
         # outside the ice domain, so flooring them would hand the mask below
@@ -1717,7 +1842,9 @@ def run_simulation(
             acc = {"out_gt": 0.0, "calv_gt": 0.0, "clamp_gt": 0.0}
             ok = True
             for _j in range(m):
-                sub = _advance(dt / m)
+                sub = _advance(
+                    dt / m, f"step-{k}-substep-{_j + 1}/{m}"
+                )
                 for key in acc:
                     acc[key] += sub[key]
                 if not _solve_with_rescue(k):
@@ -1759,6 +1886,8 @@ def run_simulation(
                         amb_rate))
         _write_csv_row(results[-1])
 
+        _field_diagnostics(f"step-{k}-t={t_yr:.6g}")
+
         if k % output_interval == 0 or k == 1:
             _amb_txt = f"amb={amb_rate:+.0f} " if a_ref is not None else ""
             PETSc.Sys.Print(
@@ -1770,6 +1899,14 @@ def run_simulation(
                 f"clamp={clamp_all/dt:+.1f} "
                 f"dM/dt={dm/dt:+.0f} resid={resid_gt/dt:+.2f}"
             )
+
+        if not np.isfinite(resid_gt) or abs(resid_gt) > mass_tol_gt:
+            message = (
+                f"Step {k} mass residual {resid_gt:+.6e} Gt exceeds "
+                f"{mass_tol_gt:.6e} Gt"
+            )
+            PETSc.Sys.Print(f"ERROR: {message}")
+            raise RuntimeError(message)
 
         if k % ckpt_steps == 0:
             chk_fn = os.path.join(

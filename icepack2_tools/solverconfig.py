@@ -57,6 +57,7 @@ KSP_RTOL_DEFAULT = "1e-6"
 KSP_MAXIT_DEFAULT = "1000"
 TRANSPORT_KSP_RTOL_DEFAULT = "1e-10"
 TRANSPORT_KSP_MAXIT_DEFAULT = "500"
+MASS_RESIDUAL_TOL_GT_DEFAULT = "5e-5"
 CONTINUATION_STEPS_DEFAULT = "8"
 RESCUE_MAXIT_DEFAULT = "600"
 SUBCYCLES_DEFAULT = "1,4,16"
@@ -233,10 +234,23 @@ def transport_solver_parameters():
         "ksp_max_it": int(_env(
             "ISMIP7_TRANSPORT_KSP_MAXIT", TRANSPORT_KSP_MAXIT_DEFAULT
         )),
+        # Firedrake's LinearVariationalSolver also checks the wrapping SNES,
+        # but this makes a failed inner KSP an error at its point of origin.
+        "ksp_error_if_not_converged": None,
         "pc_type": "bjacobi",
         "sub_ksp_type": "preonly",
         "sub_pc_type": "ilu",
     }
+
+
+def mass_residual_tol_gt():
+    r"""Absolute fail-loud tolerance for a mass-budget residual [Gt]."""
+    value = float(_env(
+        "ISMIP7_MASS_RESIDUAL_TOL_GT", MASS_RESIDUAL_TOL_GT_DEFAULT
+    ))
+    if value < 0:
+        raise ValueError("ISMIP7_MASS_RESIDUAL_TOL_GT must be nonnegative")
+    return value
 
 
 def continuation_steps():
@@ -293,6 +307,7 @@ def effective_solver_env():
         "ISMIP7_KSP_MAXIT": KSP_MAXIT_DEFAULT,
         "ISMIP7_TRANSPORT_KSP_RTOL": TRANSPORT_KSP_RTOL_DEFAULT,
         "ISMIP7_TRANSPORT_KSP_MAXIT": TRANSPORT_KSP_MAXIT_DEFAULT,
+        "ISMIP7_MASS_RESIDUAL_TOL_GT": MASS_RESIDUAL_TOL_GT_DEFAULT,
         "ISMIP7_CONTINUATION_STEPS": CONTINUATION_STEPS_DEFAULT,
         "ISMIP7_RESCUE_MAXIT": RESCUE_MAXIT_DEFAULT,
         "ISMIP7_SUBCYCLES": SUBCYCLES_DEFAULT,
@@ -307,6 +322,7 @@ def solver_provenance():
         "diagnostic_label": diagnostic_solver_label(),
         "diagnostic_petsc_options": diagnostic_solver_parameters(),
         "transport_petsc_options": transport_solver_parameters(),
+        "mass_residual_tolerance_gt": mass_residual_tol_gt(),
         "continuation_steps": continuation_steps(),
         "rescue_max_it": rescue_max_it(),
         "subcycles": list(subcycles()),
