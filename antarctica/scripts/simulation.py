@@ -73,6 +73,7 @@ from icepack2_tools.solverconfig import (
     diagnostic_solver_mode,
     diagnostic_solver_parameters,
     mass_residual_tol_gt,
+    rescue_enabled,
     rescue_max_it,
     snes_atol_scale,
     snes_monitor_enabled,
@@ -1582,6 +1583,7 @@ def run_simulation(
     # diverged Newton iterate.
     z_entry = z.copy(deepcopy=True)
     snes_type0 = slvr.snes.getType()
+    allow_rescue = rescue_enabled()
 
     def _ramp(label):
         for step, t in enumerate(np.linspace(0.0, 1.0, 10), 1):
@@ -1605,7 +1607,12 @@ def run_simulation(
             solve_diagnostic(f"step-{k}-direct")
             return True
         except fd.ConvergenceError:
-            pass
+            if not allow_rescue:
+                PETSc.Sys.Print(
+                    f"  Step {k}: direct diagnostic solve failed; "
+                    "rescue disabled"
+                )
+                raise
         k_lim_c = ctx.get("k_lim")
         k_rescue = ctx.get("k_lim_rescue", 0.0)
         # gia: hard-era steps under trust region converge LINEARLY and are

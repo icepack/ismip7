@@ -61,6 +61,7 @@ MASS_RESIDUAL_TOL_GT_DEFAULT = "5e-5"
 CONTINUATION_STEPS_DEFAULT = "8"
 RESCUE_MAXIT_DEFAULT = "600"
 SUBCYCLES_DEFAULT = "1,4,16"
+RESCUE_ENABLED_DEFAULT = "1"
 
 
 def _env(name, default):
@@ -261,6 +262,11 @@ def rescue_max_it():
     return int(_env("ISMIP7_RESCUE_MAXIT", RESCUE_MAXIT_DEFAULT))
 
 
+def rescue_enabled():
+    r"""Whether a failed direct transient solve may enter the rescue ladder."""
+    return _enabled("ISMIP7_RESCUE_ENABLED", RESCUE_ENABLED_DEFAULT)
+
+
 def subcycles():
     values = tuple(
         int(value) for value in _env(
@@ -310,6 +316,7 @@ def effective_solver_env():
         "ISMIP7_MASS_RESIDUAL_TOL_GT": MASS_RESIDUAL_TOL_GT_DEFAULT,
         "ISMIP7_CONTINUATION_STEPS": CONTINUATION_STEPS_DEFAULT,
         "ISMIP7_RESCUE_MAXIT": RESCUE_MAXIT_DEFAULT,
+        "ISMIP7_RESCUE_ENABLED": RESCUE_ENABLED_DEFAULT,
         "ISMIP7_SUBCYCLES": SUBCYCLES_DEFAULT,
     }
 
@@ -325,6 +332,7 @@ def solver_provenance():
         "mass_residual_tolerance_gt": mass_residual_tol_gt(),
         "continuation_steps": continuation_steps(),
         "rescue_max_it": rescue_max_it(),
+        "rescue_enabled": rescue_enabled(),
         "subcycles": list(subcycles()),
         "snes_atol_policy": {
             "initial": float(_env("ISMIP7_SNES_ATOL", SNES_ATOL_DEFAULT)),

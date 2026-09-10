@@ -529,6 +529,7 @@ redeclare those literals.
 | `ISMIP7_CLIM_SCENARIO` / `ISMIP7_CLIM_START` / `_END` | reference-climate pool: the scenario pooled with `historical`, and the window, used both for the control's SMB climatology and for the projections' aSMB re-reference. `ssp126` is the protocol pool (cheat sheet, April 2026); the two uses share one owner (`icepack2_tools/climatology.py`) because a disagreement makes projection-minus-control difference two unrelated baselines. A partial pool warns rather than refusing, and the coverage line reaches the core report | `ssp126` / `2000` / `2029` |
 | `ISMIP7_H_CLAMP` | thickness floor (m) | `0` |
 | `ISMIP7_NO_CALVING_TERMINUS` | set to drop the calving-terminus BC | _(unset)_ |
+| `ISMIP7_RESCUE_ENABLED` | permit a failed direct transient diagnostic solve to enter the continuation/trust-region/subcycle rescue ladder; set to `0` for strict timestep qualification | `1` |
 | `ISMIP7_SUBCYCLES` | dt-subcycle rescue ladder: a step that fails the rescue solves rewinds its own advance and retries at `dt/m` for each `m` in this list | `1,4,16` |
 | `ISMIP7_RESCUE_MAXIT` | Newton iteration cap on the rescue rungs (hard-era steps converge linearly and need the extra patience) | `600` |
 
@@ -582,11 +583,14 @@ one another's timing. The pipeline has six stages:
    five-step restart probe and fails immediately if the two-step full-state
    checkpoint is absent. To measure the timestep limit before changing the
    matrix, `make timestep-probe` continues that same checkpoint for five steps
-   with `scpc_mumps` at `dt=0.25` (2015.2–2016.45). Override only the timestep,
-   for example `make timestep-probe TIMESTEP_PROBE_DT=0.5`; the end year is
-   derived so every probe still takes exactly five steps. These probes use the
+   with `scpc_mumps`. The measured `dt=0.25` probe passed all five steps;
+   `dt=0.5` failed its direct solve on step 2 and was stopped after entering
+   continuation. The default is therefore the midpoint, `dt=0.375`, to bracket
+   the direct-step limit. Override with `TIMESTEP_PROBE_DT=<value>`; the end
+   year is derived so every probe still takes exactly five steps. Probe jobs
+   disable rescue and fail immediately when a direct step fails. They use the
    Slurm debug partition with a one-hour limit; the other qualification and
-   production timing targets remain on the general partition.
+   production timing targets retain normal rescue and remain on general.
 5. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): 5 years
    (`2015`–`2020`, `dt=1.0` by default), zero SMB/melt forcing. Every resolution
    loads its own mesh via `ISMIP7_MESH` and warm-starts θ/φ and the physical
