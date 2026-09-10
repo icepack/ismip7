@@ -614,11 +614,12 @@ The pipeline has six stages:
    `scpc_gamg` solve uses Slate to eliminate the cell-wise stress and traction
    fields exactly, then applies GAMG to the assembled condensed velocity
    operator. GAMG's coarse grid and the DG0 transport update remain iterative.
-   Slurm memory is selected per fine resolution by `make transient`: 128G for
+   Slurm memory is selected per fine resolution by `make transient`: 240G for
    LC=500, 96G for LC=1000, 80G for LC=2000, 64G for LC=2500, and 32G for
-   LC=5000. The 500 m allocation is based on a measured ~64 GiB three-rank
-   peak before the first diagnostic solve completed, with headroom for the full
-   run; the 2500 m debug allocation is anchored at 64G.
+   LC=5000. All six 500 m lanes were OOM-killed at 128G, independent of whether
+   they used 16, 32, or 64 ranks; their 240G retry request is close to the
+   256,000 MB available on a Quartz node. The 2500 m debug allocation is
+   anchored at 64G.
 6. **Matrix** — `make matrix` is read-only with respect to jobs: it never runs
    or submits `transient`. It writes [`TIMING_MATRIX.md`](TIMING_MATRIX.md)
    immediately, includes timing tables for every successful five-step record,

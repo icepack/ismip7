@@ -171,7 +171,7 @@ transient:
 	  [ -z "$(FORCE_TIMING)" ] && { [ "$$status_state" = submitted ] || [ "$$status_state" = running ]; } && { echo "skip $$out ($$status_state stamp)"; continue; }; \
 	  [ -z "$(FORCE_TIMING)" ] && [ -f "$$out" ] && [ "$$status_state" = finished ] && { echo "skip $$out (finished stamp)"; continue; }; \
 	  case "$$lc" in \
-	    500)  mem=128G;; \
+	    500)  mem=240G;; \
 	    1000) mem=96G;; \
 	    2000) mem=80G;; \
 	    2500) mem=64G;; \
