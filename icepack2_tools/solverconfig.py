@@ -44,7 +44,11 @@ SNES_LINESEARCH_DEFAULT = "nleqerr"
 SNES_RTOL_DEFAULT = "1e-8"
 SNES_ATOL_DEFAULT = "1e-50"
 SNES_STOL_DEFAULT = "0"
-SNES_DIVERGENCE_TOL_DEFAULT = "-1"
+# PETSc 3.25 uses -1 for PETSC_DETERMINE, which restores the default 1e4
+# residual-growth cutoff.  PETSC_UNLIMITED is -3.  The timing scouts must let
+# the nonlinear method reach its real convergence/max-iteration outcome rather
+# than report DIVERGED_DTOL after the first large nleqerr trial step.
+SNES_DIVERGENCE_TOL_DEFAULT = "-3"
 SNES_MAXIT_DEFAULT = "200"
 SNES_ATOL_SCALE_DEFAULT = "100"
 SNES_RESTART_FAILURE_ATOL_SCALE_DEFAULT = "1e-6"

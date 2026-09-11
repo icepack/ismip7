@@ -453,6 +453,22 @@ def setup_model(restart_from=None):
             H_init = load_checkpoint_field(chk, "H_init", Q_g)
             phi_eff = load_checkpoint_field(chk, "phi_eff", Q_g)
             u_guess = load_checkpoint_field(chk, "velocity", V)
+            # Preserve the exact observation field used to construct the
+            # inversion-time friction anchor and report its initial misfit.
+            # A fresh raster interpolation is only a compatibility fallback
+            # for ordinary checkpoints written before this field was saved;
+            # current timing caches require velocity_obs and fail loudly if it
+            # is absent.
+            cached_u_obs = load_checkpoint_field(
+                chk, "velocity_obs", V, optional=True
+            )
+            if cached_u_obs is not None:
+                u_obs.assign(cached_u_obs)
+            elif checkpoint_metadata.get("timing_cache_role") == \
+                    "timing-initial-state":
+                raise RuntimeError(
+                    "Timing cache is missing required velocity_obs"
+                )
             # Stress components (newer checkpoints): restoring them makes the
             # resume Newton start from the full converged state instead of
             # (u, 0, 0), which needed a fresh continuation ramp.
@@ -1113,6 +1129,7 @@ def save_model_state(ctx, final_path, t_now, extra_attrs=None):
         chk.save_mesh(mesh)
         chk.save_function(ctx["theta"], name="log_friction")
         chk.save_function(ctx["phi"], name="log_fluidity")
+        chk.save_function(ctx["u_obs"], name="velocity_obs")
         chk.save_function(ctx["b"], name="bed")
         chk.save_function(h, name="thickness")
         chk.save_function(ctx["s"], name="surface")

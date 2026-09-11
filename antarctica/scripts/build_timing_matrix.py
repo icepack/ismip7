@@ -171,8 +171,11 @@ def _classify(record, status, lane, strict):
         category = status.get("category")
         exit_code = status.get("exit_code")
         if category == "external_termination" or exit_code in {"137", "9"}:
+            slurm_state = status.get("slurm_state")
             return "OOM / EXTERNAL", (
-                f"external termination, exit_code={exit_code or 'unknown'}"
+                "external termination"
+                + (f", Slurm state={slurm_state}" if slurm_state else "")
+                + f", exit_code={exit_code or 'unknown'}"
             )
         if category:
             return _failure_class(category), category

@@ -20,7 +20,7 @@ import firedrake as fd
 from firedrake import COMM_WORLD
 from firedrake.petsc import PETSc
 
-from timing_campaign import atomic_write_json
+from timing_campaign import CACHE_REQUIRED_FIELDS, atomic_write_json
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MESH_DIR = os.path.join(_ROOT, "mesh")
@@ -61,23 +61,6 @@ _CHECKPOINT_FIELDS = (
     "thickness_dg",
 )
 
-_CACHE_REQUIRED_FIELDS = {
-    "log_friction",
-    "log_fluidity",
-    "thickness",
-    "bed",
-    "surface",
-    "fluidity_prior",
-    "velocity",
-    "membrane_stress",
-    "basal_stress",
-    "H_init",
-    "phi_eff",
-    "C_w0",
-    "N_ref",
-}
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -113,7 +96,7 @@ def _json_value(value):
     return value
 
 
-def _cache_manifest(root_attrs, out_fn, mesh):
+def _cache_manifest(root_attrs, out_fn, mesh, checkpoint_fields):
     required_attrs = {
         "timing_cache_schema_version",
         "timing_cache_role",
@@ -171,6 +154,7 @@ def _cache_manifest(root_attrs, out_fn, mesh):
         "vertices": int(mesh.num_vertices()),
         "cells": int(mesh.num_cells()),
         "published_on_ranks": 1,
+        "checkpoint_fields": sorted(checkpoint_fields),
     }
 
 
@@ -209,7 +193,7 @@ def main():
             "(was it produced by inversion_icepack2.py?)"
         )
     if args.manifest and root_attrs.get("timing_cache_role"):
-        missing_fields = sorted(_CACHE_REQUIRED_FIELDS - set(loaded))
+        missing_fields = sorted(set(CACHE_REQUIRED_FIELDS) - set(loaded))
         if missing_fields:
             raise ValueError(
                 "Cannot publish incomplete timing cache; missing fields: "
@@ -227,7 +211,7 @@ def main():
 
     os.replace(tmp_fn, out_fn)
     if args.manifest:
-        manifest = _cache_manifest(root_attrs, out_fn, mesh)
+        manifest = _cache_manifest(root_attrs, out_fn, mesh, loaded)
         atomic_write_json(args.manifest, manifest)
         PETSc.Sys.Print(f"Manifest: {args.manifest}")
     PETSc.Sys.Print(f"Done: {out_fn}")

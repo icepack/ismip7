@@ -79,6 +79,9 @@ def write_cache(path):
     x, y = fd.SpatialCoordinate(mesh)
     theta = fd.Function(q).interpolate(0.1 * x)
     phi = fd.Function(q).interpolate(-0.2 * y)
+    velocity_obs = fd.Function(state.subfunctions[0].function_space()).interpolate(
+        fd.as_vector((1.0 + x, 2.0 - y))
+    )
     bed = fd.Function(qg).interpolate(-100.0 - x)
     thickness = fd.Function(qg).interpolate(1000.0 + x + y)
     surface = fd.Function(qg).interpolate(bed + thickness)
@@ -91,6 +94,7 @@ def write_cache(path):
         "z": state,
         "theta": theta,
         "phi": phi,
+        "u_obs": velocity_obs,
         "b": bed,
         "h": thickness,
         "s": surface,
@@ -132,6 +136,7 @@ def check_cache(path, signature_path):
         for name in (
             "log_friction",
             "log_fluidity",
+            "velocity_obs",
             "bed",
             "thickness",
             "surface",

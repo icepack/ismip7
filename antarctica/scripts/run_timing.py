@@ -346,6 +346,13 @@ def main():
     else:
         failure = None
 
+    # run_simulation publishes its live list into ctx before entering the
+    # timestep loop.  If a later diagnostic/transport solve raises, its return
+    # assignment above never executes, so recover that list here rather than
+    # falsely recording zero completed steps.
+    if ctx is not None:
+        results = ctx.get("results", results)
+
     now = perf_counter()
     transient_t0 = ctx.get("transient_t0") if ctx is not None else None
     setup_seconds = (

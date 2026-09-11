@@ -35,7 +35,7 @@ MATRIX_STEPS ?= 5
 MATRIX_DT_2500 ?= 0.25
 MATRIX_DT_2500_TAG := $(subst .,p,$(MATRIX_DT_2500))
 TIMING_KIND ?= matrix
-TIMING_TAG ?= scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict
+TIMING_TAG ?= scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict_v2
 TIMING_EXPERIMENT ?= timing
 # Optional exact-input overrides for a single transient lane.  The resolution
 # matrix leaves these empty and constructs each target mesh parametrically.
@@ -46,6 +46,8 @@ SOURCE_TIMING_INVERSION ?= $(CURDIR)/mesh/inversion_icepack2_budd_n3_dg0_logveln
 TIMING_INVERSION ?= $(CURDIR)/mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500_1core.h5
 TIMING_CACHE_DIR ?= $(CURDIR)/results/timing/cache
 TIMING_RESTART ?=
+TIMING_ONLY_MESH ?=
+TIMING_SCOUT_MONITOR ?=
 SBATCH_WAIT ?=
 FORCE_TIMING ?=
 SLURM_PARTITION ?= general
@@ -272,27 +274,38 @@ timing-prepare:
 	python scripts/manage_timing_campaign.py prepare \
 	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
 	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",) \
 	  $(if $(FORCE_TIMING),--force,)
 
 timing-scout:
 	python scripts/manage_timing_campaign.py scout \
 	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
 	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",) \
+	  $(if $(TIMING_SCOUT_MONITOR),--monitor,) \
 	  $(if $(FORCE_TIMING),--force,)
 
 timing-scale:
 	python scripts/manage_timing_campaign.py scale \
 	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
 	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",) \
 	  $(if $(FORCE_TIMING),--force,)
 
 timing-dry-run:
 	python scripts/manage_timing_campaign.py prepare --dry-run \
-	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)"
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
+	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",)
 	python scripts/manage_timing_campaign.py scout --dry-run --assume-valid-caches \
-	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)"
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
+	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",) \
+	  $(if $(TIMING_SCOUT_MONITOR),--monitor,)
 	python scripts/manage_timing_campaign.py scale --dry-run --assume-valid-caches \
-	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)"
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
+	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",)
 
 # Qualification is intentionally a single 2.5 km / 16-rank lane on the exact
 # 64 km-coarse mesh used by the imported DG0 logvelnet MAP.  The checker gates

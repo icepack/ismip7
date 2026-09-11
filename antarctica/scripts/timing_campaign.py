@@ -18,8 +18,24 @@ from pathlib import Path
 
 
 RECORD_SCHEMA_VERSION = 2
-CACHE_SCHEMA_VERSION = 1
+CACHE_SCHEMA_VERSION = 2
 CACHE_ROLE = "timing-initial-state"
+CACHE_REQUIRED_FIELDS = (
+    "log_friction",
+    "log_fluidity",
+    "velocity_obs",
+    "thickness",
+    "bed",
+    "surface",
+    "fluidity_prior",
+    "velocity",
+    "membrane_stress",
+    "basal_stress",
+    "H_init",
+    "phi_eff",
+    "C_w0",
+    "N_ref",
+)
 
 LCS = (500, 1000, 2000, 2500, 5000)
 RATIOS = (10, 20)
@@ -38,9 +54,9 @@ SOURCE_INVERSION_BASENAME = (
     "inversion_icepack2_budd_n3_dg0_logvelnet_2500_1core.h5"
 )
 CAMPAIGN_TAG = (
-    "scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict"
+    "scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict_v2"
 )
-CACHE_TAG = "scpc_mumps_dg0_logvelnet_v1"
+CACHE_TAG = "scpc_mumps_dg0_logvelnet_v2"
 
 MATRIX_T_START = 2015.0
 MATRIX_STEPS = 5
@@ -258,6 +274,17 @@ def validate_cache_manifest(
     for key in ("source_inversion_sha256", "source_mesh_sha256"):
         if not manifest.get(key):
             return False, f"cache {key} is missing"
+    checkpoint_fields = manifest.get("checkpoint_fields")
+    if not isinstance(checkpoint_fields, list):
+        return False, "cache checkpoint_fields is missing"
+    missing_fields = sorted(
+        set(CACHE_REQUIRED_FIELDS) - set(checkpoint_fields)
+    )
+    if missing_fields:
+        return False, (
+            "cache checkpoint is incomplete; missing fields: "
+            + ", ".join(missing_fields)
+        )
     if cache_path is not None:
         actual = os.path.realpath(os.fspath(manifest.get("cache_path", "")))
         expected_path = os.path.realpath(os.fspath(cache_path))

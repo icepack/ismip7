@@ -514,7 +514,7 @@ redeclare those literals.
 | `ISMIP7_SNES_TYPE` / `ISMIP7_SNES_MAXIT` | diagnostic Newton type / max iterations | `newtonls` / `200` |
 | `ISMIP7_SNES_LINESEARCH` | line search used by `newtonls` | `nleqerr` |
 | `ISMIP7_SNES_RTOL` / `ISMIP7_SNES_ATOL` / `ISMIP7_SNES_STOL` | initial nonlinear relative, absolute and step tolerances. After the initial/restart solve, the absolute tolerance follows the self-scaled policy below | `1e-8` / `1e-50` / `0` |
-| `ISMIP7_SNES_DIVERGENCE_TOL` | residual-growth divergence threshold; negative disables this PETSc test | `-1` |
+| `ISMIP7_SNES_DIVERGENCE_TOL` | residual-growth divergence threshold; PETSc's `-3` (`PETSC_UNLIMITED`) disables this test (`-1` means `PETSC_DETERMINE`, restoring the default `1e4`) | `-3` |
 | `ISMIP7_SNES_ATOL_SCALE` / `ISMIP7_SNES_RESTART_FAILURE_ATOL_SCALE` | persistent absolute tolerance after a converged setup solve (`scale * achieved norm`) / after accepting a loaded hard-era state (`scale * loaded-state norm`) | `100` / `1e-6` |
 | `ISMIP7_SNES_KSP_EW` | enable PETSc Eisenstat-Walker variable inner tolerance for an A/B test | `0` |
 | `ISMIP7_DIAGNOSTIC_LINEAR_SOLVER` | `schur_gamg` or `schur_mumps`: legacy PETSc `selfp` approximation; `scpc_gamg` or `scpc_mumps`: exact cell-local Slate elimination and an assembled velocity solve; `full_mumps`: complete mixed-Jacobian reference. Legacy `iterative`/`mumps` aliases mean `schur_gamg`/`schur_mumps` | `full_mumps` for forward drivers and the core runner; `scpc_mumps` in the timing Makefile |
@@ -575,9 +575,11 @@ The stages and contracts are:
 2. **Prepared caches (`make timing-prepare`)** — one job for each of the ten
    `(LC, LC_coarse)` meshes performs the adaptive cold continuation and saves
    the complete mixed state at 2015.0 without a transport step. It includes
-   geometry, velocity, membrane and basal stress, controls, physical priors,
+   geometry, velocity, membrane and basal stress, controls, the exact velocity
+   observation field, physical priors,
    frozen reference fields, mesh identity, solver configuration, and source
-   inversion checksum. The job then repacks the cache on one rank and publishes
+   inversion checksum. Cache schema v2 requires an explicit inventory of these
+   fields, including `velocity_obs`. The job then repacks the cache on one rank and publishes
    the HDF5 file and JSON manifest atomically. Mesh, inversion, physics, solver,
    or cache-schema changes invalidate it.
 3. **Scouts (`make timing-scout`)** — one lowest-retained-core lane per mesh:
@@ -596,7 +598,11 @@ The stages and contracts are:
    atomically written on catchable success or failure and include solver
    histories, global mesh counts, extrema, residuals, phase, and completed
    steps. Slurm-only termination (including exit 137) remains distinct from a
-   recorded numerical failure.
+   recorded numerical failure. The manager pins
+   `ISMIP7_SNES_DIVERGENCE_TOL=-3`, PETSc's `PETSC_UNLIMITED` sentinel, so the
+   solver reaches its real convergence or iteration-limit result; the legacy
+   value `-1` means `PETSC_DETERMINE` and accidentally restores the default
+   `1e4` growth cutoff.
 6. **Reporting and synchronization** — `make sync-results` uses
    `quartz:/N/project/ice_rheology/ISMIP7/antarctica/results/` and the local
    canonical `results/` with trailing slashes so the directory contents merge
@@ -631,6 +637,12 @@ Individual stages can be run separately: `make meshes`, `make redistribute`,
 `make matrix`. `make timing-dry-run` prints the staged commands without
 submitting jobs. `make transient` routes matrix work through the scout gate;
 qualification/debug calls still use its direct compatibility path.
+Use `TIMING_ONLY_MESH=2500/25000` to prepare or scout one exact mesh, and add
+`TIMING_SCOUT_MONITOR=1` to write that scout's SNES/KSP monitor under
+`results/logs/`. Before treating a live-looking status as active, the campaign
+manager checks both `squeue` and `sacct`; a cancelled, timed-out, OOM, or
+otherwise terminated allocation is recorded as an external failure instead of
+being silently resubmitted.
 `make matrix-legacy` regenerates the archived 30-lane report at
 `TIMING_MATRIX_scpc_mumps_5step_dt0p25at2500.md`, using the copied Slurm logs
 to retain the distinction between numerical failures and incomplete output.
