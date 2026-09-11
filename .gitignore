@@ -27,6 +27,8 @@ antarctica/results/
 antarctica/archive/
 antarctica/figs/*.png
 antarctica/figs/*.csv
+antarctica/*.err
+antarctica/*.txt
 
 # Gmsh intermediates
 *.pos

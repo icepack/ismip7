@@ -50,8 +50,24 @@ srun -n ${SLURM_NTASKS} python -u scripts/run_timing.py
 run_rc=$?
 set -e
 if [ ${run_rc} -eq 0 ]; then
-    write_status "finished exit_code=0" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    current_state=""
+    if [ -n "${ISMIP7_TIMING_STATUS:-}" ] && [ -f "${ISMIP7_TIMING_STATUS}" ]; then
+        read -r current_state _ < "${ISMIP7_TIMING_STATUS}"
+    fi
+    if [ "${current_state}" != "finished" ]; then
+        write_status "finished exit_code=0" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    fi
 else
-    write_status "failed exit_code=${run_rc}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    # run_timing writes a more specific failure category and phase whenever
+    # Python can catch the failure. Preserve it; only synthesize a generic
+    # external-termination record for OOM/SIGKILL-style exits.
+    current_state=""
+    if [ -n "${ISMIP7_TIMING_STATUS:-}" ] && [ -f "${ISMIP7_TIMING_STATUS}" ]; then
+        read -r current_state _ < "${ISMIP7_TIMING_STATUS}"
+    fi
+    if [ "${current_state}" != "failed" ]; then
+        write_status "failed category=external_termination exit_code=${run_rc}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    fi
 fi
 exit ${run_rc}

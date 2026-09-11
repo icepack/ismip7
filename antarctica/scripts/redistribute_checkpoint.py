@@ -13,11 +13,14 @@ Usage:
 """
 
 import argparse
+import json
 import os
 
 import firedrake as fd
 from firedrake import COMM_WORLD
 from firedrake.petsc import PETSc
+
+from timing_campaign import atomic_write_json
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MESH_DIR = os.path.join(_ROOT, "mesh")
@@ -58,6 +61,22 @@ _CHECKPOINT_FIELDS = (
     "thickness_dg",
 )
 
+_CACHE_REQUIRED_FIELDS = {
+    "log_friction",
+    "log_fluidity",
+    "thickness",
+    "bed",
+    "surface",
+    "fluidity_prior",
+    "velocity",
+    "membrane_stress",
+    "basal_stress",
+    "H_init",
+    "phi_eff",
+    "C_w0",
+    "N_ref",
+}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -78,7 +97,81 @@ def parse_args():
         default=None,
         help="Output checkpoint .h5 (default: same as --input, in-place rewrite)",
     )
+    parser.add_argument(
+        "--manifest",
+        default=None,
+        help="Atomically publish a timing-cache provenance JSON manifest",
+    )
     return parser.parse_args()
+
+
+def _json_value(value):
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    if hasattr(value, "item"):
+        return value.item()
+    return value
+
+
+def _cache_manifest(root_attrs, out_fn, mesh):
+    required_attrs = {
+        "timing_cache_schema_version",
+        "timing_cache_role",
+        "source_inversion",
+        "source_inversion_sha256",
+        "source_mesh_sha256",
+        "diagnostic_solver_mode",
+        "solver_configuration",
+        "solver_configuration_fingerprint",
+        "n_flow",
+        "a4_factor",
+        "t_yr",
+        "friction",
+        "geometry_space",
+        "mesh_basename",
+        "lc",
+        "lc_coarse",
+        "buffer_m",
+    }
+    missing = sorted(required_attrs - set(root_attrs))
+    if missing:
+        raise ValueError(
+            "Cannot publish a timing cache manifest; checkpoint is missing "
+            + ", ".join(missing)
+        )
+    attrs = {key: _json_value(value) for key, value in root_attrs.items()}
+    try:
+        configuration = json.loads(attrs["solver_configuration"])
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("cache solver_configuration is not valid JSON") from exc
+    return {
+        "cache_schema_version": int(attrs["timing_cache_schema_version"]),
+        "cache_role": attrs["timing_cache_role"],
+        "cache_path": os.path.realpath(out_fn),
+        "source_inversion": attrs["source_inversion"],
+        "source_inversion_basename": os.path.basename(
+            attrs["source_inversion"]
+        ),
+        "source_inversion_sha256": attrs["source_inversion_sha256"],
+        "source_mesh_sha256": attrs["source_mesh_sha256"],
+        "diagnostic_solver_mode": attrs["diagnostic_solver_mode"],
+        "solver_configuration": configuration,
+        "solver_configuration_fingerprint": attrs[
+            "solver_configuration_fingerprint"
+        ],
+        "n_flow": float(attrs["n_flow"]),
+        "a4_factor": float(attrs["a4_factor"]),
+        "t_yr": float(attrs["t_yr"]),
+        "friction": attrs["friction"],
+        "geometry_space": attrs["geometry_space"],
+        "mesh_basename": attrs["mesh_basename"],
+        "lc": int(attrs["lc"]),
+        "lc_coarse": int(attrs["lc_coarse"]),
+        "buffer_m": int(round(float(attrs["buffer_m"]))),
+        "vertices": int(mesh.num_vertices()),
+        "cells": int(mesh.num_cells()),
+        "published_on_ranks": 1,
+    }
 
 
 def main():
@@ -100,7 +193,7 @@ def main():
         mesh = chk.load_mesh()
         root_attrs = {
             key: value
-            for key, value in chk.attributes("/").items()
+            for key, value in chk.h5pyfile["/"].attrs.items()
             if key != "dmplex_storage_version"
         }
         loaded = {}
@@ -115,6 +208,13 @@ def main():
             f"Checkpoint {in_fn} is missing log_friction/log_fluidity "
             "(was it produced by inversion_icepack2.py?)"
         )
+    if args.manifest and root_attrs.get("timing_cache_role"):
+        missing_fields = sorted(_CACHE_REQUIRED_FIELDS - set(loaded))
+        if missing_fields:
+            raise ValueError(
+                "Cannot publish incomplete timing cache; missing fields: "
+                + ", ".join(missing_fields)
+            )
 
     tmp_fn = out_fn + ".tmp"
     PETSc.Sys.Print(f"Writing redistributed checkpoint: {out_fn}")
@@ -126,6 +226,10 @@ def main():
             chk.set_attr("/", key, value)
 
     os.replace(tmp_fn, out_fn)
+    if args.manifest:
+        manifest = _cache_manifest(root_attrs, out_fn, mesh)
+        atomic_write_json(args.manifest, manifest)
+        PETSc.Sys.Print(f"Manifest: {args.manifest}")
     PETSc.Sys.Print(f"Done: {out_fn}")
 
 

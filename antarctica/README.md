@@ -517,7 +517,7 @@ redeclare those literals.
 | `ISMIP7_SNES_DIVERGENCE_TOL` | residual-growth divergence threshold; negative disables this PETSc test | `-1` |
 | `ISMIP7_SNES_ATOL_SCALE` / `ISMIP7_SNES_RESTART_FAILURE_ATOL_SCALE` | persistent absolute tolerance after a converged setup solve (`scale * achieved norm`) / after accepting a loaded hard-era state (`scale * loaded-state norm`) | `100` / `1e-6` |
 | `ISMIP7_SNES_KSP_EW` | enable PETSc Eisenstat-Walker variable inner tolerance for an A/B test | `0` |
-| `ISMIP7_DIAGNOSTIC_LINEAR_SOLVER` | `schur_gamg` or `schur_mumps`: legacy PETSc `selfp` approximation; `scpc_gamg` or `scpc_mumps`: exact cell-local Slate elimination and an assembled velocity solve; `full_mumps`: complete mixed-Jacobian reference. Legacy `iterative`/`mumps` aliases mean `schur_gamg`/`schur_mumps` | `full_mumps` for forward drivers and the core runner; `scpc_gamg` in the timing Makefile |
+| `ISMIP7_DIAGNOSTIC_LINEAR_SOLVER` | `schur_gamg` or `schur_mumps`: legacy PETSc `selfp` approximation; `scpc_gamg` or `scpc_mumps`: exact cell-local Slate elimination and an assembled velocity solve; `full_mumps`: complete mixed-Jacobian reference. Legacy `iterative`/`mumps` aliases mean `schur_gamg`/`schur_mumps` | `full_mumps` for forward drivers and the core runner; `scpc_mumps` in the timing Makefile |
 | `ISMIP7_KSP_RTOL` / `ISMIP7_KSP_MAXIT` | outer FGMRES relative tolerance / iteration limit for the iterative diagnostic mode | `1e-6` / `1000` |
 | `ISMIP7_SNES_MONITOR` / `ISMIP7_SNES_LOG` | enable diagnostic SNES/KSP monitors and optionally route them to a file; KSP output includes short and true residual lines per iteration, with a header before each mixed solve | `0` / stdout |
 | `ISMIP7_SOLVER_VIEW` | emit `snes_view`, outer `ksp_view`, and the SCPC condensed `ksp_view`; enabled by `make debug` and `make reference` to expose the actual block sizes and hierarchy | `0` |
@@ -541,94 +541,99 @@ redeclare those literals.
 
 ## 7. Timing benchmark (`make timing`)
 
-Resolution vs. core-count wall-clock benchmark for the transient solver. Run
-from `antarctica/` (needs §1 data, Firedrake, and Slurm on the cluster):
+Resolution vs. core-count wall-clock benchmark for the transient solver. The
+campaign is a staged state machine: it prepares an exact-mesh state, runs one
+strict scout per mesh, and submits scaling lanes only after the corresponding
+scout passes. Run from `antarctica/` (needs §1 data, Firedrake, and Slurm):
 
 ```bash
 cd antarctica
 make timing
-# after the submitted jobs settle (and outputs are rsynced, if needed):
+# after the currently active stage settles, run the same command again
+make timing
+# synchronize from Quartz with trailing-slash source and destination paths
+make sync-results
 make matrix
-# → TIMING_MATRIX.md, including the status of all 30 expected lanes
+# → TIMING_MATRIX.md, showing 20 configured lanes plus NOT PLANNED cells
 # → results/timing/timing_<tag>_<LC>_<LC_coarse>_<ncores>.json
 ```
 
-`make timing` first runs the qualification gate for the selected solver; the
-30-job matrix is not submitted unless both probes pass. It then submits all
-matrix cells without `--wait`, so they can queue and run concurrently. Use
-`make transient` to submit just the matrix cells without repeating
-qualification. Each lane has a status stamp under `results/timing/`; a later
-`make transient` skips finished, queued, and running lanes, while retrying
-failed or incomplete lanes. Set `FORCE_TIMING=1` to override that guard.
-Timeseries and final-checkpoint names include the campaign tag, coarse mesh,
-and core count, so concurrent lanes never share an output path. The most
-recent matrix tag is stamped in `results/timing/latest_matrix_campaign.txt`,
-allowing a plain later `make matrix` to select the same campaign even if the
-solver/tag was overridden when it was submitted.
-The pipeline has six stages:
+`make timing` first reuses a valid five-step `scpc_mumps` qualification (or
+runs it once), creates the rank-independent improved inversion if needed, and
+then advances only stages whose prerequisites already exist. It never
+resubmits an active job or an accepted result. Failed lanes remain failed for
+inspection; use `FORCE_TIMING=1` only for an intentional retry.
 
-1. **Meshes** — build 10 meshes at `buffer=20000 m`: LC ∈ {500, 1000, 2000,
-   2500, 5000} m with LC_coarse = 10×LC and 20×LC.
-2. **Inversion** — one inversion at LC=2500 / LC_coarse=25000 (via
-   `scripts/batch_runners/timing_inversion.script` on Slurm, or `mpiexec`
-   locally).
-3. **Redistribute** — rewrite the complete tagged MAP checkpoint on a single
-   core (`scripts/redistribute_checkpoint.py`) so any rank count can load it;
-   fields, root metadata, and mesh provenance are retained.
-4. **Qualification** — at 2.5 km / 16 ranks, use
-   `inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5` on its exact
-   `antarctica_64000_2500.msh` source mesh (with the matching per-mesh
-   boundary sidecar), complete the cold continuation and two zero-forcing
-   `dt=0.1` steps, then continue from that full-state checkpoint for five more
-   `dt=0.1` steps (`2015.2`–`2015.7`). The restart restores geometry, velocity,
-   membrane stress and basal stress, checks that their full-`n=3` residual is
-   finite, and does not repeat either the setup solve or cold continuation.
-   Each stage must
-   finish, contain no diverged diagnostic or transport solve, and close both
-   the transport identity and persisted mass budget to zero. Run separately
-   with `make qualify`; it uses `--wait` on Slurm and
-   reruns rather than trusting a stale record. Qualification filenames include
-   `dg0_logvelnet` and coarse resolution `64000`, so they cannot be confused
-   with results from the superseded test input. Once the two-step stage is
-   already known good, `make qualify-5step` runs only the exact-resolution
-   five-step restart probe and fails immediately if the two-step full-state
-   checkpoint is absent. To measure the timestep limit before changing the
-   matrix, `make timestep-probe` continues that same checkpoint for five steps
-   with `scpc_mumps`. The measured `dt=0.25` probe passed all five steps;
-   `dt=0.375` failed its direct solve on step 4, and `dt=0.5` failed on step 2.
-   The provisionally safe 2.5 km value is therefore `dt=0.25`, which remains
-   the probe default. Override with `TIMESTEP_PROBE_DT=<value>`; the end year is
-   derived so every probe still takes exactly five steps. Probe jobs disable
-   rescue and fail immediately when a direct step fails. They use the Slurm
-   debug partition with a one-hour limit; the other qualification and
-   production timing targets retain normal rescue and remain on general.
-5. **Transient** — 30 short runs (10 mesh combos × 16/32/64 cores): five
-   zero-SMB/melt steps with a timestep scaled linearly from the qualified
-   2.5 km value: `dt = 0.25 × LC / 2500`. Thus LC = 500, 1000, 2000, 2500,
-   and 5000 m use `dt` = 0.05, 0.10, 0.20, 0.25, and 0.50 yr. Holding the
-   step count fixed makes per-step timings comparable while respecting the
-   resolution dependence of the stable timestep. Every resolution
-   loads its own mesh via `ISMIP7_MESH` and warm-starts θ/φ and the physical
-   prior from the single inversion via cross-mesh interpolation
-   (`ISMIP7_INVERSION=mesh/inversion_icepack2_budd_n3_2500.h5`). The default
-   `scpc_gamg` solve uses Slate to eliminate the cell-wise stress and traction
-   fields exactly, then applies GAMG to the assembled condensed velocity
-   operator. GAMG's coarse grid and the DG0 transport update remain iterative.
-   Slurm memory is selected per fine resolution by `make transient`: 240G for
-   LC=500, 96G for LC=1000, 80G for LC=2000, 64G for LC=2500, and 32G for
-   LC=5000. All six 500 m lanes were OOM-killed at 128G, independent of whether
-   they used 16, 32, or 64 ranks; their 240G retry request is close to the
-   256,000 MB available on a Quartz node. The 2500 m debug allocation is
-   anchored at 64G.
-6. **Matrix** — `make matrix` is read-only with respect to jobs: it never runs
-   or submits `transient`. It writes [`TIMING_MATRIX.md`](TIMING_MATRIX.md)
-   immediately, includes timing tables for every successful five-step record,
-   and reports every expected lane as successful, failed, incomplete,
-   queued/running, or not run. Re-run it whenever more outputs arrive.
+The stages and contracts are:
 
-Individual stages can be run separately: `make meshes`, `make inversion`,
-`make redistribute`, `make qualify`, `make timestep-probe`, `make transient`,
-`make matrix`.
+1. **Inversion provenance** — the only timing input is
+   `inversion_icepack2_budd_n3_dg0_logvelnet_2500_1core.h5`, a serial repack of
+   the imported improved `dg0_logvelnet` MAP. The redistribution launcher has
+   distinct input/output arguments; it never rewrites the source in place.
+   The campaign tag contains `dg0_logvelnet_cached_strict`, so an old-MAP
+   record cannot satisfy this campaign.
+2. **Prepared caches (`make timing-prepare`)** — one job for each of the ten
+   `(LC, LC_coarse)` meshes performs the adaptive cold continuation and saves
+   the complete mixed state at 2015.0 without a transport step. It includes
+   geometry, velocity, membrane and basal stress, controls, physical priors,
+   frozen reference fields, mesh identity, solver configuration, and source
+   inversion checksum. The job then repacks the cache on one rank and publishes
+   the HDF5 file and JSON manifest atomically. Mesh, inversion, physics, solver,
+   or cache-schema changes invalidate it.
+3. **Scouts (`make timing-scout`)** — one lowest-retained-core lane per mesh:
+   32 ranks at 500 m and 16 ranks elsewhere. A scout passes only after five
+   direct steps, the exact final year, no negative solve reason or rescue
+   label, matching cache provenance, and transport and complete-step mass
+   residuals no larger than `5e-5 Gt`.
+4. **Scaling (`make timing-scale`)** — higher-core lanes are submitted only
+   for meshes whose scout passes. A failed scout stamps its scaling lanes
+   `BLOCKED BY SCOUT`; the jobs are not submitted.
+5. **Strict transient timing** — all matrix lanes use `scpc_mumps`, disable
+   rescue, and restrict subcycles to `1`. The first diagnostic, transport, or
+   mass-budget failure ends the lane. The primary timer starts immediately
+   before the five-step loop, after cache loading, solver construction, and
+   transport setup; `setup_seconds` is reported separately. JSON records are
+   atomically written on catchable success or failure and include solver
+   histories, global mesh counts, extrema, residuals, phase, and completed
+   steps. Slurm-only termination (including exit 137) remains distinct from a
+   recorded numerical failure.
+6. **Reporting and synchronization** — `make sync-results` uses
+   `quartz:/N/project/ice_rheology/ISMIP7/antarctica/results/` and the local
+   canonical `results/` with trailing slashes so the directory contents merge
+   at the correct level. Override `QUARTZ_RESULTS` if the remote checkout
+   moves. `make matrix` refuses to run if `antarctica/results/` is nested
+   beneath this directory. It labels numerical failures, OOM/external exits,
+   incomplete output, scout-blocked lanes, and `NOT PLANNED` separately.
+
+The selected matrix retains both coarse-mesh ratios and contains 20 lanes:
+
+| Fine LC | Retained ranks per mesh |
+|---:|---|
+| 500 m | 32, 64 |
+| 1000 m | 16, 32, 64 |
+| 2000 m | 16, 32 |
+| 2500 m | 16, 32 |
+| 5000 m | 16 |
+
+This is intentionally aggressive. Preliminary runs showed that 64 ranks gave
+only about 7–20% improvement over 32 on 2000–5000 m meshes; the
+5000/100000 case showed none, while 16→32 remained useful at 2000–2500 m.
+The slow/OOM-prone 500 m 16-rank lanes and both 5000 m higher-rank lanes are
+therefore omitted. Both coarse ratios remain because their observed scaling
+differs. Timesteps remain resolution-scaled from the measured safe 2.5 km
+value: 0.05, 0.10, 0.20, 0.25, and 0.50 yr for 500–5000 m, respectively.
+Revisit them only if strict scouts using the corrected inversion and caches
+fail.
+
+Individual stages can be run separately: `make meshes`, `make redistribute`,
+`make qualify`, `make timestep-probe`, `make timing-prepare`,
+`make timing-scout`, `make timing-scale`, `make sync-results`, and
+`make matrix`. `make timing-dry-run` prints the staged commands without
+submitting jobs. `make transient` routes matrix work through the scout gate;
+qualification/debug calls still use its direct compatibility path.
+`make matrix-legacy` regenerates the archived 30-lane report at
+`TIMING_MATRIX_scpc_mumps_5step_dt0p25at2500.md`, using the copied Slurm logs
+to retain the distinction between numerical failures and incomplete output.
 `make solver-smoke` is the cheap setup check: on a 2×2 mesh and two MPI ranks
 it exercises the real mixed field shapes, all new condensation/MUMPS modes,
 and two coefficient updates through the persistent transport solver. It does
@@ -644,12 +649,9 @@ enables diagnostic SNES/KSP monitoring, and writes
 mixed-Jacobian MUMPS baseline. Both are diagnostic probes, not substitutes for
 `make qualify`. Set `CORES=8` for an 8-core local probe.
 
-Slurm scripts live in `scripts/batch_runners/` (`timing_inversion.script`,
-`timing_meshes.script`, `timing_redistribute.script`, and
-`timing_transient.script`), following the Quartz module-load pattern used by
-the other batch scripts. On Quartz, run `make timing` from the `antarctica/`
-directory; mesh generation and checkpoint redistribution are submitted as
-single-rank jobs, while the transient jobs use 16, 32, and 64 ranks.
+Slurm scripts live in `scripts/batch_runners/` (`timing_prepare.script`,
+`timing_redistribute.script`, and `timing_transient.script`), following the
+Quartz module-load pattern used by the other batch scripts.
 
 ---
 
@@ -713,10 +715,11 @@ VAF is reported in mm of sea-level equivalent; mass in Gt.
 - **`icepack2_tools/coupled.py`** is a WIP sketch of ice↔plume coupling and
   references a `PlumeModel` that does not yet exist in this tree — not wired into
   any run.
-- **Timing runs inherit any diagnostic-Newton convergence failure.** If a
-  transient job stops in its rescue ladder, rerun that cell after inspecting
-  its `timing_*.txt` / `timing_*.err` files; the matrix builder leaves missing
-  cells as `—` rather than inventing a timing value.
+- **Timing runs are deliberately strict.** A matrix lane does not enter the
+  diagnostic rescue ladder or retry with transport subcycles. The first
+  failure is written to its timing JSON/status stamp, and a failed scout blocks
+  that mesh's scaling lanes. Inspect the recorded category and Slurm log before
+  using `FORCE_TIMING=1` for an intentional retry.
 
 ---
 

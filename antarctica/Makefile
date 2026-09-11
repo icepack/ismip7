@@ -5,10 +5,12 @@
 #
 # Targets (each idempotent — skips already-built artifacts):
 #   meshes        build 10 meshes (5 LC x {10,20}*LC, buffer=20000 m)
-#   inversion     single LC=2500 / LC_coarse=25000 inversion (Slurm or mpiexec)
+#   inversion     verify the imported improved DG0 logvelnet inversion
 #   redistribute  rewrite the complete inversion checkpoint on 1 core
-#   transient     30 short runs (10 mesh combos x 16/32/64 cores),
-#                 with a resolution-specific Slurm memory request
+#   timing-prepare  prepare/repack one exact-mesh state for all 10 meshes
+#   timing-scout    submit the lowest retained core count for each mesh
+#   timing-scale    submit only scaling lanes whose exact scout passed
+#   transient       direct qualification/debug compatibility entry point
 #   qualify       gate one solver through 2-step and 5-step 2.5 km probes
 #   timestep-probe restart at 2.5 km for 5 steps at a selectable coarser dt
 #   debug         one condensed-MUMPS job with full convergence monitors
@@ -24,28 +26,32 @@ INV_LC ?= 2500
 INV_LC_COARSE ?= 25000
 FRICTION ?= budd
 N_FLOW ?= 3.0
-ISMIP7_DIAGNOSTIC_LINEAR_SOLVER ?= scpc_gamg
+ISMIP7_DIAGNOSTIC_LINEAR_SOLVER ?= scpc_mumps
 ISMIP7_SOLVER_VIEW ?=
-ISMIP7_RESCUE_ENABLED ?= 1
+ISMIP7_RESCUE_ENABLED ?= 0
 T_END ?= 2020
 DT ?= 1.0
 MATRIX_STEPS ?= 5
 MATRIX_DT_2500 ?= 0.25
 MATRIX_DT_2500_TAG := $(subst .,p,$(MATRIX_DT_2500))
 TIMING_KIND ?= matrix
-TIMING_TAG ?= $(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(MATRIX_STEPS)step_dt$(MATRIX_DT_2500_TAG)at2500
+TIMING_TAG ?= scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict
 TIMING_EXPERIMENT ?= timing
 # Optional exact-input overrides for a single transient lane.  The resolution
 # matrix leaves these empty and constructs each target mesh parametrically.
 TIMING_LC_COARSE ?=
 TIMING_MESH ?=
 TIMING_BNDIDS ?=
-TIMING_INVERSION ?= $(CURDIR)/$(INV_CHK)
+SOURCE_TIMING_INVERSION ?= $(CURDIR)/mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5
+TIMING_INVERSION ?= $(CURDIR)/mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500_1core.h5
+TIMING_CACHE_DIR ?= $(CURDIR)/results/timing/cache
 TIMING_RESTART ?=
 SBATCH_WAIT ?=
 FORCE_TIMING ?=
 SLURM_PARTITION ?= general
 SLURM_TIME ?= 12:00:00
+QUARTZ_RESULTS ?= quartz:/N/project/ice_rheology/ISMIP7/antarctica/results/
+LEGACY_TIMING_TAG ?= scpc_mumps_5step_dt0p25at2500
 
 # The active solver qualification/reference lane uses the improved DG0
 # log-velocity/net-balance MAP imported from the other branch and its exact
@@ -57,7 +63,7 @@ SOLVER_TEST_BUFFER ?= 20000
 SOLVER_TEST_TAG ?= dg0_logvelnet
 SOLVER_TEST_MESH ?= $(CURDIR)/mesh/antarctica_64000_2500.msh
 SOLVER_TEST_BNDIDS ?= $(CURDIR)/mesh/boundary_ids_antarctica_64000_2500.json
-SOLVER_TEST_INVERSION ?= $(CURDIR)/mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5
+SOLVER_TEST_INVERSION ?= $(TIMING_INVERSION)
 SOLVER_TEST_RESTART ?= $(CURDIR)/results/qualification_2step_$(ISMIP7_DIAGNOSTIC_LINEAR_SOLVER)_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_final.h5
 TIMESTEP_PROBE_SOLVER ?= scpc_mumps
 TIMESTEP_PROBE_DT ?= 0.25
@@ -94,8 +100,8 @@ else
 MAP_N_TAG := _n$(N_FLOW)
 endif
 
-INV_CHK := mesh/inversion_icepack2$(MAP_FRICTION_TAG)$(MAP_N_TAG)_$(INV_LC)_1core.h5
-INV_CHK_MC := mesh/inversion_icepack2$(MAP_FRICTION_TAG)$(MAP_N_TAG)_$(INV_LC).h5
+INV_CHK := mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500_1core.h5
+INV_CHK_MC := mesh/inversion_icepack2_budd_n3_dg0_logvelnet_2500.h5
 
 empty :=
 space := $(empty) $(empty)
@@ -111,11 +117,19 @@ DEBUG_STAMP := $(shell date +%Y%m%d_%H%M%S)
 # meshes are slightly larger than their ratio-20 counterparts, so one
 # conservative budget per fine resolution covers both ratios.
 
-.PHONY: timing meshes inversion redistribute transient qualify qualify-2step qualify-5step timestep-probe debug reference solver-smoke matrix
+.PHONY: timing meshes inversion redistribute transient transient-direct \
+	qualify qualify-if-needed qualify-2step qualify-5step timestep-probe debug \
+	reference solver-smoke matrix matrix-legacy sync-results timing-prepare timing-scout \
+	timing-scale timing-dry-run timing-cache-smoke
 
-timing: qualify
-	$(MAKE) transient
-	@echo "Timing jobs submitted; run 'make matrix' after jobs finish or outputs are rsynced."
+timing: qualify-if-needed
+	@mkdir -p results/timing
+	@printf '%s\n' "$(TIMING_TAG)" > results/timing/latest_matrix_campaign.txt
+	$(MAKE) timing-prepare
+	$(MAKE) timing-scout
+	$(MAKE) timing-scale
+	$(MAKE) matrix
+	@echo "Timing state advanced. Re-run 'make timing' after the active stage settles."
 
 meshes:
 	@if command -v sbatch >/dev/null 2>&1; then \
@@ -131,23 +145,34 @@ meshes:
 	fi
 
 inversion:
-	@[ -f $(INV_CHK_MC) ] && echo "skip inversion" || \
-	if command -v sbatch >/dev/null 2>&1; then \
-	  sbatch --wait --export=ALL,ISMIP7_LC=$(INV_LC),ISMIP7_LC_COARSE=$(INV_LC_COARSE),ISMIP7_BUFFER_M=$(BUFFER),ISMIP7_FRICTION=$(FRICTION),ISMIP7_N_FLOW=$(N_FLOW),ISMIP7_A4_FACTOR=$(A4_FACTOR) \
-	    scripts/batch_runners/timing_inversion.script; \
-	else ISMIP7_LC=$(INV_LC) ISMIP7_LC_COARSE=$(INV_LC_COARSE) ISMIP7_BUFFER_M=$(BUFFER) \
-	  ISMIP7_FRICTION=$(FRICTION) ISMIP7_N_FLOW=$(N_FLOW) ISMIP7_A4_FACTOR=$(A4_FACTOR) \
-	  mpiexec -n 12 python scripts/inversion_icepack2.py; fi
+	@test -f "$(SOURCE_TIMING_INVERSION)" || { \
+	  echo "missing imported timing inversion: $(SOURCE_TIMING_INVERSION)" >&2; \
+	  exit 2; \
+	}
+	@echo "Using imported DG0 logvelnet inversion: $(SOURCE_TIMING_INVERSION)"
 
-redistribute:
-	@if command -v sbatch >/dev/null 2>&1; then \
-	  sbatch --wait --job-name=ant_timing_redist --export=ALL,TIMING_INV_CHK=$(INV_CHK_MC) \
+redistribute: inversion
+	@if [ -f "$(TIMING_INVERSION)" ] && \
+	    [ "$(TIMING_INVERSION)" -nt "$(SOURCE_TIMING_INVERSION)" ]; then \
+	  echo "skip $(TIMING_INVERSION) (up to date)"; \
+	elif command -v sbatch >/dev/null 2>&1; then \
+	  sbatch --wait --job-name=ant_timing_redist \
+	    --export=ALL,TIMING_REDISTRIBUTE_INPUT=$(SOURCE_TIMING_INVERSION),TIMING_REDISTRIBUTE_OUTPUT=$(TIMING_INVERSION) \
 	    scripts/batch_runners/timing_redistribute.script; \
 	else \
-	  python scripts/redistribute_checkpoint.py --input $(INV_CHK_MC) --output $(INV_CHK); \
+	  python scripts/redistribute_checkpoint.py \
+	    --input "$(SOURCE_TIMING_INVERSION)" --output "$(TIMING_INVERSION)"; \
 	fi
 
 transient:
+	@if [ "$(TIMING_KIND)" = matrix ]; then \
+	  $(MAKE) timing-scout; \
+	  $(MAKE) timing-scale; \
+	else \
+	  $(MAKE) transient-direct TIMING_KIND="$(TIMING_KIND)"; \
+	fi
+
+transient-direct:
 	@mkdir -p results/timing results/logs
 	@if [ "$(TIMING_KIND)" = matrix ]; then \
 	  printf '%s\n' "$(TIMING_TAG)" > results/timing/latest_matrix_campaign.txt; \
@@ -223,18 +248,59 @@ transient:
 	      printf 'finished exit_code=0 timestamp=%s\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
 	    else \
 	      rc=$$?; \
-	      printf 'failed exit_code=%s timestamp=%s\n' "$$rc" "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
+	      read -r status_state _ < "$$status" 2>/dev/null || status_state=; \
+	      if [ "$$status_state" != failed ]; then \
+	        printf 'failed category=external_termination exit_code=%s timestamp=%s\n' "$$rc" "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$$status"; \
+	      fi; \
 	      submit_fail=1; \
 	    fi; \
 	  fi; \
 	done; done; done; \
 	exit $$submit_fail
 
+qualify-if-needed: redistribute
+	@if python scripts/check_solver_qualification.py \
+	    --record results/timing/timing_qualification_5step_scpc_mumps_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_$(SOLVER_TEST_LC_COARSE)_16.json \
+	    --csv results/qualification_5step_scpc_mumps_$(SOLVER_TEST_TAG)_$(SOLVER_TEST_LC)_timeseries.csv \
+	    --min-steps 5 >/dev/null 2>&1; then \
+	  echo "solver qualification already passes; skip"; \
+	else \
+	  $(MAKE) qualify; \
+	fi
+
+timing-prepare:
+	python scripts/manage_timing_campaign.py prepare \
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
+	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(FORCE_TIMING),--force,)
+
+timing-scout:
+	python scripts/manage_timing_campaign.py scout \
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
+	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(FORCE_TIMING),--force,)
+
+timing-scale:
+	python scripts/manage_timing_campaign.py scale \
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
+	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(FORCE_TIMING),--force,)
+
+timing-dry-run:
+	python scripts/manage_timing_campaign.py prepare --dry-run \
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)"
+	python scripts/manage_timing_campaign.py scout --dry-run --assume-valid-caches \
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)"
+	python scripts/manage_timing_campaign.py scale --dry-run --assume-valid-caches \
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)"
+
 # Qualification is intentionally a single 2.5 km / 16-rank lane on the exact
 # 64 km-coarse mesh used by the imported DG0 logvelnet MAP.  The checker gates
 # requested versus completed step count, final year, convergence reasons and
 # the mass-budget residual before the five-step probe starts.
-qualify: qualify-2step
+
+qualify: redistribute
+	$(MAKE) qualify-2step
 	$(MAKE) qualify-5step
 
 qualify-2step:
@@ -304,7 +370,7 @@ debug: override ISMIP7_SOLVER_VIEW := 1
 debug: override ISMIP7_SNES_LOG = $(CURDIR)/results/logs/timing_scpc_mumps_debug_lc$(SOLVER_TEST_LC)_lcc$(SOLVER_TEST_LC_COARSE)_n$(CORES)_$(DEBUG_STAMP).log
 debug: override SLURM_PARTITION = debug
 debug: override SLURM_TIME = 01:00:00
-debug: transient
+debug: transient-direct
 
 reference: override LCS := $(SOLVER_TEST_LC)
 reference: override RATIOS := 1
@@ -323,15 +389,51 @@ reference: override ISMIP7_SOLVER_VIEW := 1
 reference: override ISMIP7_SNES_LOG = $(CURDIR)/results/logs/timing_full_mumps_reference_lc$(SOLVER_TEST_LC)_lcc$(SOLVER_TEST_LC_COARSE)_n$(CORES)_$(DEBUG_STAMP).log
 reference: override SLURM_PARTITION = debug
 reference: override SLURM_TIME = 01:00:00
-reference: transient
+reference: transient-direct
 
 solver-smoke:
 	OMP_NUM_THREADS=1 mpiexec -n 2 python scripts/smoke_solver_modes.py
 
+timing-cache-smoke:
+	@set -e; \
+	export ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_mumps; \
+	export ISMIP7_RESCUE_ENABLED=0; \
+	smoke_dir=$$(mktemp -d); \
+	trap 'rm -rf "$$smoke_dir"' EXIT; \
+	OMP_NUM_THREADS=1 mpiexec -n 2 python scripts/smoke_timing_cache.py \
+	  write --output "$$smoke_dir/cache_parallel.h5"; \
+	OMP_NUM_THREADS=1 python scripts/redistribute_checkpoint.py \
+	  --input "$$smoke_dir/cache_parallel.h5" \
+	  --output "$$smoke_dir/cache_1core.h5" \
+	  --manifest "$$smoke_dir/cache_1core.json"; \
+	OMP_NUM_THREADS=1 python scripts/smoke_timing_cache.py check \
+	  --input "$$smoke_dir/cache_1core.h5" --signature "$$smoke_dir/n1.json"; \
+	OMP_NUM_THREADS=1 mpiexec -n 2 python scripts/smoke_timing_cache.py check \
+	  --input "$$smoke_dir/cache_1core.h5" --signature "$$smoke_dir/n2.json"; \
+	python scripts/smoke_timing_cache.py compare \
+	  "$$smoke_dir/n1.json" "$$smoke_dir/n2.json"
+
+sync-results:
+	@mkdir -p "$(CURDIR)/results/"
+	rsync -a "$(QUARTZ_RESULTS)" "$(CURDIR)/results/"
+	@echo "Synced Quartz results/ into canonical $(CURDIR)/results/"
+
 matrix:
+	@test ! -d "$(CURDIR)/antarctica/results" || { \
+	  echo "nested results tree detected: $(CURDIR)/antarctica/results" >&2; \
+	  echo "merge/remove it before building the matrix (see make sync-results)" >&2; \
+	  exit 2; \
+	}
 	@tag="$(TIMING_TAG)"; \
 	if [ "$(origin TIMING_TAG)" = file ] && [ -f results/timing/latest_matrix_campaign.txt ]; then \
 	  read -r tag < results/timing/latest_matrix_campaign.txt; \
 	fi; \
-	python scripts/build_timing_matrix.py --tag "$$tag" \
-	  --lcs $(TIMING_LCS) --ratios $(TIMING_RATIOS) --cores $(TIMING_CORES)
+	python scripts/build_timing_matrix.py --tag "$$tag"
+
+matrix-legacy:
+	@test ! -d "$(CURDIR)/antarctica/results" || { \
+	  echo "nested results tree detected: $(CURDIR)/antarctica/results" >&2; \
+	  exit 2; \
+	}
+	python scripts/build_timing_matrix.py --tag "$(LEGACY_TIMING_TAG)" \
+	  --legacy-full-matrix --output TIMING_MATRIX_$(LEGACY_TIMING_TAG).md

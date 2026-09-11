@@ -29,7 +29,11 @@ module load firedrake/2026.04
 
 cd "${SLURM_SUBMIT_DIR:-.}"
 
-input="${TIMING_INV_CHK:-mesh/inversion_icepack2_budd_n3_2500.h5}"
-output="${TIMING_INV_CHK:-mesh/inversion_icepack2_budd_n3_2500_output.h5}"
+input="${TIMING_REDISTRIBUTE_INPUT:?TIMING_REDISTRIBUTE_INPUT is required}"
+output="${TIMING_REDISTRIBUTE_OUTPUT:?TIMING_REDISTRIBUTE_OUTPUT is required}"
+if [ "${input}" = "${output}" ]; then
+    echo "redistribution input and output must be distinct" >&2
+    exit 2
+fi
 srun -n 1 python -u scripts/redistribute_checkpoint.py \
   --input "${input}" --output "${output}"

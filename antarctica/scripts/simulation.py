@@ -221,6 +221,22 @@ def setup_model(restart_from=None):
     PETSc.Sys.Print(f"Loading mesh + reference state: {source_chk}")
     with fd.CheckpointFile(source_chk, "r") as _chk:
         source_mesh = _chk.load_mesh()
+        checkpoint_metadata = {}
+        for _key in (
+            "timing_cache_schema_version",
+            "timing_cache_role",
+            "source_inversion",
+            "source_inversion_sha256",
+            "source_mesh_sha256",
+            "diagnostic_solver_mode",
+            "solver_configuration",
+            "solver_configuration_fingerprint",
+            "geometry_space",
+            "n_flow",
+            "a4_factor",
+        ):
+            if _chk.has_attr("/", _key):
+                checkpoint_metadata[_key] = _chk.get_attr("/", _key)
         # The mesh this checkpoint was built on, recorded by the inversion and
         # carried through every restart. A CheckpointFile mesh is named
         # "firedrake_default", so this attribute is the only way the run can
@@ -400,8 +416,6 @@ def setup_model(restart_from=None):
     h_dg_state = None
     t_restart = None
     A_prior_f = None
-    same_mesh = mesh is source_mesh
-
     def load_checkpoint_field(chk, name, space, optional=False):
         """Load a checkpoint field, interpolating it for a timing mesh."""
         try:
@@ -1079,7 +1093,70 @@ def setup_model(restart_from=None):
         # Resume time (None on a cold start); run_simulation continues the
         # timeline from here instead of the caller's t_start.
         "t_restart": t_restart,
+        # Timing-cache identity, if this is a prepared timing restart.
+        # Ordinary production checkpoints legitimately omit these fields.
+        "checkpoint_metadata": checkpoint_metadata,
     }
+
+
+def save_model_state(ctx, final_path, t_now, extra_attrs=None):
+    r"""Atomically save one self-contained mixed state.
+
+    Ordinary simulation checkpoints and timing caches share this writer so a
+    cache cannot silently omit one of the frozen fields required on restart.
+    """
+    mesh = ctx["mesh"]
+    z = ctx["z"]
+    h = ctx["h"]
+    tmp = final_path + ".tmp"
+    with fd.CheckpointFile(tmp, "w") as chk:
+        chk.save_mesh(mesh)
+        chk.save_function(ctx["theta"], name="log_friction")
+        chk.save_function(ctx["phi"], name="log_fluidity")
+        chk.save_function(ctx["b"], name="bed")
+        chk.save_function(h, name="thickness")
+        chk.save_function(ctx["s"], name="surface")
+        chk.save_function(z.subfunctions[0], name="velocity")
+        chk.save_function(z.subfunctions[1], name="membrane_stress")
+        chk.save_function(z.subfunctions[2], name="basal_stress")
+        chk.save_function(ctx.get("H_init", h), name="H_init")
+        chk.save_function(ctx["phi_eff"], name="phi_eff")
+        if ctx.get("C_w0") is not None:
+            chk.save_function(ctx["C_w0"], name="C_w0")
+        if ctx.get("N_ref") is not None:
+            chk.save_function(ctx["N_ref"], name="N_ref")
+        if ctx.get("A_prior") is not None:
+            chk.save_function(ctx["A_prior"], name="fluidity_prior")
+        if ctx.get("a_ref_mb") is not None:
+            chk.save_function(ctx["a_ref_mb"], name="a_ref_mb")
+        if not ctx.get("geom_dg", False):
+            h_dg = ctx.get("h_dg_state")
+            if h_dg is None:
+                raise RuntimeError(
+                    "CG1 state checkpoint requested before h_dg was prepared"
+                )
+            chk.save_function(h_dg, name="thickness_dg")
+
+        chk.set_attr("/", "t_yr", float(t_now))
+        chk.set_attr("/", "friction", str(ctx.get("friction", "budd")))
+        chk.set_attr(
+            "/", "geometry_space", "dg0" if ctx.get("geom_dg") else "cg1"
+        )
+        if ctx.get("mesh_basename"):
+            chk.set_attr("/", "mesh_basename", str(ctx["mesh_basename"]))
+        for name in ("lc", "lc_coarse"):
+            if ctx.get(name) is not None:
+                chk.set_attr("/", name, int(ctx[name]))
+        if ctx.get("buffer_m") is not None:
+            chk.set_attr("/", "buffer_m", float(ctx["buffer_m"]))
+        for name, value in (extra_attrs or {}).items():
+            if value is not None:
+                chk.set_attr("/", name, value)
+
+    mesh.comm.barrier()
+    if mesh.comm.rank == 0:
+        os.replace(tmp, final_path)
+    mesh.comm.barrier()
 
 
 def run_simulation(
@@ -1111,16 +1188,6 @@ def run_simulation(
     phi_eff = ctx["phi_eff"]
     rho_ratio = ctx["rho_ratio"]
     h_clamp = ctx["h_clamp"]
-    # Reference/frozen fields persisted into each checkpoint (self-contained
-    # restart). theta/phi always present; C_w0/N_ref only for residual laws.
-    theta = ctx.get("theta")
-    phi = ctx.get("phi")
-    C_w0 = ctx.get("C_w0")
-    N_ref = ctx.get("N_ref")
-    A_prior = ctx.get("A_prior")
-    H_init_fn = ctx.get("H_init", h)
-    friction = ctx.get("friction", "budd")
-
     # Warm restart: continue the timeline from the checkpoint's saved year so
     # time-varying forcing (SSP projections) is applied at the correct year.
     t_restart = ctx.get("t_restart")
@@ -1148,13 +1215,13 @@ def run_simulation(
 
     Q_dg = FunctionSpace(mesh, "DG", 0)
     geom_dg = ctx.get("geom_dg", False)
-    mesh_basename = ctx.get("mesh_basename", "")
     # Under DG0 geometry the transport state IS the geometry - the same
     # Function object, not a copy. That is the whole point: the terminus
     # back-pressure and the boundary flux then integrate one thickness, so
     # they cannot disagree. Under CG1 geometry h_dg is a separate DG0 carrier
     # bridged by the lumped lift below.
     h_dg = h if geom_dg else Function(Q_dg, name="h_dg")
+    ctx["h_dg_state"] = h_dg
     h_dg_old = Function(Q_dg)
     phi_dg = fd.TestFunction(Q_dg)
     h_dg_trial = fd.TrialFunction(Q_dg)
@@ -1341,6 +1408,7 @@ def run_simulation(
                 f"net {_net:+.1f} Gt/yr"
                 + (f" (cap [-{amb_cap:.0f}, +{5*amb_cap:.0f}])" if amb_cap > 0 else "")
             )
+        ctx["a_ref_mb"] = a_ref
 
     # The transport operator has fixed topology; only its Function/Constant
     # coefficients change.  Reuse one solver so every substep does not rebuild
@@ -1463,56 +1531,6 @@ def run_simulation(
 
     mass_prev = float(assemble(h * dx)) * rho_gt
 
-    def _save_state(final_path, t_now):
-        r"""Atomic, self-contained state checkpoint: mesh + frozen reference
-        fields (theta/phi/bed/C_w0/N_ref/H_init/phi_eff) + evolving (h, s, u)
-        + the timeline year. Written to a temp file and renamed, so a reboot
-        mid-write cannot corrupt the target a restart would resume from."""
-        tmp = final_path + ".tmp"
-        with fd.CheckpointFile(tmp, "w") as chk:
-            chk.save_mesh(mesh)
-            chk.save_function(theta, name="log_friction")
-            chk.save_function(phi, name="log_fluidity")
-            chk.save_function(b, name="bed")
-            chk.save_function(h, name="thickness")
-            chk.save_function(s, name="surface")
-            chk.save_function(z.subfunctions[0], name="velocity")
-            # Full solver state: with only u restored, a restarted step-1
-            # Newton starts from (u, 0, 0) and fails back into continuation;
-            # restoring M and tau makes the resume solve converge directly.
-            chk.save_function(z.subfunctions[1], name="membrane_stress")
-            chk.save_function(z.subfunctions[2], name="basal_stress")
-            chk.save_function(H_init_fn, name="H_init")
-            chk.save_function(phi_eff, name="phi_eff")
-            if C_w0 is not None:
-                chk.save_function(C_w0, name="C_w0")
-            if N_ref is not None:
-                chk.save_function(N_ref, name="N_ref")
-            if A_prior is not None:
-                chk.save_function(A_prior, name="fluidity_prior")
-            if a_ref is not None:
-                chk.save_function(a_ref, name="a_ref_mb")
-            # Separate transport state only under CG1 geometry, where the
-            # saved CG1 `thickness` is a lift and cannot reconstruct it.
-            # Under DG0 geometry `thickness` IS the transport state.
-            if not geom_dg:
-                chk.save_function(h_dg, name="thickness_dg")
-            chk.set_attr("/", "t_yr", float(t_now))
-            chk.set_attr("/", "friction", str(friction))
-            chk.set_attr("/", "geometry_space", "dg0" if geom_dg else "cg1")
-            if mesh_basename:
-                chk.set_attr("/", "mesh_basename", str(mesh_basename))
-            if ctx.get("lc") is not None:
-                chk.set_attr("/", "lc", int(ctx["lc"]))
-            if ctx.get("lc_coarse") is not None:
-                chk.set_attr("/", "lc_coarse", int(ctx["lc_coarse"]))
-            if ctx.get("buffer_m") is not None:
-                chk.set_attr("/", "buffer_m", float(ctx["buffer_m"]))
-        mesh.comm.barrier()
-        if mesh.comm.rank == 0:
-            os.replace(tmp, final_path)
-        mesh.comm.barrier()
-
     def _prune_checkpoints():
         r"""Keep only the `keep_ckpts` most recently WRITTEN periodic state
         checkpoints. Recency, not the largest year: a re-run rewinds (every
@@ -1541,6 +1559,8 @@ def run_simulation(
                 pass
 
     results = []
+    ctx["results"] = results
+    ctx["failure"] = None
 
     # Crash-safe timeseries: append each row and flush, so a reboot keeps the
     # budget-audit history (it used to be dumped only at completion). On a
@@ -1606,12 +1626,19 @@ def run_simulation(
         try:
             solve_diagnostic(f"step-{k}-direct")
             return True
-        except fd.ConvergenceError:
+        except fd.ConvergenceError as exc:
             if not allow_rescue:
+                _field_diagnostics(f"step-{k}-diagnostic-failed")
                 PETSc.Sys.Print(
                     f"  Step {k}: direct diagnostic solve failed; "
                     "rescue disabled"
                 )
+                ctx["failure"] = {
+                    "category": "diagnostic_convergence",
+                    "phase": f"step-{k}-direct",
+                    "exception_type": type(exc).__name__,
+                    "message": str(exc),
+                }
                 raise
         k_lim_c = ctx.get("k_lim")
         k_rescue = ctx.get("k_lim_rescue", 0.0)
@@ -1759,10 +1786,16 @@ def run_simulation(
         transport_t0 = perf_counter()
         try:
             transport_solver.solve()
-        except Exception:
+        except Exception as exc:
             elapsed = perf_counter() - transport_t0
             _record_transport(label, elapsed)
             _field_diagnostics(f"{label}-transport-failed")
+            ctx["failure"] = {
+                "category": "transport_convergence",
+                "phase": label,
+                "exception_type": type(exc).__name__,
+                "message": str(exc),
+            }
             raise
 
         out_gt = float(assemble(
@@ -1778,9 +1811,17 @@ def run_simulation(
         )
         if transport_reason <= 0:
             _field_diagnostics(f"{label}-transport-diverged")
+            ctx["failure"] = {
+                "category": "transport_convergence",
+                "phase": label,
+                "exception_type": "RuntimeError",
+                "message": (
+                    f"Transport KSP diverged in {label}: "
+                    f"reason={_transport_stat['ksp_reason']}"
+                ),
+            }
             raise RuntimeError(
-                f"Transport KSP diverged in {label}: "
-                f"reason={_transport_stat['ksp_reason']}"
+                ctx["failure"]["message"]
             )
         if transport_resid_gt is not None and (
             not np.isfinite(transport_resid_gt)
@@ -1792,6 +1833,12 @@ def run_simulation(
                 f"exceeds {mass_tol_gt:.6e} Gt in {label}"
             )
             PETSc.Sys.Print(f"ERROR: {message}")
+            ctx["failure"] = {
+                "category": "transport_mass_budget",
+                "phase": label,
+                "exception_type": "RuntimeError",
+                "message": message,
+            }
             raise RuntimeError(message)
 
         # Floor to h_clamp, EXCEPT beyond the fixed front: those cells are
@@ -1835,6 +1882,10 @@ def run_simulation(
     # saved (h, u) are now mutually consistent.
     SUBCYCLES = subcycles()
 
+    # Timing drivers use this marker rather than timing setup_model or the
+    # transport-operator construction above.  It is also available after an
+    # exception, so a partial failure record retains the useful elapsed time.
+    ctx["transient_t0"] = perf_counter()
     for k in range(1, nsteps + 1):
         t_step_start = perf_counter()
         t_yr = t_start + k * dt
@@ -1876,6 +1927,12 @@ def run_simulation(
                 tallies = acc
                 break
         if tallies is None:
+            ctx["failure"] = {
+                "category": "diagnostic_convergence",
+                "phase": f"step-{k}-rescue-exhausted",
+                "exception_type": "ConvergenceError",
+                "message": "diagnostic rescue ladder and subcycles exhausted",
+            }
             PETSc.Sys.Print(
                 f"  Step {k}: rescue ladder + subcycles exhausted, "
                 f"saving and stopping"
@@ -1926,16 +1983,23 @@ def run_simulation(
                 f"{mass_tol_gt:.6e} Gt"
             )
             PETSc.Sys.Print(f"ERROR: {message}")
+            ctx["failure"] = {
+                "category": "step_mass_budget",
+                "phase": f"step-{k}",
+                "exception_type": "RuntimeError",
+                "message": message,
+            }
             raise RuntimeError(message)
 
         if k % ckpt_steps == 0:
             chk_fn = os.path.join(
                 RESULTS_DIR, f"{experiment_name}_{lc}_t{t_yr:.1f}.h5"
             )
-            _save_state(chk_fn, t_yr)
+            save_model_state(ctx, chk_fn, t_yr)
             _prune_checkpoints()
             PETSc.Sys.Print(f"    [checkpoint: {os.path.basename(chk_fn)}]")
 
+    ctx["transient_seconds"] = perf_counter() - ctx["transient_t0"]
     PETSc.Sys.Print(f"\n{experiment_name} simulation complete.")
 
     # Final state is a self-contained checkpoint too (a valid restart source).
@@ -1943,7 +2007,7 @@ def run_simulation(
     # where it really stopped, not the nominal t_end.
     final_fn = os.path.join(RESULTS_DIR, f"{experiment_name}_{lc}_final.h5")
     last_t = results[-1][0] if results else t_start
-    _save_state(final_fn, last_t)
+    save_model_state(ctx, final_fn, last_t)
     PETSc.Sys.Print(f"Saved: {final_fn}")
 
     if csv_f is not None:

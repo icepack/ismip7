@@ -1,206 +1,221 @@
 #!/usr/bin/env python3
-"""
-Aggregate one campaign's per-run timing records into TIMING_MATRIX.md.
+"""Render accepted timings and explicit failure states for one campaign."""
 
-Reads results/timing/timing_<tag>_*.json and writes partial timing/status tables.
-Qualification probes and incomplete/non-five-step records are excluded.
-
-Usage:
-    python scripts/build_timing_matrix.py --tag <timing-tag>
-"""
+from __future__ import annotations
 
 import argparse
 import glob
 import json
 import math
 import os
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TIMING_DIR = os.path.join(_ROOT, "results", "timing")
-OUT_FN = os.path.join(_ROOT, "TIMING_MATRIX.md")
-MATRIX_T_START = 2015.0
-MATRIX_STEPS = 5
-MATRIX_DT_2500 = 0.25
-MATRIX_REFERENCE_LC = 2500.0
-STATUS_LABELS = {
-    "submitted": "QUEUED",
-    "running": "RUNNING",
-    "finished": "NO RECORD",
-    "failed": "FAILED",
-    "submission_failed": "SUBMIT FAIL",
-    "not_runnable": "NOT RUNNABLE",
-}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from timing_campaign import (
+    CAMPAIGN_TAG,
+    DISPLAY_CORES,
+    MASS_RESIDUAL_TOL_GT,
+    MATRIX_DT_2500,
+    MATRIX_REFERENCE_LC,
+    MATRIX_STEPS,
+    MATRIX_T_START,
+    diverged_reasons,
+    mesh_rows,
+    planned_lanes,
+    timing_status_basename,
+    validate_timing_record,
+)
+
+_ROOT = Path(__file__).resolve().parents[1]
 
 
-def load_records(tag=None):
+def _load_records(timing_dir, tag):
     records = []
     errors = []
-    name = "timing_*.json" if tag is None else f"timing_{glob.escape(tag)}_*.json"
-    for path in sorted(glob.glob(os.path.join(TIMING_DIR, name))):
+    pattern = timing_dir / f"timing_{glob.escape(tag)}_*.json"
+    for path_text in sorted(glob.glob(os.fspath(pattern))):
+        path = Path(path_text)
         try:
-            with open(path) as f:
-                records.append(json.load(f))
+            with open(path) as stream:
+                records.append(json.load(stream))
         except (OSError, json.JSONDecodeError) as exc:
-            errors.append(f"{os.path.basename(path)}: {exc}")
+            errors.append(f"{path.name}: {exc}")
     return records, errors
 
 
-def _parse_int_list(value):
+def _read_status(timing_dir, tag, lane):
+    path = timing_dir / timing_status_basename(tag, *lane)
     try:
-        values = tuple(int(item) for item in value.split(":") if item)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(str(exc)) from exc
-    if not values:
-        raise argparse.ArgumentTypeError("expected a colon-separated integer list")
-    return values
+        tokens = path.read_text().strip().split()
+    except OSError:
+        return None
+    if not tokens:
+        return {"state": "invalid", "path": os.fspath(path)}
+    status = {"state": tokens[0], "path": os.fspath(path)}
+    for token in tokens[1:]:
+        if "=" in token:
+            key, value = token.split("=", 1)
+            status[key] = value
+    return status
 
 
-def _reason_diverged(reason):
-    text = str(reason)
-    if text.startswith("DIVERGED"):
-        return True
+def _legacy_valid(record):
     try:
-        return int(text) < 0
-    except ValueError:
-        return False
-
-
-def _diverged_reasons(record, summary_name):
-    reasons = record.get(summary_name, {}).get("reason_counts", {})
-    return {reason: count for reason, count in reasons.items()
-            if _reason_diverged(reason)}
-
-
-def _is_matrix_record(record):
-    try:
-        dt = MATRIX_DT_2500 * float(record["lc"]) / MATRIX_REFERENCE_LC
+        lc = int(record["lc"])
+        dt = MATRIX_DT_2500 * lc / MATRIX_REFERENCE_LC
         t_end = MATRIX_T_START + MATRIX_STEPS * dt
         return (
             record.get("timing_kind", "matrix") == "matrix"
-            and math.isclose(
-                float(record["t_start"]), MATRIX_T_START, abs_tol=1e-12
-            )
-            and math.isclose(float(record["dt"]), dt, abs_tol=1e-12)
-            and record.get("nsteps") == MATRIX_STEPS
-            and record.get("completed_steps") == MATRIX_STEPS
-            and math.isclose(float(record["t_end"]), t_end, abs_tol=1e-12)
-            and math.isclose(float(record["t_final"]), t_end, abs_tol=1e-12)
-            and not _diverged_reasons(record, "diagnostic_solve_summary")
-            and not _diverged_reasons(record, "transport_solve_summary")
+            and math.isclose(float(record["t_start"]), MATRIX_T_START)
+            and math.isclose(float(record["dt"]), dt)
+            and int(record["nsteps"]) == MATRIX_STEPS
+            and int(record["completed_steps"]) == MATRIX_STEPS
+            and math.isclose(float(record["t_end"]), t_end)
+            and math.isclose(float(record["t_final"]), t_end)
+            and not diverged_reasons(record, "diagnostic_solve_summary")
+            and not diverged_reasons(record, "transport_solve_summary")
         )
     except (KeyError, TypeError, ValueError):
         return False
 
 
-def matrix_records(records):
-    return [record for record in records if _is_matrix_record(record)]
+def _failure_class(category):
+    if category in {
+        "diagnostic_convergence",
+        "transport_convergence",
+        "transport_mass_budget",
+        "step_mass_budget",
+    }:
+        return "NUMERICAL FAILURE"
+    if category in {"external_termination", "oom", "slurm_oom"}:
+        return "OOM / EXTERNAL"
+    if category in {"incomplete_output", "stale_running"}:
+        return "INCOMPLETE OUTPUT"
+    return "FAILED"
 
 
-def render_table(records, rows, core_counts, per_step=False):
-    index = {
-        (record["lc"], record["lc_coarse"], record["ncores"]): record
-        for record in records
-    }
-    unit = "s/step" if per_step else "s"
-    key = "seconds_per_step" if per_step else "run_seconds"
-    digits = 2 if per_step else 1
-    header = (
-        "| LC (m) | LC_coarse (m) | dt (yr) | Vertices | Cells | "
-        + " | ".join(f"{count} cores ({unit})" for count in core_counts)
-        + " |"
-    )
-    lines = [header, "|" + "|".join(["---"] * (5 + len(core_counts))) + "|"]
-    for lc, lc_coarse in rows:
-        candidates = [
-            index.get((lc, lc_coarse, count)) for count in core_counts
-        ]
-        sample = next((record for record in candidates if record), None)
-        dt = f"{sample['dt']:.3g}" if sample else "—"
-        vertices = sample["vertices"] if sample else "—"
-        cells = sample["cells"] if sample else "—"
-        timings = [
-            f"{record[key]:.{digits}f}" if record else "—"
-            for record in candidates
-        ]
-        lines.append(
-            f"| {lc} | {lc_coarse} | {dt} | {vertices} | {cells} | "
-            + " | ".join(timings)
-            + " |"
-        )
-    return lines
-
-
-def _read_status(tag, lc, lc_coarse, ncores):
-    path = os.path.join(
-        TIMING_DIR, f"status_{tag}_{lc}_{lc_coarse}_{ncores}.txt"
-    )
+def _stale_running(status, now=None):
+    if status.get("state") != "running" or "timestamp" not in status:
+        return False
     try:
-        with open(path) as stream:
-            tokens = stream.read().strip().split()
-    except OSError:
-        return None
-    if not tokens:
-        return {"state": "invalid", "path": path}
-    fields = {"state": tokens[0], "path": path}
-    for token in tokens[1:]:
-        if "=" in token:
-            key, value = token.split("=", 1)
-            fields[key] = value
-    return fields
-
-
-def _record_issue(record):
-    requested = record.get("nsteps", "?")
-    completed = record.get("completed_steps", "?")
-    if completed != MATRIX_STEPS or requested != MATRIX_STEPS:
-        return f"incomplete record ({completed}/{requested} steps)"
-    diagnostic = _diverged_reasons(record, "diagnostic_solve_summary")
-    transport = _diverged_reasons(record, "transport_solve_summary")
-    if diagnostic or transport:
-        return (
-            "completed only after a failed solve/rescue "
-            f"(diagnostic={diagnostic or '{}'}, transport={transport or '{}'})"
+        stamp = datetime.fromisoformat(
+            status["timestamp"].replace("Z", "+00:00")
         )
-    return (
-        "record does not match the current five-step resolution-scaled "
-        "timestep policy"
-    )
+    except ValueError:
+        return False
+    now = now or datetime.now(timezone.utc)
+    return (now - stamp).total_seconds() > 24 * 3600
 
 
-def _classify(record, status):
-    if record is not None and _is_matrix_record(record):
-        return "OK", "completed and accepted"
+def _legacy_log_evidence(status):
+    job_id = status.get("job_id")
+    if not job_id:
+        return None
+    paths = [_ROOT / f"ant_timing_{job_id}{suffix}"
+             for suffix in (".txt", ".err")]
+    text = ""
+    for path in paths:
+        try:
+            text += path.read_text(errors="replace")
+        except OSError:
+            pass
+    if "Transport mass residual" in text or "Step mass residual" in text:
+        return "NUMERICAL FAILURE", "mass-budget exception in archived Slurm log"
+    if "DIVERGED_" in text or "rescue-continuation" in text:
+        return "NUMERICAL FAILURE", "solver divergence/rescue in archived Slurm log"
+    if any(path.is_file() for path in paths):
+        return "INCOMPLETE OUTPUT", "archived Slurm log ended without a record"
+    return None
+
+
+def _classify(record, status, lane, strict):
     if record is not None:
-        issue = _record_issue(record)
-        label = "INCOMPLETE" if "incomplete" in issue else "EXCLUDED"
-        return label, issue
+        if strict:
+            valid, detail = validate_timing_record(
+                record, lc=lane[0], lc_coarse=lane[1], ncores=lane[2]
+            )
+        else:
+            valid = _legacy_valid(record)
+            detail = "completed legacy five-step timing run"
+        if valid:
+            return "OK", detail
+        failure = record.get("failure") or {}
+        category = failure.get("category")
+        if category:
+            phase = failure.get("phase", "unknown phase")
+            return _failure_class(category), f"{category} at {phase}"
+        diagnostic = diverged_reasons(record, "diagnostic_solve_summary")
+        transport = diverged_reasons(record, "transport_solve_summary")
+        if diagnostic or transport:
+            return (
+                "NUMERICAL FAILURE",
+                f"diagnostic={diagnostic or '{}'}, transport={transport or '{}'}",
+            )
+        completed = record.get("completed_steps", "?")
+        requested = record.get("nsteps", "?")
+        return "INCOMPLETE OUTPUT", f"{completed}/{requested} steps; {detail}"
+
     if status is None:
-        return "NOT RUN", "no status stamp or timing record"
+        return "NOT RUN", "no record or status stamp"
     state = status["state"]
-    label = STATUS_LABELS.get(state, "UNKNOWN")
-    details = [state.replace("_", " ")]
-    for key in ("job_id", "exit_code", "timestamp"):
-        if key in status:
-            details.append(f"{key}={status[key]}")
-    if state == "running":
-        details.append("or terminated before writing a completion stamp")
-    return label, ", ".join(details)
+    if state == "blocked_by_scout":
+        return "BLOCKED BY SCOUT", "scout did not pass"
+    if state == "failed":
+        if not strict:
+            evidence = _legacy_log_evidence(status)
+            if evidence is not None and evidence[0] == "NUMERICAL FAILURE":
+                return evidence
+        category = status.get("category")
+        exit_code = status.get("exit_code")
+        if category == "external_termination" or exit_code in {"137", "9"}:
+            return "OOM / EXTERNAL", (
+                f"external termination, exit_code={exit_code or 'unknown'}"
+            )
+        if category:
+            return _failure_class(category), category
+        return "FAILED", f"failed, exit_code={exit_code or 'unknown'}"
+    if state == "finished":
+        return "INCOMPLETE OUTPUT", "finished stamp but no readable record"
+    if state in {"running", "submitted", "submitting"}:
+        if not strict:
+            job_id = status.get("job_id")
+            if job_id and any(
+                (_ROOT / f"ant_timing_{job_id}{suffix}").is_file()
+                for suffix in (".txt", ".err")
+            ):
+                return (
+                    "INCOMPLETE OUTPUT",
+                    "archived job output exists but no completion record",
+                )
+        if _stale_running(status):
+            return (
+                "INCOMPLETE OUTPUT",
+                "stale running stamp older than 24 hours and no record",
+            )
+        return state.upper(), f"{state}; job_id={status.get('job_id', 'unknown')}"
+    if state == "not_runnable":
+        return "NOT RUNNABLE", status.get("reason", "missing prerequisite")
+    if state == "submission_failed":
+        return "SUBMIT FAILED", "sbatch submission failed"
+    return "UNKNOWN", state
 
 
-def render_status_table(rows, core_counts, classifications):
+def _status_table(rows, classifications):
     header = (
         "| LC (m) | LC_coarse (m) | dt (yr) | "
-        + " | ".join(f"{count} cores" for count in core_counts)
+        + " | ".join(f"{cores} cores" for cores in DISPLAY_CORES)
         + " |"
     )
-    lines = [header, "|" + "|".join(["---"] * (3 + len(core_counts))) + "|"]
+    lines = [header, "|" + "|".join(["---"] * 6) + "|"]
     for lc, lc_coarse in rows:
-        dt = MATRIX_DT_2500 * lc / MATRIX_REFERENCE_LC
         labels = [
-            classifications[(lc, lc_coarse, ncores)][0]
-            for ncores in core_counts
+            classifications[(lc, lc_coarse, cores)][0]
+            for cores in DISPLAY_CORES
         ]
+        dt = MATRIX_DT_2500 * lc / MATRIX_REFERENCE_LC
         lines.append(
             f"| {lc} | {lc_coarse} | {dt:.3g} | "
             + " | ".join(labels)
@@ -209,108 +224,153 @@ def render_status_table(rows, core_counts, classifications):
     return lines
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--tag", required=True)
-    parser.add_argument("--lcs", type=_parse_int_list,
-                        default=_parse_int_list("500:1000:2000:2500:5000"))
-    parser.add_argument("--ratios", type=_parse_int_list,
-                        default=_parse_int_list("20:10"))
-    parser.add_argument("--cores", type=_parse_int_list,
-                        default=_parse_int_list("16:32:64"))
-    args = parser.parse_args()
-
-    all_records, load_errors = load_records(args.tag)
-    tag_records = [
-        record for record in all_records
-        if record.get("timing_tag") == args.tag
-    ]
-    record_index = {
-        (record.get("lc"), record.get("lc_coarse"), record.get("ncores")): record
-        for record in tag_records
-    }
-    rows = sorted(
-        {(lc, ratio * lc) for lc in args.lcs for ratio in args.ratios},
-        key=lambda value: (value[0], value[1]),
+def _timing_table(rows, record_index, per_step=False):
+    key = "seconds_per_step" if per_step else "run_seconds"
+    unit = "s/step" if per_step else "s"
+    digits = 2 if per_step else 1
+    header = (
+        "| LC (m) | LC_coarse (m) | Vertices | Cells | "
+        + " | ".join(f"{cores} cores ({unit})" for cores in DISPLAY_CORES)
+        + " |"
     )
-    core_counts = sorted(args.cores)
-    classifications = {}
+    lines = [header, "|" + "|".join(["---"] * 7) + "|"]
     for lc, lc_coarse in rows:
-        for ncores in core_counts:
-            key = (lc, lc_coarse, ncores)
-            status = _read_status(args.tag, *key)
-            classifications[key] = _classify(record_index.get(key), status)
+        candidates = [
+            record_index.get((lc, lc_coarse, cores))
+            for cores in DISPLAY_CORES
+        ]
+        sample = next((record for record in candidates if record), None)
+        vertices = sample.get("vertices", "—") if sample else "—"
+        cells = sample.get("cells", "—") if sample else "—"
+        values = [
+            f"{record[key]:.{digits}f}" if record is not None else "—"
+            for record in candidates
+        ]
+        lines.append(
+            f"| {lc} | {lc_coarse} | {vertices} | {cells} | "
+            + " | ".join(values)
+            + " |"
+        )
+    return lines
 
-    expected_keys = set(classifications)
-    records = [
-        record for record in matrix_records(tag_records)
-        if (record["lc"], record["lc_coarse"], record["ncores"])
-        in expected_keys
-    ]
+
+def render(tag, timing_dir, output, legacy_full_matrix=False):
+    rows = mesh_rows()
+    configured = (
+        {(lc, lc_coarse, cores) for lc, lc_coarse in rows
+         for cores in DISPLAY_CORES}
+        if legacy_full_matrix
+        else set(planned_lanes())
+    )
+    displayed = {
+        (lc, lc_coarse, cores)
+        for lc, lc_coarse in rows
+        for cores in DISPLAY_CORES
+    }
+    records, load_errors = _load_records(timing_dir, tag)
+    all_index = {
+        (record.get("lc"), record.get("lc_coarse"), record.get("ncores")): record
+        for record in records
+        if record.get("timing_tag") == tag
+    }
+    classifications = {}
+    accepted = {}
+    strict = not legacy_full_matrix and tag == CAMPAIGN_TAG
+    for lane in sorted(displayed):
+        if lane not in configured:
+            classifications[lane] = (
+                "NOT PLANNED",
+                "excluded by the selected 20-lane policy",
+            )
+            continue
+        status = _read_status(timing_dir, tag, lane)
+        classification = _classify(all_index.get(lane), status, lane, strict)
+        classifications[lane] = classification
+        if classification[0] == "OK":
+            accepted[lane] = all_index[lane]
+
     counts = {}
-    for label, _ in classifications.values():
+    for lane in configured:
+        label = classifications[lane][0]
         counts[label] = counts.get(label, 0) + 1
-
+    policy_text = (
+        "This is the archived cold-start 30-lane campaign. Its generic exit "
+        "stamps are supplemented with the copied Slurm logs so numerical "
+        "failures remain distinguishable from incomplete output."
+        if legacy_full_matrix
+        else
+        "The primary timing covers only the five-step transient loop; setup "
+        "and checkpoint loading are recorded separately. The timestep is "
+        "`0.25 × LC / 2500` years. Strict lanes use `scpc_mumps`, an "
+        "exact-mesh prepared cache, and no rescue or subcycle recovery."
+    )
     lines = [
         "# Antarctica timing matrix",
         "",
         f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
         "",
-        f"Campaign tag: `{args.tag}`. Expected lanes: {len(classifications)}; "
+        f"Campaign tag: `{tag}`. Configured lanes: {len(configured)}; "
         f"accepted: {counts.get('OK', 0)}.",
         "",
-        "Only completed five-step transient runs with `timing_kind=matrix` "
-        "are included. The timestep scales with fine resolution as "
-        "`dt = 0.25 × LC / 2500` years. Qualification probes are reported "
-        "by their gate and excluded here.",
+        policy_text,
         "",
         "## Run status",
         "",
     ]
-    lines.extend(render_status_table(rows, core_counts, classifications))
-    lines.extend([
-        "",
-        "`OK` records are included below. `EXCLUDED` finished only through a "
-        "failed solve/rescue or used the wrong run policy. `QUEUED` means the "
-        "job was submitted but its wrapper did not start; it can also mean it "
-        "was canceled before starting. `RUNNING` can also mean Slurm terminated "
-        "the job before it wrote its final stamp.",
-    ])
-
+    lines.extend(_status_table(rows, classifications))
     non_ok = [
-        (key, value) for key, value in classifications.items()
-        if value[0] != "OK"
+        (lane, classifications[lane])
+        for lane in sorted(configured)
+        if classifications[lane][0] != "OK"
     ]
     if non_ok or load_errors:
         lines.extend(["", "### Status notes", ""])
-        for (lc, lc_coarse, ncores), (label, detail) in non_ok:
+        for (lc, lc_coarse, cores), (label, detail) in non_ok:
             lines.append(
-                f"- LC={lc}, LC_coarse={lc_coarse}, {ncores} cores: "
+                f"- LC={lc}, LC_coarse={lc_coarse}, {cores} cores: "
                 f"**{label}** — {detail}."
             )
         for error in load_errors:
             lines.append(f"- Unreadable timing record: `{error}`")
-
     lines.extend(["", "## Successful timings", ""])
-    if records:
-        sample = records[0]
-        mode = (
-            sample.get("diagnostic_solver_mode")
-            or sample.get("linear_solver", "unknown")
-        )
-        lines.extend([f"Diagnostic solver: `{mode}`", ""])
-        lines.extend(render_table(records, rows, core_counts))
+    if accepted:
+        lines.extend(_timing_table(rows, accepted))
         lines.extend(["", "### Per-step timing", ""])
-        lines.extend(render_table(records, rows, core_counts, per_step=True))
+        lines.extend(_timing_table(rows, accepted, per_step=True))
     else:
         lines.append("No accepted timing records are available yet.")
-
-    lines.append("")
-    with open(OUT_FN, "w") as f:
-        f.write("\n".join(lines))
+    lines.extend([
+        "",
+        f"Scout mass-residual acceptance limit: {MASS_RESIDUAL_TOL_GT:g} Gt.",
+        "",
+    ])
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(lines))
     print(
-        f"Wrote {OUT_FN} ({len(records)} accepted of "
-        f"{len(classifications)} expected timing records)"
+        f"Wrote {output} ({len(accepted)} accepted of "
+        f"{len(configured)} configured timing records)"
+    )
+    return classifications
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tag", required=True)
+    parser.add_argument("--timing-dir", type=Path, default=_ROOT / "results/timing")
+    parser.add_argument("--output", type=Path, default=_ROOT / "TIMING_MATRIX.md")
+    parser.add_argument("--legacy-full-matrix", action="store_true")
+    args = parser.parse_args()
+    nested = _ROOT / "antarctica/results"
+    if nested.is_dir() and any(path.is_file() for path in nested.rglob("*")):
+        raise SystemExit(
+            f"Refusing to build matrix while nested results tree exists: {nested}. "
+            "Run `make sync-results` first."
+        )
+    render(
+        args.tag,
+        args.timing_dir.resolve(),
+        args.output.resolve(),
+        legacy_full_matrix=args.legacy_full_matrix,
     )
 
 

@@ -23,7 +23,7 @@ import os
 
 # A forward driver invoked outside the managed launchers must fall back to the
 # established full-Jacobian reference, never to an unqualified development PC.
-# The timing Makefile explicitly exports scpc_gamg for scalable-solver work.
+# The timing Makefile explicitly exports scpc_mumps for the qualified campaign.
 DIAGNOSTIC_SOLVER_DEFAULT = "full_mumps"
 DIAGNOSTIC_SOLVER_MODES = (
     "schur_gamg",

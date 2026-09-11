@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Prepare one exact-mesh mixed state in parallel, then publish it from rank 1.
+
+#SBATCH -J ant_timing_prepare
+#SBATCH -p general
+#SBATCH -o ant_timing_prepare_%j.txt
+#SBATCH -e ant_timing_prepare_%j.err
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=dlilien@iu.edu
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=16
+#SBATCH --time=12:00:00
+#SBATCH --mem=240G
+#SBATCH -A r00905
+
+module use /N/u/dlilien/Quartz/modulefiles
+module load gnu/9.3.0
+module load openmpi/4.0.5
+module load python/3.14.5
+module load zlib/1.2.13
+module load hdf5/1.12
+module load openblas/0.3.13
+module load patchelf/0.18.0
+module load petsc/3.25.5
+module load firedrake/2026.04
+. /N/u/dlilien/Quartz/sw/firedrake/2026.04/firedrake/bin/activate
+
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+cd "${SLURM_SUBMIT_DIR:-.}"
+
+raw="${ISMIP7_TIMING_CACHE_RAW:?ISMIP7_TIMING_CACHE_RAW is required}"
+final="${ISMIP7_TIMING_CACHE:?ISMIP7_TIMING_CACHE is required}"
+manifest="${ISMIP7_TIMING_CACHE_MANIFEST:?ISMIP7_TIMING_CACHE_MANIFEST is required}"
+status="${ISMIP7_TIMING_CACHE_STATUS:?ISMIP7_TIMING_CACHE_STATUS is required}"
+if [ "${raw}" = "${final}" ]; then
+    echo "parallel cache path and published cache path must differ" >&2
+    exit 2
+fi
+
+write_status() {
+    status_tmp="${status}.tmp.${SLURM_JOB_ID:-$$}"
+    printf '%s job_id=%s timestamp=%s\n' \
+        "$1" "${SLURM_JOB_ID:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        > "${status_tmp}"
+    mv -f "${status_tmp}" "${status}"
+}
+
+write_status "running phase=prepare"
+set +e
+srun -n "${SLURM_NTASKS}" python -u scripts/prepare_timing_cache.py
+prepare_rc=$?
+set -e
+if [ "${prepare_rc}" -ne 0 ]; then
+    write_status "failed phase=prepare exit_code=${prepare_rc}"
+    exit "${prepare_rc}"
+fi
+
+write_status "running phase=repack"
+set +e
+srun -n 1 python -u scripts/redistribute_checkpoint.py \
+    --input "${raw}" --output "${final}" --manifest "${manifest}"
+repack_rc=$?
+set -e
+if [ "${repack_rc}" -ne 0 ]; then
+    write_status "failed phase=repack exit_code=${repack_rc}"
+    exit "${repack_rc}"
+fi
+
+rm -f "${raw}"
+write_status "finished phase=published exit_code=0"
