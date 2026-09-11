@@ -115,6 +115,8 @@ def _cache_manifest(root_attrs, out_fn, mesh, checkpoint_fields):
         "lc",
         "lc_coarse",
         "buffer_m",
+        "geometry_source",
+        "geometry_source_method",
     }
     missing = sorted(required_attrs - set(root_attrs))
     if missing:
@@ -137,6 +139,11 @@ def _cache_manifest(root_attrs, out_fn, mesh, checkpoint_fields):
         ),
         "source_inversion_sha256": attrs["source_inversion_sha256"],
         "source_mesh_sha256": attrs["source_mesh_sha256"],
+        "geometry_source": attrs["geometry_source"],
+        "geometry_source_basename": os.path.basename(
+            attrs["geometry_source"]
+        ),
+        "geometry_source_method": attrs["geometry_source_method"],
         "diagnostic_solver_mode": attrs["diagnostic_solver_mode"],
         "solver_configuration": configuration,
         "solver_configuration_fingerprint": attrs[

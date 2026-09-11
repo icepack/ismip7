@@ -35,7 +35,7 @@ MATRIX_STEPS ?= 5
 MATRIX_DT_2500 ?= 0.25
 MATRIX_DT_2500_TAG := $(subst .,p,$(MATRIX_DT_2500))
 TIMING_KIND ?= matrix
-TIMING_TAG ?= scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict_v2
+TIMING_TAG ?= scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict_v3
 TIMING_EXPERIMENT ?= timing
 # Optional exact-input overrides for a single transient lane.  The resolution
 # matrix leaves these empty and constructs each target mesh parametrically.

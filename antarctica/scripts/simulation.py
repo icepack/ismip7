@@ -66,6 +66,7 @@ from icepack2_tools.naming import map_basename
 from icepack2_tools.runconfig import (
     friction as _friction, geometry_space as _geometry_space,
     lc as _lc, lc_coarse as _lc_coarse, n_flow as _n_flow,
+    TARGET_MESH_GEOMETRY_METHOD,
 )
 from icepack2_tools.solverconfig import (
     continuation_steps,
@@ -234,6 +235,8 @@ def setup_model(restart_from=None):
             "geometry_space",
             "n_flow",
             "a4_factor",
+            "geometry_source",
+            "geometry_source_method",
         ):
             if _chk.has_attr("/", _key):
                 checkpoint_metadata[_key] = _chk.get_attr("/", _key)
@@ -273,6 +276,7 @@ def setup_model(restart_from=None):
                               chk_lc if chk_lc is not None else lc,
                               chk_buffer_m))
 
+    source_mesh_basename = mesh_basename
     mesh_fn = os.environ.get("ISMIP7_MESH")
     if mesh_fn:
         # The timing matrix deliberately solves on a mesh different from the
@@ -382,10 +386,20 @@ def setup_model(restart_from=None):
         fillvalue=0.0,
     )
 
+    geometry_source = checkpoint_metadata.get("geometry_source")
+    geometry_source_method = checkpoint_metadata.get(
+        "geometry_source_method"
+    )
     if not is_restart:
         # Cold start: geometry from BedMachine (RC/Budd overwrites it with the
-        # inversion-time geometry from the MAP in the reference-load block).
+        # inversion-time geometry from the MAP only when no target-mesh
+        # override is active; target timing meshes retain this cell average).
         bm_fn = find_file(os.path.join(DATA_DIR, "bedmachine"), "*.nc")
+        geometry_source = os.path.realpath(bm_fn)
+        geometry_source_method = (
+            TARGET_MESH_GEOMETRY_METHOD if geom_dg
+            else "target-native-bedmachine-nodal-v1"
+        )
         # Cell average onto the geometry space, NOT a centroid point sample --
         # see geometry.sample_to_geometry for the measurements behind that.
         b = sample_to_geometry(
@@ -531,11 +545,34 @@ def setup_model(restart_from=None):
                 f"(t_yr={t_restart}, friction={friction})"
             )
         elif use_rc:
-            # Cold RC/Budd: geometry + velocity_obs from the MAP so the
-            # Weertman anchor C_w0 (hence the meaning of theta) is reproduced.
-            H = load_checkpoint_field(chk, "thickness", Q_g)
-            b = load_checkpoint_field(chk, "bed", Q_g)
-            s = load_checkpoint_field(chk, "surface", Q_g)
+            # Cold RC/Budd normally uses the inversion-time MAP geometry. A
+            # timing mesh override is different: interpolating a discontinuous
+            # source DG0 field directly onto target DG0 samples one source cell
+            # at each target centroid. The resulting aliasing is read as
+            # driving stress because DG0 surface slope lives in facet jumps.
+            # Retain the target-native BedMachine cell averages constructed
+            # above; C_w0, N_ref, phi_eff, and H_init are then built from this
+            # exact target geometry below. Continuous controls and u_obs still
+            # come from the imported inversion.
+            target_mesh_differs = (
+                mesh_fn
+                and geom_dg
+                and (
+                    not source_mesh_basename
+                    or os.path.basename(mesh_fn) != source_mesh_basename
+                )
+            )
+            if target_mesh_differs:
+                PETSc.Sys.Print(
+                    "  Target-mesh geometry: cell-averaged BedMachine "
+                    f"({os.path.basename(geometry_source)})"
+                )
+            else:
+                H = load_checkpoint_field(chk, "thickness", Q_g)
+                b = load_checkpoint_field(chk, "bed", Q_g)
+                s = load_checkpoint_field(chk, "surface", Q_g)
+                geometry_source = os.path.realpath(source_chk)
+                geometry_source_method = "checkpoint-native-v1"
             _uo = load_checkpoint_field(chk, "velocity_obs", V)
             u_obs.dat.data[:] = _uo.dat.data_ro
             if h_clamp_init > 0.0:
@@ -1065,6 +1102,8 @@ def setup_model(restart_from=None):
         "geom_dg": geom_dg,
         "geom_xy": geom_xy,
         "mesh_basename": mesh_basename,
+        "geometry_source": geometry_source,
+        "geometry_source_method": geometry_source_method,
         "V": V,
         "Z": Z,
         "z": z,
@@ -1161,6 +1200,9 @@ def save_model_state(ctx, final_path, t_now, extra_attrs=None):
         )
         if ctx.get("mesh_basename"):
             chk.set_attr("/", "mesh_basename", str(ctx["mesh_basename"]))
+        for name in ("geometry_source", "geometry_source_method"):
+            if ctx.get(name):
+                chk.set_attr("/", name, str(ctx[name]))
         for name in ("lc", "lc_coarse"):
             if ctx.get(name) is not None:
                 chk.set_attr("/", name, int(ctx[name]))

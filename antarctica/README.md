@@ -573,15 +573,21 @@ The stages and contracts are:
    The campaign tag contains `dg0_logvelnet_cached_strict`, so an old-MAP
    record cannot satisfy this campaign.
 2. **Prepared caches (`make timing-prepare`)** — one job for each of the ten
-   `(LC, LC_coarse)` meshes performs the adaptive cold continuation and saves
-   the complete mixed state at 2015.0 without a transport step. It includes
-   geometry, velocity, membrane and basal stress, controls, the exact velocity
-   observation field, physical priors,
+   `(LC, LC_coarse)` meshes constructs `bed` and `thickness` as cell averages
+   of BedMachine on that exact target mesh, recomputes the hydrostatic surface,
+   performs the adaptive cold continuation, and saves the complete mixed state
+   at 2015.0 without a transport step. Only continuous inversion products
+   (controls, fluidity prior, and observed velocity) are transferred from the
+   imported MAP; direct DG0-to-DG0 interpolation is forbidden because it
+   aliases source cells at target centroids into artificial surface jumps. It
+   includes geometry, velocity, membrane and basal stress, controls, the exact
+   velocity observation field, physical priors,
    frozen reference fields, mesh identity, solver configuration, and source
-   inversion checksum. Cache schema v2 requires an explicit inventory of these
-   fields, including `velocity_obs`. The job then repacks the cache on one rank and publishes
-   the HDF5 file and JSON manifest atomically. Mesh, inversion, physics, solver,
-   or cache-schema changes invalidate it.
+   inversion checksum. Cache schema v3 requires an explicit inventory of these
+   fields, including `velocity_obs`, plus the target-geometry source and
+   construction method. The job then repacks the cache on one rank and
+   publishes the HDF5 file and JSON manifest atomically. Mesh, inversion,
+   physics, solver, or cache-schema changes invalidate it.
 3. **Scouts (`make timing-scout`)** — one lowest-retained-core lane per mesh:
    32 ranks at 500 m and 16 ranks elsewhere. A scout passes only after five
    direct steps, the exact final year, no negative solve reason or rescue

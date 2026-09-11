@@ -13,12 +13,17 @@ import hashlib
 import json
 import math
 import os
+import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, os.fspath(Path(__file__).resolve().parents[2]))
 
-RECORD_SCHEMA_VERSION = 2
-CACHE_SCHEMA_VERSION = 2
+from icepack2_tools.runconfig import TARGET_MESH_GEOMETRY_METHOD
+
+
+RECORD_SCHEMA_VERSION = 3
+CACHE_SCHEMA_VERSION = 3
 CACHE_ROLE = "timing-initial-state"
 CACHE_REQUIRED_FIELDS = (
     "log_friction",
@@ -54,9 +59,9 @@ SOURCE_INVERSION_BASENAME = (
     "inversion_icepack2_budd_n3_dg0_logvelnet_2500_1core.h5"
 )
 CAMPAIGN_TAG = (
-    "scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict_v2"
+    "scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict_v3"
 )
-CACHE_TAG = "scpc_mumps_dg0_logvelnet_v2"
+CACHE_TAG = "scpc_mumps_dg0_logvelnet_v3"
 
 MATRIX_T_START = 2015.0
 MATRIX_STEPS = 5
@@ -259,6 +264,7 @@ def validate_cache_manifest(
         "t_yr": MATRIX_T_START,
         "mesh_basename": mesh_basename(lc, lc_coarse),
         "source_inversion_basename": SOURCE_INVERSION_BASENAME,
+        "geometry_source_method": TARGET_MESH_GEOMETRY_METHOD,
     }
     for key, value in expected.items():
         actual = manifest.get(key)
@@ -274,6 +280,13 @@ def validate_cache_manifest(
     for key in ("source_inversion_sha256", "source_mesh_sha256"):
         if not manifest.get(key):
             return False, f"cache {key} is missing"
+    for key in ("geometry_source", "geometry_source_basename"):
+        if not manifest.get(key):
+            return False, f"cache {key} is missing"
+    if os.path.basename(os.fspath(manifest["geometry_source"])) != manifest[
+        "geometry_source_basename"
+    ]:
+        return False, "cache geometry-source basename is inconsistent"
     checkpoint_fields = manifest.get("checkpoint_fields")
     if not isinstance(checkpoint_fields, list):
         return False, "cache checkpoint_fields is missing"

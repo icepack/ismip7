@@ -29,6 +29,7 @@ from timing_campaign import (  # noqa: E402
     atomic_write_json,
     solver_configuration_fingerprint,
 )
+from icepack2_tools.runconfig import TARGET_MESH_GEOMETRY_METHOD  # noqa: E402
 
 
 def spaces(mesh):
@@ -108,6 +109,8 @@ def write_cache(path):
         "lc": 1,
         "lc_coarse": 10,
         "buffer_m": 20000,
+        "geometry_source": "/synthetic/BedMachine.nc",
+        "geometry_source_method": TARGET_MESH_GEOMETRY_METHOD,
     }
     configuration = solver_provenance()
     attrs = {
@@ -123,6 +126,8 @@ def write_cache(path):
         ),
         "n_flow": 3.0,
         "a4_factor": 1.0,
+        "geometry_source": "/synthetic/BedMachine.nc",
+        "geometry_source_method": TARGET_MESH_GEOMETRY_METHOD,
     }
     save_model_state(ctx, path, 2015.0, extra_attrs=attrs)
     PETSc.Sys.Print(f"Wrote tiny cache on {mesh.comm.size} ranks: {path}")
@@ -168,6 +173,8 @@ def check_cache(path, signature_path):
                 "geometry_space",
                 "lc",
                 "lc_coarse",
+                "geometry_source",
+                "geometry_source_method",
             )
         }
     assembled = fd.assemble(residual_form(state))

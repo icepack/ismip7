@@ -37,6 +37,13 @@ FRICTION_DEFAULT = "budd"
 # forward that loads its MAP must agree on this.
 N_FLOW_DEFAULT = "3.0"
 
+# Exact-mesh timing caches initialize DG0 geometry from BedMachine on the
+# TARGET mesh. The raster is first sampled into CG1 and then L2-projected to
+# DG0, so each cell stores an average rather than one centroid pixel. Keep the
+# method name stable: it is stamped into cache provenance and changing the
+# construction must invalidate old caches.
+TARGET_MESH_GEOMETRY_METHOD = "target-native-bedmachine-cell-average-v1"
+
 GEOMETRY_SPACES = ("dg0", "cg1")
 
 

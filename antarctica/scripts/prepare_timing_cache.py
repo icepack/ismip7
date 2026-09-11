@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Prepare a solved, zero-step transient state on one exact target mesh.
 
-The parallel preparation job loads the improved 2.5 km inversion, interpolates
-it once onto the requested mesh, performs the normal adaptive cold
-continuation, and writes a complete mixed state. A separate one-rank repack
-publishes the final cache and manifest.
+The parallel preparation job builds cell-averaged BedMachine geometry on the
+requested mesh, transfers the continuous fields from the improved 2.5 km
+inversion, performs the normal adaptive cold continuation, and writes a
+complete mixed state. A separate one-rank repack publishes the final cache and
+manifest.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from timing_campaign import (
     sha256_file,
     solver_configuration_fingerprint,
 )
+from icepack2_tools.runconfig import TARGET_MESH_GEOMETRY_METHOD
 
 
 def _required(name):
@@ -66,6 +68,15 @@ def main():
     )
 
     ctx = setup_model(restart_from=None)
+    geometry_method = ctx.get("geometry_source_method")
+    if geometry_method != TARGET_MESH_GEOMETRY_METHOD:
+        raise RuntimeError(
+            "timing cache geometry was initialized with "
+            f"{geometry_method!r}; expected {TARGET_MESH_GEOMETRY_METHOD!r}"
+        )
+    geometry_source = ctx.get("geometry_source")
+    if not geometry_source:
+        raise RuntimeError("timing cache geometry source was not recorded")
     attrs = {
         "timing_cache_schema_version": CACHE_SCHEMA_VERSION,
         "timing_cache_role": CACHE_ROLE,
@@ -77,12 +88,15 @@ def main():
         "solver_configuration_fingerprint": fingerprint,
         "n_flow": float(ctx["n_flow_val"]),
         "a4_factor": float(os.environ.get("ISMIP7_A4_FACTOR", "1.0")),
+        "geometry_source": os.path.realpath(geometry_source),
+        "geometry_source_method": geometry_method,
     }
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     save_model_state(ctx, output, MATRIX_T_START, extra_attrs=attrs)
     PETSc.Sys.Print(
         f"Prepared zero-step full-state cache: {output} "
-        f"(source sha256={source_sha256})"
+        f"(source sha256={source_sha256}, geometry={geometry_method}, "
+        f"geometry source={os.path.basename(geometry_source)})"
     )
 
 

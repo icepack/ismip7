@@ -151,6 +151,9 @@ def _load_and_validate_cache(current_solver_configuration):
         "source_inversion": manifest["source_inversion"],
         "source_inversion_sha256": manifest["source_inversion_sha256"],
         "source_mesh_sha256": manifest["source_mesh_sha256"],
+        "geometry_source": manifest["geometry_source"],
+        "geometry_source_basename": manifest["geometry_source_basename"],
+        "geometry_source_method": manifest["geometry_source_method"],
         "solver_configuration_fingerprint": fingerprint,
         "manifest": manifest,
     }
@@ -170,6 +173,8 @@ def _validate_loaded_cache(ctx, cache_validation):
         "source_inversion": manifest["source_inversion"],
         "source_inversion_sha256": manifest["source_inversion_sha256"],
         "source_mesh_sha256": manifest["source_mesh_sha256"],
+        "geometry_source": manifest["geometry_source"],
+        "geometry_source_method": manifest["geometry_source_method"],
         "diagnostic_solver_mode": manifest["diagnostic_solver_mode"],
         "solver_configuration_fingerprint": manifest[
             "solver_configuration_fingerprint"

@@ -119,6 +119,20 @@ The same rule applies to the RACMO SMB climatology, which sets the mass budget
 and the `a_ref` balance: `forcing.load_racmo_smb_climatology` cell-averages onto
 a DG0 space (`forcing._sample_raster`) and stays the nodal interpolant on CG1.
 
+It also applies when an inversion is used on a different timing mesh. A direct
+DG0-to-DG0 cross-mesh interpolation samples the discontinuous source field at
+each target-cell centroid; non-nested mesh boundaries then alias into artificial
+target-cell jumps. This escaped the first cached timing campaign because the
+controls and velocity are continuous CG1 fields, where the same transfer is
+appropriate, while `h`, `b`, and `s` are not. On the 2500/25000 timing mesh the
+aliased cache had an RMS surface jump of 67.2 m versus 51.5 m for target-native
+BedMachine cell averages, and its first transient steps ran from 19,092 m/yr to
+4.05e6 and then 5.10e9 m/yr. The later transport-budget failure was a symptom of
+that diagnostic runaway. Exact-mesh caches therefore construct `h` and `b` from
+BedMachine on the target mesh, recompute hydrostatic `s`, transfer only the
+continuous inversion products, and recompute geometry-dependent anchors before
+the cold diagnostic continuation.
+
 ## Where a CG1 reconstruction is still used, and why that is legitimate
 
 A DG0 field has no pointwise gradient, so three places reconstruct one via
