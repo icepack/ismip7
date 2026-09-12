@@ -8,6 +8,7 @@
 #   inversion     verify the imported improved DG0 logvelnet inversion
 #   redistribute  rewrite the complete inversion checkpoint on 1 core
 #   timing-prepare  prepare/repack one exact-mesh state for all 10 meshes
+#   timing-cache-audit  report the exact initial FV tendency of prepared caches
 #   timing-scout    submit the lowest retained core count for each mesh
 #   timing-scale    submit only scaling lanes whose exact scout passed
 #   transient       direct qualification/debug compatibility entry point
@@ -122,7 +123,7 @@ DEBUG_STAMP := $(shell date +%Y%m%d_%H%M%S)
 .PHONY: timing meshes inversion redistribute transient transient-direct \
 	qualify qualify-if-needed qualify-2step qualify-5step timestep-probe debug \
 	reference solver-smoke matrix matrix-legacy sync-results timing-prepare timing-scout \
-	timing-scale timing-dry-run timing-cache-smoke
+	timing-scale timing-dry-run timing-cache-smoke timing-cache-audit
 
 timing: qualify-if-needed
 	@mkdir -p results/timing
@@ -277,6 +278,13 @@ timing-prepare:
 	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",) \
 	  $(if $(FORCE_TIMING),--force,)
 
+timing-cache-audit:
+	python scripts/manage_timing_campaign.py audit \
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
+	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",) \
+	  $(if $(FORCE_TIMING),--force,)
+
 timing-scout:
 	python scripts/manage_timing_campaign.py scout \
 	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
@@ -423,6 +431,9 @@ timing-cache-smoke:
 	  --input "$$smoke_dir/cache_1core.h5" --signature "$$smoke_dir/n1.json"; \
 	OMP_NUM_THREADS=1 mpiexec -n 2 python scripts/smoke_timing_cache.py check \
 	  --input "$$smoke_dir/cache_1core.h5" --signature "$$smoke_dir/n2.json"; \
+	OMP_NUM_THREADS=1 mpiexec -n 2 python scripts/audit_timing_cache.py \
+	  --cache "$$smoke_dir/cache_1core.h5" \
+	  --output "$$smoke_dir/cache_audit.json"; \
 	python scripts/smoke_timing_cache.py compare \
 	  "$$smoke_dir/n1.json" "$$smoke_dir/n2.json"
 

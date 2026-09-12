@@ -588,6 +588,17 @@ The stages and contracts are:
    construction method. The job then repacks the cache on one rank and
    publishes the HDF5 file and JSON manifest atomically. Mesh, inversion,
    physics, solver, or cache-schema changes invalidate it.
+   ```console
+   make timing-cache-audit TIMING_ONLY_MESH=2500/25000 \
+     SLURM_PARTITION=debug SLURM_TIME=00:15:00
+   ```
+
+   This submits a read-only assembly of the exact initial DG0 upwind
+   `div(h*u)` in one cache. It writes a small JSON record under
+   `results/timing/` with global extrema, hotspot coordinates, local thickness
+   and height above flotation, and the fixed-front-masked equivalent; it
+   performs no diagnostic or transport solve.
+
 3. **Scouts (`make timing-scout`)** — one lowest-retained-core lane per mesh:
    32 ranks at 500 m and 16 ranks elsewhere. A scout passes only after five
    direct steps, the exact final year, no negative solve reason or rescue
@@ -639,10 +650,11 @@ fail.
 
 Individual stages can be run separately: `make meshes`, `make redistribute`,
 `make qualify`, `make timestep-probe`, `make timing-prepare`,
-`make timing-scout`, `make timing-scale`, `make sync-results`, and
-`make matrix`. `make timing-dry-run` prints the staged commands without
-submitting jobs. `make transient` routes matrix work through the scout gate;
-qualification/debug calls still use its direct compatibility path.
+`make timing-cache-audit`, `make timing-scout`, `make timing-scale`,
+`make sync-results`, and `make matrix`. `make timing-dry-run` prints the staged
+commands without submitting jobs. `make transient` routes matrix work through
+the scout gate; qualification/debug calls still use its direct compatibility
+path.
 Use `TIMING_ONLY_MESH=2500/25000` to prepare or scout one exact mesh, and add
 `TIMING_SCOUT_MONITOR=1` to write that scout's SNES/KSP monitor under
 `results/logs/`. Before treating a live-looking status as active, the campaign

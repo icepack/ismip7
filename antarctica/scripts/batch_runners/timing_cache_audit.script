@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Read-only audit of one prepared timing cache's initial FV tendency.
+
+#SBATCH -J ant_timing_audit
+#SBATCH -p debug
+#SBATCH -o ant_timing_audit_%j.txt
+#SBATCH -e ant_timing_audit_%j.err
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=dlilien@iu.edu
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=16
+#SBATCH --time=00:15:00
+#SBATCH --mem=64G
+#SBATCH -A r00905
+
+module use /N/u/dlilien/Quartz/modulefiles
+module load gnu/9.3.0
+module load openmpi/4.0.5
+module load python/3.14.5
+module load zlib/1.2.13
+module load hdf5/1.12
+module load openblas/0.3.13
+module load patchelf/0.18.0
+module load petsc/3.25.5
+module load firedrake/2026.04
+. /N/u/dlilien/Quartz/sw/firedrake/2026.04/firedrake/bin/activate
+
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+cd "${SLURM_SUBMIT_DIR:-.}"
+
+cache="${ISMIP7_TIMING_CACHE:?ISMIP7_TIMING_CACHE is required}"
+manifest="${ISMIP7_TIMING_CACHE_MANIFEST:?ISMIP7_TIMING_CACHE_MANIFEST is required}"
+output="${ISMIP7_TIMING_CACHE_AUDIT_OUTPUT:?ISMIP7_TIMING_CACHE_AUDIT_OUTPUT is required}"
+status="${ISMIP7_TIMING_CACHE_AUDIT_STATUS:?ISMIP7_TIMING_CACHE_AUDIT_STATUS is required}"
+
+write_status() {
+    status_tmp="${status}.tmp.${SLURM_JOB_ID:-$$}"
+    printf '%s job_id=%s timestamp=%s\n' \
+        "$1" "${SLURM_JOB_ID:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        > "${status_tmp}"
+    mv -f "${status_tmp}" "${status}"
+}
+
+write_status "running phase=audit"
+set +e
+srun -n "${SLURM_NTASKS}" python -u scripts/audit_timing_cache.py \
+    --cache "${cache}" --manifest "${manifest}" --output "${output}"
+audit_rc=$?
+set -e
+if [ "${audit_rc}" -ne 0 ]; then
+    write_status "failed phase=audit exit_code=${audit_rc}"
+    exit "${audit_rc}"
+fi
+
+write_status "finished phase=audit exit_code=0"

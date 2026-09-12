@@ -281,6 +281,13 @@ class CampaignManager:
             f"status_cache_{CACHE_TAG}_{lc}_{lc_coarse}.txt"
         )
 
+    def cache_audit_paths(self, lc, lc_coarse):
+        stem = f"cache_audit_{CACHE_TAG}_{lc}_{lc_coarse}"
+        return (
+            self.timing_dir / f"{stem}.json",
+            self.timing_dir / f"status_{stem}.txt",
+        )
+
     def cache_validation(self, lc, lc_coarse):
         if self.dry_run and self.assume_valid_caches:
             return True, "assumed valid for dry-run command inspection"
@@ -406,6 +413,44 @@ class CampaignManager:
                 MEMORY_BY_LC[lc],
                 exports,
                 self.root / "scripts/batch_runners/timing_prepare.script",
+                status_path,
+            )
+
+    def audit(self):
+        for lc, lc_coarse in self.selected_rows():
+            valid, detail = self.cache_validation(lc, lc_coarse)
+            if not valid:
+                print(f"AUDIT WAITING CACHE {lc}/{lc_coarse}: {detail}")
+                continue
+            output_path, status_path = self.cache_audit_paths(lc, lc_coarse)
+            if output_path.is_file() and not self.force:
+                print(f"AUDIT OK {lc}/{lc_coarse}: {output_path}")
+                continue
+            status, active = self.reconcile_status(status_path)
+            if active and not self.force:
+                print(f"AUDIT ACTIVE {lc}/{lc_coarse}: {status['state']}")
+                continue
+            if not self.force and status and status.get("state") == "failed":
+                print(
+                    f"AUDIT FAILED {lc}/{lc_coarse}: retry with "
+                    "FORCE_TIMING=1 after inspection"
+                )
+                continue
+            cache, manifest = cache_paths(self.cache_dir, lc, lc_coarse)
+            ncores = 32 if lc == 500 else 16
+            exports = {
+                "ISMIP7_TIMING_CACHE": cache,
+                "ISMIP7_TIMING_CACHE_MANIFEST": manifest,
+                "ISMIP7_TIMING_CACHE_AUDIT_OUTPUT": output_path,
+                "ISMIP7_TIMING_CACHE_AUDIT_STATUS": status_path,
+            }
+            self._submit(
+                f"timing_cache_audit_{lc}_{lc_coarse}",
+                ncores,
+                MEMORY_BY_LC[lc],
+                exports,
+                self.root
+                / "scripts/batch_runners/timing_cache_audit.script",
                 status_path,
             )
 
@@ -547,7 +592,9 @@ class CampaignManager:
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=("prepare", "scout", "scale"))
+    parser.add_argument(
+        "stage", choices=("prepare", "audit", "scout", "scale")
+    )
     parser.add_argument("--root", default=_ROOT)
     parser.add_argument("--cache-dir", default=_ROOT / "results/timing/cache")
     parser.add_argument("--timing-dir", default=_ROOT / "results/timing")
