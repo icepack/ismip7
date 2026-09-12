@@ -21,6 +21,7 @@ from icepack2_tools.solverconfig import (
     solver_provenance,
 )
 from timing_campaign import (
+    AMB_PROBE_TAG,
     BUFFER_M,
     CAMPAIGN_TAG,
     CACHE_TAG,
@@ -481,6 +482,123 @@ class CampaignManager:
             return "failed", status.get("category", status["state"])
         return "missing", "no record or active status"
 
+    def probe_result(self, lc, lc_coarse, ncores):
+        record_path = self.timing_dir / timing_record_basename(
+            AMB_PROBE_TAG, lc, lc_coarse, ncores
+        )
+        status_path = self.timing_dir / timing_status_basename(
+            AMB_PROBE_TAG, lc, lc_coarse, ncores
+        )
+        record, error = read_record(record_path)
+        if error:
+            return "invalid", error, status_path
+        if record is not None:
+            valid, detail = validate_timing_record(
+                record,
+                lc=lc,
+                lc_coarse=lc_coarse,
+                ncores=ncores,
+                timing_kind="cache_probe",
+                timing_tag=AMB_PROBE_TAG,
+                apparent_mb_mode="div",
+            )
+            return ("passed" if valid else "failed"), detail, status_path
+        status, active = self.reconcile_status(status_path)
+        if active:
+            return "active", status["state"], status_path
+        if status and status.get("state") in {
+            "failed", "finished", "submission_failed", "not_runnable"
+        }:
+            return (
+                "failed",
+                status.get("category", status["state"]),
+                status_path,
+            )
+        return "missing", "no record or active status", status_path
+
+    def probe(self):
+        if self.only_mesh is None:
+            raise SystemExit(
+                "The apparent-MB cache probe requires --only-mesh LC/LC_coarse"
+            )
+        lc, lc_coarse = self.only_mesh
+        ncores = 32 if lc == 500 else 16
+        state, detail, status_path = self.probe_result(
+            lc, lc_coarse, ncores
+        )
+        if state in {"passed", "active"} and not self.force:
+            print(f"PROBE {state.upper()} {lc}/{lc_coarse}: {detail}")
+            return
+        if state == "failed" and not self.force:
+            print(
+                f"PROBE FAILED {lc}/{lc_coarse}: {detail}; retry with "
+                "FORCE_TIMING=1 after inspection"
+            )
+            return
+        valid, cache_detail = self.cache_validation(lc, lc_coarse)
+        if not valid:
+            print(f"PROBE WAITING CACHE {lc}/{lc_coarse}: {cache_detail}")
+            return
+        cache, manifest = cache_paths(self.cache_dir, lc, lc_coarse)
+        boundary = self.boundary_path(lc, lc_coarse)
+        if not boundary.is_file() and not (
+            self.dry_run and self.assume_valid_caches
+        ):
+            print(
+                f"PROBE NOT RUNNABLE {lc}/{lc_coarse}: missing {boundary}"
+            )
+            if not self.dry_run:
+                atomic_write_status(
+                    status_path,
+                    "not_runnable",
+                    reason="missing_boundary_ids",
+                )
+            return
+        dt = expected_dt(lc)
+        exports = {
+            "ISMIP7_LC": lc,
+            "ISMIP7_LC_COARSE": lc_coarse,
+            "ISMIP7_BUFFER_M": BUFFER_M,
+            "ISMIP7_BNDIDS": boundary,
+            "ISMIP7_INVERSION": self.inversion,
+            "ISMIP7_RESTART": cache,
+            "ISMIP7_TIMING_CACHE_MANIFEST": manifest,
+            "ISMIP7_FRICTION": "budd",
+            "ISMIP7_GEOMETRY_SPACE": "dg0",
+            "ISMIP7_N_FLOW": "3.0",
+            "ISMIP7_A4_FACTOR": "1.0",
+            "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER": SOLVER_MODE,
+            "ISMIP7_SNES_DIVERGENCE_TOL": SNES_DIVERGENCE_TOL_DEFAULT,
+            "ISMIP7_RESCUE_ENABLED": "0",
+            "ISMIP7_SUBCYCLES": "1",
+            "ISMIP7_APPARENT_MB": "div",
+            "ISMIP7_AMB_CAP": "0",
+            "ISMIP7_T_END": f"{expected_t_end(lc):.12g}",
+            "ISMIP7_DT": f"{dt:.12g}",
+            "ISMIP7_TIMING_KIND": "cache_probe",
+            "ISMIP7_TIMING_TAG": AMB_PROBE_TAG,
+            "ISMIP7_TIMING_EXPERIMENT": (
+                f"timing_{AMB_PROBE_TAG}_lcc{lc_coarse}_n{ncores}"
+            ),
+            "ISMIP7_TIMING_STATUS": status_path,
+        }
+        if self.monitor:
+            exports.update({
+                "ISMIP7_SNES_MONITOR": "1",
+                "ISMIP7_SNES_LOG": self.logs_dir / (
+                    f"timing_snes_{AMB_PROBE_TAG}_{lc}_{lc_coarse}"
+                    f"_{ncores}.log"
+                ),
+            })
+        self._submit(
+            f"timing_ambdiv_probe_{lc}_{lc_coarse}_{ncores}",
+            ncores,
+            MEMORY_BY_LC[lc],
+            exports,
+            self.root / "scripts/batch_runners/timing_transient.script",
+            status_path,
+        )
+
     def _submit_lane(self, lane):
         lc, lc_coarse, ncores = lane
         state, detail = self.lane_result(*lane)
@@ -593,7 +711,7 @@ class CampaignManager:
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "stage", choices=("prepare", "audit", "scout", "scale")
+        "stage", choices=("prepare", "audit", "probe", "scout", "scale")
     )
     parser.add_argument("--root", default=_ROOT)
     parser.add_argument("--cache-dir", default=_ROOT / "results/timing/cache")

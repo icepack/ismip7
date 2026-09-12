@@ -61,6 +61,7 @@ SOURCE_INVERSION_BASENAME = (
 CAMPAIGN_TAG = (
     "scpc_mumps_5step_dt0p25at2500_dg0_logvelnet_cached_strict_v3"
 )
+AMB_PROBE_TAG = f"{CAMPAIGN_TAG}_ambdiv_probe"
 CACHE_TAG = "scpc_mumps_dg0_logvelnet_v3"
 
 MATRIX_T_START = 2015.0
@@ -325,6 +326,9 @@ def validate_timing_record(
     lc_coarse=None,
     ncores=None,
     require_success=True,
+    timing_kind="matrix",
+    timing_tag=CAMPAIGN_TAG,
+    apparent_mb_mode=None,
 ):
     """Validate the strict five-step contract and return ``(valid, detail)``."""
     if record.get("record_schema_version") != RECORD_SCHEMA_VERSION:
@@ -334,10 +338,28 @@ def validate_timing_record(
         detail = failure.get("category", record.get("run_status", "failed"))
         phase = failure.get("phase")
         return False, detail + (f" at {phase}" if phase else "")
-    if record.get("timing_kind") != "matrix":
+    if record.get("timing_kind") != timing_kind:
         return False, f"timing_kind={record.get('timing_kind')!r}"
-    if record.get("timing_tag") != CAMPAIGN_TAG:
+    if record.get("timing_tag") != timing_tag:
         return False, f"timing_tag={record.get('timing_tag')!r}"
+    if apparent_mb_mode is not None:
+        if record.get("apparent_mb_mode") != apparent_mb_mode:
+            return False, (
+                "apparent_mb_mode="
+                f"{record.get('apparent_mb_mode')!r}"
+            )
+        try:
+            uncapped = math.isclose(
+                float(record["apparent_mb_cap_m_per_yr"]),
+                0.0,
+                abs_tol=1e-12,
+            )
+        except (KeyError, TypeError, ValueError):
+            uncapped = False
+        if not uncapped:
+            return False, "apparent-MB probe was capped"
+    elif timing_kind == "matrix" and record.get("apparent_mb_mode") is not None:
+        return False, "matrix timing unexpectedly used apparent MB"
     if record.get("diagnostic_solver_mode") != SOLVER_MODE:
         return False, (
             "diagnostic_solver_mode="
@@ -428,7 +450,9 @@ def validate_timing_record(
         return False, "strict timing record did not restrict subcycles to [1]"
     if record.get("timing_scope") != "transient_loop_only":
         return False, f"timing_scope={record.get('timing_scope')!r}"
-    return True, "completed strict cached five-step timing run"
+    if timing_kind == "matrix":
+        return True, "completed strict cached five-step timing run"
+    return True, "completed strict cached five-step run"
 
 
 assert len(mesh_rows()) == 10

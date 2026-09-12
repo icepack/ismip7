@@ -170,8 +170,14 @@ def latest_checkpoint(experiment_name, lc_val=None):
     return best
 
 
-def setup_model(restart_from=None):
-    r"""Load mesh, data, inversion fields, and build diagnostic solver."""
+def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False):
+    r"""Load mesh, data, inversion fields, and build diagnostic solver.
+
+    ``allow_timing_cache_a_ref`` is the narrow exception used after a timing
+    manifest has been validated: it permits ``APPARENT_MB=div`` to be built
+    from that pristine initial state. Evolved restarts must carry their frozen
+    correction and cannot use this escape hatch.
+    """
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     # Friction law: "budd" (power-law dual, default) or "regularized_coulomb"
@@ -534,11 +540,25 @@ def setup_model(restart_from=None):
                     f"the same mass-balance correction."
                 )
             if a_ref_mb is None and amb_env is not None:
-                raise RuntimeError(
-                    f"ISMIP7_APPARENT_MB is set but restart checkpoint "
-                    f"{source_chk} has no a_ref_mb; a fresh a_ref cannot be "
-                    f"built from an evolved state. Unset ISMIP7_APPARENT_MB "
-                    f"or restart from a checkpoint that carries a_ref_mb."
+                is_timing_initial_state = (
+                    checkpoint_metadata.get("timing_cache_role")
+                    == "timing-initial-state"
+                )
+                if not (
+                    allow_timing_cache_a_ref
+                    and is_timing_initial_state
+                    and amb_env == "div"
+                ):
+                    raise RuntimeError(
+                        f"ISMIP7_APPARENT_MB is set but restart checkpoint "
+                        f"{source_chk} has no a_ref_mb; a fresh a_ref cannot "
+                        f"be built from an evolved state. Unset "
+                        f"ISMIP7_APPARENT_MB or restart from a checkpoint "
+                        f"that carries a_ref_mb."
+                    )
+                PETSc.Sys.Print(
+                    "  Validated timing initial state: fresh div(h*u) "
+                    "apparent-MB construction permitted"
                 )
             PETSc.Sys.Print(
                 f"  Restart: evolved geometry + frozen anchors loaded "

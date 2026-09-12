@@ -9,6 +9,7 @@
 #   redistribute  rewrite the complete inversion checkpoint on 1 core
 #   timing-prepare  prepare/repack one exact-mesh state for all 10 meshes
 #   timing-cache-audit  report the exact initial FV tendency of prepared caches
+#   timing-amb-probe  test exact div(h*u) cancellation on one prepared cache
 #   timing-scout    submit the lowest retained core count for each mesh
 #   timing-scale    submit only scaling lanes whose exact scout passed
 #   transient       direct qualification/debug compatibility entry point
@@ -123,7 +124,8 @@ DEBUG_STAMP := $(shell date +%Y%m%d_%H%M%S)
 .PHONY: timing meshes inversion redistribute transient transient-direct \
 	qualify qualify-if-needed qualify-2step qualify-5step timestep-probe debug \
 	reference solver-smoke matrix matrix-legacy sync-results timing-prepare timing-scout \
-	timing-scale timing-dry-run timing-cache-smoke timing-cache-audit
+	timing-scale timing-dry-run timing-cache-smoke timing-cache-audit \
+	timing-amb-probe
 
 timing: qualify-if-needed
 	@mkdir -p results/timing
@@ -283,6 +285,14 @@ timing-cache-audit:
 	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
 	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
 	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",) \
+	  $(if $(FORCE_TIMING),--force,)
+
+timing-amb-probe:
+	python scripts/manage_timing_campaign.py probe \
+	  --inversion "$(TIMING_INVERSION)" --cache-dir "$(TIMING_CACHE_DIR)" \
+	  --partition "$(SLURM_PARTITION)" --walltime "$(SLURM_TIME)" \
+	  $(if $(TIMING_ONLY_MESH),--only-mesh "$(TIMING_ONLY_MESH)",) \
+	  $(if $(TIMING_SCOUT_MONITOR),--monitor,) \
 	  $(if $(FORCE_TIMING),--force,)
 
 timing-scout:

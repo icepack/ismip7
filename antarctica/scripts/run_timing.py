@@ -31,6 +31,7 @@ from icepack2_tools.solverconfig import (
 )
 from simulation import lc, run_simulation, setup_model
 from timing_campaign import (
+    AMB_PROBE_TAG,
     RECORD_SCHEMA_VERSION,
     atomic_write_json,
     atomic_write_status,
@@ -48,6 +49,8 @@ OUTPUT_INTERVAL = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "5"))
 DIAGNOSTIC_LINEAR_SOLVER = diagnostic_solver_mode()
 LINEAR_SOLVER_LABEL = diagnostic_solver_label(DIAGNOSTIC_LINEAR_SOLVER)
 TIMING_KIND = os.environ.get("ISMIP7_TIMING_KIND", "matrix")
+APPARENT_MB_MODE = os.environ.get("ISMIP7_APPARENT_MB")
+APPARENT_MB_CAP = float(os.environ.get("ISMIP7_AMB_CAP", "0"))
 
 
 def _safe_tag(env_name, default):
@@ -63,6 +66,21 @@ EXPERIMENT_NAME = _safe_tag("ISMIP7_TIMING_EXPERIMENT", "timing")
 RESTART_FROM = os.environ.get("ISMIP7_RESTART") or None
 CACHE_MANIFEST = os.environ.get("ISMIP7_TIMING_CACHE_MANIFEST") or None
 STATUS_PATH = os.environ.get("ISMIP7_TIMING_STATUS") or None
+
+
+def _validate_probe_contract():
+    if TIMING_KIND != "cache_probe":
+        return
+    if TIMING_TAG != AMB_PROBE_TAG:
+        raise RuntimeError(
+            f"cache probe tag {TIMING_TAG!r}; expected {AMB_PROBE_TAG!r}"
+        )
+    if APPARENT_MB_MODE != "div":
+        raise RuntimeError(
+            "cache probe requires ISMIP7_APPARENT_MB=div"
+        )
+    if APPARENT_MB_CAP != 0.0:
+        raise RuntimeError("cache probe requires uncapped apparent MB")
 
 
 def _summary(stats, reason_key, iteration_key, residual_key=None):
@@ -117,16 +135,16 @@ def _normal(value):
 
 
 def _load_and_validate_cache(current_solver_configuration):
-    if TIMING_KIND != "matrix":
+    if TIMING_KIND not in {"matrix", "cache_probe"}:
         return {"status": "not_required"}
     if os.environ.get("ISMIP7_MESH"):
         raise RuntimeError(
-            "Matrix timing must load the mesh embedded in its cache; "
+            "Cached timing must load the mesh embedded in its cache; "
             "ISMIP7_MESH must be unset"
         )
     if not RESTART_FROM or not CACHE_MANIFEST:
         raise RuntimeError(
-            "Matrix timing requires ISMIP7_RESTART and "
+            "Cached timing requires ISMIP7_RESTART and "
             "ISMIP7_TIMING_CACHE_MANIFEST"
         )
     with open(CACHE_MANIFEST) as stream:
@@ -160,7 +178,7 @@ def _load_and_validate_cache(current_solver_configuration):
 
 
 def _validate_loaded_cache(ctx, cache_validation):
-    if TIMING_KIND != "matrix":
+    if TIMING_KIND not in {"matrix", "cache_probe"}:
         return
     manifest = cache_validation["manifest"]
     attrs = {
@@ -200,6 +218,7 @@ def _validate_loaded_cache(ctx, cache_validation):
         "lc": manifest["lc"],
         "lc_coarse": manifest["lc_coarse"],
         "buffer_m": manifest["buffer_m"],
+        "t_yr": manifest["t_yr"],
         "mesh_basename": manifest["mesh_basename"],
         "friction": manifest["friction"],
         "geometry_space": manifest["geometry_space"],
@@ -208,6 +227,7 @@ def _validate_loaded_cache(ctx, cache_validation):
         "lc": ctx.get("lc"),
         "lc_coarse": ctx.get("lc_coarse"),
         "buffer_m": int(round(float(ctx.get("buffer_m", -1)))),
+        "t_yr": ctx.get("t_restart"),
         "mesh_basename": ctx.get("mesh_basename"),
         "friction": ctx.get("friction"),
         "geometry_space": "dg0" if ctx.get("geom_dg") else "cg1",
@@ -250,6 +270,7 @@ def _write_record(record, target_lc_coarse, ncores):
 
 
 def main():
+    _validate_probe_contract()
     TIMING_DIR.mkdir(parents=True, exist_ok=True)
     ncores = COMM_WORLD.size
     target_lc_coarse = int(os.environ.get("ISMIP7_LC_COARSE", "0"))
@@ -274,7 +295,10 @@ def main():
     try:
         cache_validation = _load_and_validate_cache(configuration)
         activity = "setup"
-        ctx = setup_model(restart_from=RESTART_FROM)
+        ctx = setup_model(
+            restart_from=RESTART_FROM,
+            allow_timing_cache_a_ref=(TIMING_KIND == "cache_probe"),
+        )
         activity = "loaded_cache_validation"
         try:
             _validate_loaded_cache(ctx, cache_validation)
@@ -405,6 +429,8 @@ def main():
         "timing_kind": TIMING_KIND,
         "timing_tag": TIMING_TAG,
         "experiment_name": EXPERIMENT_NAME,
+        "apparent_mb_mode": APPARENT_MB_MODE,
+        "apparent_mb_cap_m_per_yr": APPARENT_MB_CAP,
         "diagnostic_solver_mode": DIAGNOSTIC_LINEAR_SOLVER,
         "linear_solver": LINEAR_SOLVER_LABEL,
         "transport_solver": "gmres-bjacobi-ilu",

@@ -599,6 +599,21 @@ The stages and contracts are:
    and height above flotation, and the fixed-front-masked equivalent; it
    performs no diagnostic or transport solve.
 
+   To test whether that initial flux divergence triggers a scout failure:
+
+   ```console
+   make timing-amb-probe TIMING_ONLY_MESH=2500/25000 \
+     TIMING_SCOUT_MONITOR=1 SLURM_PARTITION=debug SLURM_TIME=01:00:00
+   ```
+
+   This is a separately tagged causality probe. It validates the cache, builds
+   the exact uncapped `ISMIP7_APPARENT_MB=div` correction from the pristine
+   cached state, and repeats the strict five-step lane. Ordinary evolved
+   restarts remain forbidden from constructing a fresh correction. With no
+   forcing the corrected state should be stationary away from any
+   positivity-limited initially ice-free cells, so a passing probe diagnoses
+   the runaway but is not a representative timing measurement.
+
 3. **Scouts (`make timing-scout`)** — one lowest-retained-core lane per mesh:
    32 ranks at 500 m and 16 ranks elsewhere. A scout passes only after five
    direct steps, the exact final year, no negative solve reason or rescue
@@ -650,14 +665,15 @@ fail.
 
 Individual stages can be run separately: `make meshes`, `make redistribute`,
 `make qualify`, `make timestep-probe`, `make timing-prepare`,
-`make timing-cache-audit`, `make timing-scout`, `make timing-scale`,
-`make sync-results`, and `make matrix`. `make timing-dry-run` prints the staged
-commands without submitting jobs. `make transient` routes matrix work through
-the scout gate; qualification/debug calls still use its direct compatibility
-path.
-Use `TIMING_ONLY_MESH=2500/25000` to prepare or scout one exact mesh, and add
-`TIMING_SCOUT_MONITOR=1` to write that scout's SNES/KSP monitor under
-`results/logs/`. Before treating a live-looking status as active, the campaign
+`make timing-cache-audit`, `make timing-amb-probe`, `make timing-scout`,
+`make timing-scale`, `make sync-results`, and `make matrix`.
+`make timing-dry-run` prints the staged commands without submitting jobs.
+`make transient` routes matrix work through the scout gate;
+qualification/debug calls still use its direct compatibility path.
+Use `TIMING_ONLY_MESH=2500/25000` to prepare, audit, probe, or scout one exact
+mesh, and add `TIMING_SCOUT_MONITOR=1` to write the scout/probe SNES/KSP
+monitor under `results/logs/`. Before treating a live-looking status as active,
+the campaign
 manager checks both `squeue` and `sacct`; a cancelled, timed-out, OOM, or
 otherwise terminated allocation is recorded as an external failure instead of
 being silently resubmitted.
