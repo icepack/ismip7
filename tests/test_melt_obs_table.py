@@ -13,7 +13,9 @@ by header name instead, and this pins that.
 
 The integrated targets differ by 23% (865.0 against 1067.4 Gt/yr), so which
 table a calibration used is part of its provenance and belongs in the saved
-npz.
+npz. The second half pins the default search order, the ``[!]`` line printed
+when that search ends on the older table, and ``ISMIP7_K_OUT``, which writes a
+calibration away from the path every run reads.
 
 Serial and needs no data files. Importing ``calibrate_melt`` loads Firedrake,
 rasterio and icepack, so the tests skip where that stack is absent.
@@ -95,3 +97,156 @@ def test_a_table_without_the_named_columns_is_refused(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="bmr"):
         _load_obs_with(monkeypatch, path)
+
+
+# Which table the default search opens, and where the result is written.
+#
+# IU Quartz staged the new table beside the old one, under
+# parameterisations/ocean/meltobs/. A search with no candidate there ends on
+# the old table, and the two integrate to 865.0 and 1067.4 Gt/yr, so the run
+# has to say which one it opened. The default output is the file every forward
+# and inversion in the checkout reads, so a calibration made as a check needs
+# somewhere else to go.
+
+NEW_NAME = "Melt_Paolo_Davison_Adusumilli_imbie2.csv"
+OLD_NAME = "Melt_Paolo_Err_Adusumilli_imbie2_v3.csv"
+BESIDE_OLD = os.path.join("parameterisations", "ocean", "meltobs")
+
+
+@pytest.fixture
+def calibrate(monkeypatch):
+    r"""Import ``calibrate_melt`` afresh under a given environment.
+
+    The knobs resolve at import, so each test sets its own and the module is
+    dropped afterwards. Knobs a developer's shell may carry are cleared first.
+    """
+    def _import(**env):
+        for key in ("ISMIP7_MELT_OBS_CSV", "ISMIP7_DATA_ROOT", "ISMIP7_K_OUT",
+                    "ISMIP7_K_PER_BASIN_NPZ"):
+            monkeypatch.delenv(key, raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, str(value))
+        monkeypatch.syspath_prepend(_SCRIPTS)
+        sys.modules.pop("calibrate_melt", None)
+        import calibrate_melt
+        return calibrate_melt
+
+    yield _import
+    sys.modules.pop("calibrate_melt", None)
+
+
+def _stage(root, *relative):
+    r"""Touch a table at ``root/relative`` and return its path."""
+    path = os.path.join(str(root), *relative)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _write(path, NEW_HEADER, old_layout=False)
+    return path
+
+
+def test_the_mirror_location_wins(tmp_path, calibrate, capsys):
+    want = _stage(tmp_path, "meltobs", NEW_NAME)
+    _stage(tmp_path, BESIDE_OLD, NEW_NAME)
+    _stage(tmp_path, BESIDE_OLD, OLD_NAME)
+
+    cm = calibrate(ISMIP7_DATA_ROOT=tmp_path)
+    cm._announce_obs_table()
+    said = capsys.readouterr().out
+
+    assert cm.OBS_CSV == want
+    assert want in said
+    assert "[!]" not in said
+
+
+def test_the_new_table_staged_beside_the_old_one_is_found(tmp_path, calibrate,
+                                                         capsys):
+    r"""The Quartz layout: both tables in one directory, no meltobs/ at the root."""
+    want = _stage(tmp_path, BESIDE_OLD, NEW_NAME)
+    _stage(tmp_path, BESIDE_OLD, OLD_NAME)
+
+    cm = calibrate(ISMIP7_DATA_ROOT=tmp_path)
+    cm._announce_obs_table()
+    said = capsys.readouterr().out
+
+    assert cm.OBS_CSV == want
+    assert "[!]" not in said
+
+
+def test_falling_through_to_the_old_table_is_announced(tmp_path, calibrate,
+                                                       capsys):
+    old = _stage(tmp_path, BESIDE_OLD, OLD_NAME)
+
+    cm = calibrate(ISMIP7_DATA_ROOT=tmp_path)
+    cm._announce_obs_table()
+    said = capsys.readouterr().out
+
+    assert cm.OBS_CSV == old
+    assert "[!]" in said
+    # The reader has to learn what was looked for, where, and the way out.
+    assert NEW_NAME in said
+    for searched in cm._OBS_CSV_CANDIDATES[:-1]:
+        assert searched in said
+    assert "ISMIP7_MELT_OBS_CSV" in said
+
+
+def test_a_tree_with_neither_table_is_told_where_it_looked(tmp_path, calibrate,
+                                                           capsys):
+    r"""``main`` raises on the old table's path alone; this line precedes it."""
+    cm = calibrate(ISMIP7_DATA_ROOT=tmp_path)
+    cm._announce_obs_table()
+    said = capsys.readouterr().out
+
+    assert cm.OBS_CSV == cm._OBS_CSV_CANDIDATES[-1]
+    assert "[!]" in said
+    assert os.path.join(str(tmp_path), "meltobs", NEW_NAME) in said
+
+
+def test_naming_the_old_table_is_a_choice_and_is_not_flagged(tmp_path,
+                                                             calibrate, capsys):
+    old = _stage(tmp_path, BESIDE_OLD, OLD_NAME)
+
+    cm = calibrate(ISMIP7_DATA_ROOT=tmp_path, ISMIP7_MELT_OBS_CSV=old)
+    cm._announce_obs_table()
+    said = capsys.readouterr().out
+
+    assert cm.OBS_CSV == old
+    assert old in said
+    assert "[!]" not in said
+
+
+def test_the_default_output_is_the_file_the_runs_read(calibrate):
+    r"""Unset, ISMIP7_K_OUT changes nothing: the calibration lands on the first
+    path the forward and the inversion search."""
+    from icepack2_tools.runconfig import k_per_basin_candidates
+
+    cm = calibrate()
+    results = os.path.join(_ROOT, "antarctica", "results")
+
+    assert cm._k_out() == k_per_basin_candidates(results, cm.LC)[0]
+
+
+def test_the_output_can_be_named_away_from_the_searched_path(tmp_path,
+                                                             calibrate):
+    from icepack2_tools.runconfig import k_per_basin_candidates
+
+    want = str(tmp_path / "check" / "K_2000.npz")
+    cm = calibrate(ISMIP7_K_OUT=want)
+    results = os.path.join(_ROOT, "antarctica", "results")
+
+    assert cm._k_out() == want
+    assert want not in k_per_basin_candidates(results, cm.LC)
+
+
+def test_a_bare_output_name_resolves_under_results(calibrate):
+    cm = calibrate(ISMIP7_K_OUT="K_check.npz")
+
+    assert cm._k_out() == os.path.join(_ROOT, "antarctica", "results",
+                                       "K_check.npz")
+
+
+def test_the_printed_output_path_carries_the_suffix_savez_adds(tmp_path,
+                                                               calibrate):
+    cm = calibrate(ISMIP7_K_OUT=tmp_path / "K_check")
+
+    assert cm._k_out() == str(tmp_path / "K_check.npz")
+    np.savez(str(tmp_path / "K_check"), K_basin=np.zeros(2))
+    assert os.path.exists(cm._k_out())

@@ -17,14 +17,24 @@ at ISMIP7_SIN_ALPHA_CAP (default 5e-3) to suppress unstructured-mesh noise.
 Aggregation: per-node melt is integrated to IMBIE2 basins (8 km labels,
 nearest-neighbour onto the mesh), then compared against the per-basin
 observation table that `_obs_csv` resolves (ISMIP7_MELT_OBS_CSV names one).
+The run prints the table it opened and its integrated target, with a `[!]`
+line when the default search ended on the older table.
 
 Since melt is linear in K, the Term-1 optimum is closed form:
 
     K* = sum_b M_obs(b) * M_1(b) / sigma(b)^2
        / sum_b   M_1(b)^2          / sigma(b)^2
 
+Output: antarctica/results/calibrated_K_per_basin_<LC>.npz, the path every
+forward and inversion in this checkout reads its K from
+(`runconfig.k_per_basin_candidates`). ISMIP7_K_OUT names another destination,
+so a calibration made as a check leaves later runs melting with what they had;
+a bare filename resolves under antarctica/results/.
+
 Usage:
     ISMIP7_LC=2500 python antarctica/scripts/calibrate_melt.py
+    ISMIP7_K_OUT=/scratch/check/K_2000.npz ISMIP7_LC=2000 \
+        python antarctica/scripts/calibrate_melt.py
 """
 
 import os, sys, csv, glob
@@ -72,10 +82,14 @@ IMBIE2_NC = os.path.join(
 # from 865 to 1067 Gt/yr, so the total-match K calibrated against the older
 # Paolo+Adusumilli table is 23% low. Prefer the new table, fall back to the old
 # one so a tree that predates the re-release still runs, and let
-# ISMIP7_MELT_OBS_CSV name either explicitly.
+# ISMIP7_MELT_OBS_CSV name either explicitly. The new table is searched for in
+# two places: where `download_mirror.py` lands it, and beside the old table,
+# where a site that stages files by hand tends to put it, as IU Quartz did.
+_OBS_CSV_NEW = "Melt_Paolo_Davison_Adusumilli_imbie2.csv"
 _OBS_CSV_CANDIDATES = (
-    os.path.join(DATA_ROOT, "meltobs",
-                 "Melt_Paolo_Davison_Adusumilli_imbie2.csv"),
+    os.path.join(DATA_ROOT, "meltobs", _OBS_CSV_NEW),
+    os.path.join(DATA_ROOT, "parameterisations", "ocean", "meltobs",
+                 _OBS_CSV_NEW),
     os.path.join(DATA_ROOT, "parameterisations", "ocean", "meltobs",
                  "Melt_Paolo_Err_Adusumilli_imbie2_v3.csv"),
 )
@@ -93,6 +107,45 @@ def _obs_csv():
 
 
 OBS_CSV = _obs_csv()
+
+
+def _announce_obs_table():
+    r"""Name the table in use, loudly when the search fell through to the old one.
+
+    Runs before the existence checks in `main`, so a tree carrying neither table
+    is told every place that was searched ahead of the FileNotFoundError, which
+    names the old table alone.
+    """
+    PETSc.Sys.Print(f"  Observation table: {OBS_CSV}")
+    if os.environ.get("ISMIP7_MELT_OBS_CSV") or OBS_CSV != _OBS_CSV_CANDIDATES[-1]:
+        return
+    searched = " nor ".join(_OBS_CSV_CANDIDATES[:-1])
+    PETSc.Sys.Print(
+        f"  [!] {_OBS_CSV_NEW} was found at neither {searched}, so this "
+        f"calibrates against the older Paolo and Adusumilli table, whose "
+        f"integrated target is 865.0 Gt/yr where the July 2026 table has "
+        f"1067.4. Stage the new table at one of those paths, or name a table "
+        f"with ISMIP7_MELT_OBS_CSV."
+    )
+
+
+def _k_out():
+    r"""Where the calibration is written.
+
+    The default is the first path `runconfig.k_per_basin_candidates` searches,
+    so every later forward and inversion in this checkout melts with what is
+    written there. ISMIP7_K_OUT names another destination for a calibration
+    made as a check. Like ISMIP7_MAP_OUT, a bare filename resolves under the
+    default directory; no run searches that directory for any other name.
+    """
+    out_dir = os.path.join(_PROJECT, "antarctica", "results")
+    named = os.environ.get("ISMIP7_K_OUT")
+    if not named:
+        return os.path.join(out_dir, f"calibrated_K_per_basin_{LC}.npz")
+    path = named if os.path.dirname(named) else os.path.join(out_dir, named)
+    # np.savez appends the suffix when it is absent; keep the printed path true.
+    return path if path.endswith(".npz") else path + ".npz"
+
 
 SIN_ALPHA_CAP = float(os.environ.get("ISMIP7_SIN_ALPHA_CAP", "5e-3"))
 
@@ -232,9 +285,18 @@ def _load_obs():
 
 def main():
     PETSc.Sys.Print("=== ISMIP7 melt calibration (Burgard quadratic_mixed_slope) ===")
+    _announce_obs_table()
+    K_out = _k_out()
+    PETSc.Sys.Print(f"  K output: {K_out}")
     for p in (INV_H5, CLIM_TF, CLIM_SO, IMBIE2_NC, OBS_CSV):
         if not os.path.exists(p):
             raise FileNotFoundError(p)
+
+    # Read ahead of the mesh work: the integrated target identifies the table
+    # at a glance, and a malformed one fails here instead of after BedMachine.
+    bids_obs, M_obs, sigma_obs = _load_obs()
+    PETSc.Sys.Print(f"  Integrated target: {float(np.sum(M_obs)):.1f} Gt/yr "
+                    f"over {len(bids_obs)} basins")
 
     mesh = _load_mesh()
     Q = FunctionSpace(mesh, "CG", 1)
@@ -293,7 +355,6 @@ def main():
     PETSc.Sys.Print(f"  Sum of nodal weights: {total_area:.3e} m^2 "
                     f"(AIS area ~1.4e13)")
 
-    bids_obs, M_obs, sigma_obs = _load_obs()
     rho_i_si = float(_RHO_I)
     node_kgyr = melt_1 * lumped * rho_i_si
 
@@ -348,9 +409,7 @@ def main():
             K_field[basin == bid] = kb
     K_field[~floating] = 0.0
 
-    out_dir = os.path.join(_PROJECT, "antarctica", "results")
-    os.makedirs(out_dir, exist_ok=True)
-    K_out = os.path.join(out_dir, f"calibrated_K_per_basin_{LC}.npz")
+    os.makedirs(os.path.dirname(K_out), exist_ok=True)
     # Provenance travels with the numbers. Two published observation tables are
     # in circulation and their integrated targets differ by 23%, so a K file
     # that does not name its own source cannot be told apart from the other
