@@ -1,0 +1,2 @@
+nproc, lc (m), lambda, max iterations
+1, 32000, 1.000000e+12, 3
