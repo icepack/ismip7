@@ -265,9 +265,12 @@ within 2% of the 2500 m result that predates it, so the mesh is not what moved.
 `calibrate_melt.py` takes the newer table by default, `ISMIP7_MELT_OBS_CSV`
 names either, and the saved npz records which one produced it.
 
-A forward reads the per-basin `K_basin`, each basin fitted to its own
-observation, so the melt it applies moves basin by basin. The ratio of new to
-old K_b spans 0.86 to 3.58 with a median near 1.15:
+A forward then read the per-basin `K_basin`, each basin fitted to its own
+observation, so the melt it applied moved basin by basin. The ratio of new to
+old K_b spans 0.86 to 3.58 with a median near 1.15. Since 26 September a run
+melts with one K and a thermal-forcing offset per basin from the tracked
+calibration instead (`README.md` section 5); the per-basin K is read only
+when `ISMIP7_K_PER_BASIN_NPZ` names it:
 
 | basin | old K_b | new K_b |
 |---|---|---|
@@ -286,14 +289,14 @@ forcing-version audit, the output writer, and the melt calibration above.
 1. Drive the full-length ssp585 (NOTS 1390452, 2015 to 2301 on the adaptive mesh with
    `ISMIP7_OUTPUT=1`) through the writer and the compliance checker. It is the
    first run at experiment length, so it is what clears the checker's remaining
-   length checks. Record which K calibration it read: a run picks up whichever
-   `calibrated_K_per_basin_*.npz` is staged when it starts. The job is held in
-   the queue until the slope convention shared by calibration and forward is
-   settled, taken up in action 5, since it decides which K the run should read.
-   It no longer waits on MAP self-consistency (section 4, 21 September);
-   its MAP must pass action 3 in the configuration it runs. Once the
-   convention is settled,
-   `scontrol release 1390452` starts it. (issue #27)
+   length checks. The convention it was held for is settled (action 5): runs
+   melt with the tracked calibration, which the held job predates, since it
+   reads whatever calibration its checkout and `results/` offered when it was
+   submitted. Resubmit it from a checkout at or after the merge that made the
+   tracked calibration the default, rather than releasing 1390452. Its mesh
+   is the adaptive one, so the preflight gate asks for the offsets refitted
+   there, or the tracked file named, before it runs.
+   Its MAP must pass action 3 in the configuration it runs. (issue #27)
 2. Settle the `[confirm]` items in the submission README draft with the group. (issue #38)
 3. Run the corrected `check_budd_map.py --forward` on every MAP the matrix
    will use, on its final save, and record the number beside the MAP. A MAP
@@ -323,10 +326,9 @@ forcing-version audit, the output writer, and the melt calibration above.
    quadrature as well, so their totals compare in magnitude.
 
    The rows below predate the seawater flotation test, which landed with
-   issue #66, and the
-   `h > 0` test in the forward half, and are to be re-measured with the DG0
-   melt total (issue #30); the current numbers are in
-   `GEOMETRY_DISCRETIZATION.md`.
+   issue #66, and the `h > 0` test in the forward half. They are the legacy
+   per-basin K files; the forward's melt under the tracked calibration is
+   measured per basin at the end of this action.
 
    | slope | max, m/yr | p99, m/yr | area mean, m/yr | integrated, Gt/yr | past the bound |
    |---|---|---|---|---|---|
@@ -387,14 +389,24 @@ forcing-version audit, the output writer, and the melt calibration above.
    the bound in 0.00545 % of the ssp585's values, and the control no longer
    does.
 
-   `calibrate_melt.py` now fits K through the forward's own melt path under
-   `ISMIP7_GEOMETRY_SPACE=dg0` (issue #30). The forward and the calibration
-   default to the ISMIP7 reference slope, one constant `sin(alpha)` =
-   5.115e-3 (`ISMIP7_MELT_SLOPE=ant`); the local slope, capped or not, stays
-   as `local` and is tied to the unsettled upstream local-slope question.
-   `load_K_per_basin` warns once per run when the K file it reads was fitted
-   under another convention, and under `local` when it records a cap the
-   forward does not apply (issue #26, `GEOMETRY_DISCRETIZATION.md`).
+   The convention was settled on 25 September (issue 26). Runs melt with the
+   ISMIP7 reference slope, one constant `sin(alpha)` = 5.115e-3
+   (`ISMIP7_MELT_SLOPE=ant`), one K and a thermal-forcing offset per basin:
+   K = 6.5e-5, the K50 of the rule-based toolbox selection on the 1000 m /
+   10 km production mesh, with its offsets, fitted through the forward's own
+   DG0 melt path and tracked as
+   `calibration/deltaT_per_basin_1000_K6.500e-05.npz` (`README.md` section 5).
+   The forward melts the cells the fit summed over, floating and holding
+   ice, and refuses an offsets file fitted under another slope or geometry.
+   The local slope, capped or not, stays as `local` and is tied to the
+   unsettled upstream local-slope question; a legacy per-basin K named with
+   `ISMIP7_K_PER_BASIN_NPZ` keeps its warnings (`GEOMETRY_DISCRETIZATION.md`).
+
+   Measured on the production mesh through the forward's own callback (run
+   record `calibration-melt-forward-1km-k50`): 1067.390 Gt/yr against the
+   1067.386 the offsets were fitted to, every basin within 0.006 Gt/yr, and
+   no cell past the bound, with a maximum of 41.7 m/yr and a 99th percentile
+   of 16.2 m/yr.
 6. Optional: read the provided `ctrl` trees in place of the `ssp126`
    reference-climate pool. Closed as icepack/ismip7#43, not planned for
    September 2026.

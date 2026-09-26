@@ -53,6 +53,11 @@ are NOT version controlled:
   per-mesh `boundary_ids_antarctica_*.json` sidecars, which are tracked because
   their names pin them to one exact mesh build; `antarctica/results/`;
   `ISMIP7/` and `antarctica/data/`; all `*.h5`.
+- **Tracked, and read by every run:** the melt calibration in
+  `antarctica/calibration/` (issue 26), with a `.source.json` sidecar holding
+  its sha256 and the settings it was fitted under. A run on any machine melts
+  with it and nothing is calibrated or copied. Replacing it takes a new file,
+  a new sidecar and a new run record.
 - **Therefore:** a run reaches git only as a record. Every simulation has one
   in `antarctica/runlog/` (below), and a core run also has
   `antarctica/reports/coreNN_*.md`, which carries the env knobs at their
@@ -123,6 +128,13 @@ without reading the linked rationale and stating why.
   the block structure without changing the residual; `ISMIP7SCPC` fixes the
   retained-first indexing. Deleting the term or replacing the `Constant` with
   literal zero makes UFL simplify it away and SCPC fails during setup.
+- **Melt falls only on floating cells that hold ice (`forcing.melt_receiving`).**
+  An ice-free ocean cell passes the flotation test at draft 0, and the melt
+  calibration was fitted over cells holding ice, so the forward melts exactly
+  the set its calibration summed over. An offsets file fitted under another
+  slope law, slope constant, geometry space or raster sampling stops the run
+  instead of warning: the forward has to apply the melt its calibration was
+  fitted to. `check_melt_bound.py` measures that per basin.
 
 One line that looks fine and is always a bug:
 

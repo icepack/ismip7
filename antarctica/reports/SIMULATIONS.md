@@ -9,9 +9,9 @@ gitignored, so these records and the per-core reports beside them are
 the trace a run leaves in the repository. A core experiment also gets
 its full report from `core_report.py`; this is the index.
 
-71 records.
+73 records.
 
-Status: 12 planned, 3 running, 3 stopped, 40 done, 13 superseded.
+Status: 12 planned, 3 running, 3 stopped, 42 done, 13 superseded.
 
 ## Inversion
 
@@ -28,6 +28,7 @@ Status: 12 planned, 3 running, 3 stopped, 40 done, 13 superseded.
 | Ocean melt: the per-basin thermal-forcing offset on the 1000 m production mesh | done | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | uncorrected totals 925, 1656 and 2678 Gt/yr at K05, K50 and K95, 2.0 percent above the 2 km mesh; every basin reaches its July total with a root in the toolbox window, and the offsets differ from the 2 km fit by at most 0.12 K (basin 1). The 2 km files applied here put, to first order, 1095, 1085 and 1072 Gt/yr on the fitted basins, with basins 1, 6, 12 and 13 more than 10 percent off at some K and basin 6 44 percent under at K95 |
 | Ocean melt: toolbox K and the per-basin thermal-forcing offset | done | antarctica_5000_2000_buffered0 | local workstation | 2026-09-22 | 2026-09-22 | uncorrected totals 907, 1623 and 2625 Gt/yr at K05, K50 and K95; every basin reaches its observed total with an offset inside 1.3 K, so every basin has a root in the toolbox window |
 | Ocean melt: the per-basin thermal-forcing offset refitted to the July 2026 table | done | antarctica_5000_2000_buffered0, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | uncorrected totals 907, 1623 and 2625 Gt/yr at K05, K50 and K95, as calibration-melt-2km measured, which is 0.85, 1.52 and 2.46 times 1067.4; every basin reaches its July total with a root in the toolbox window, offsets -0.55 to +1.72 K at K05, -0.85 to +0.87 K at K50 and -1.17 to +0.30 K at K95, the largest Amundsen (basin 9) at K05; the 865 control needs offsets up to 1.30 K, as calibration-melt-2km found. calibrate_melt.py on the July table: K* 4.46e-5, just under K05; total-match K 5.59e-5; melt at K* 851 Gt/yr; 7 of 16 basin K inside K05 to K95 |
+| Ocean melt: the forward's own callback against the tracked K50 calibration on the 1000 m production mesh | done | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-25 | 2026-09-25 | check_melt_bound.py exit 0: the forward melts 1067.390 Gt/yr against the 1067.386 its offsets were fitted to, every basin at ratio 1.0000 and the largest difference 0.006 Gt/yr (basin 14, its fit residual); 1 548 666 km2 floating over 1 398 387 cells, maximum 41.7 m/yr, 99th percentile 16.2, area mean 0.75, no cell past the libmassbffl bound. The callbacks' earlier melt set also covered 264 353 ice-free floating cells, where they booked 156.3 Gt/yr of melt and 23.1 Gt/yr of refreezing, 1200.6 Gt/yr in all |
 | Ocean melt: K05, K50 and K95 from the toolbox objective on the 1000 m production mesh, offsets fitted for every K first | done | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | offsets first: K05 2.75e-5, K50 6.25e-5 (6.5e-5 at two of five seeds), K95 2.70e-4 (2.725e-4 at one), mode 4.0e-5. Below K = 4.0e-5 Amundsen (basin 9) cannot reach its total inside plus or minus 2 K, and 26 percent of the samples land there, K05 among them (basin 9 at +2 K, 72 Gt/yr short); 3.5 percent land on the grid's top, 3.0e-4. Without offsets: K05 4.5e-5, K50 8.5e-5 (8.75e-5 at one seed), K95 1.375e-4. At the toolbox's K05, K50 and K95 the offsets match issue 30's 1 km files within 7.2e-8 K and the uncorrected totals repeat 925.2, 1655.6 and 2678.1 Gt/yr; every written file, reloaded through load_deltaT_per_basin, reproduces its basin totals within 1e-5 Gt/yr. Shelf area with TF plus offset below 0 degC: at K50 71 and 70 percent of basins 0 and 6, at K95 82 percent of basin 0 and over 40 percent in 11 of 16 basins; above 5 degC at most 6 percent (basin 9 at K05) |
 | Ocean melt: the toolbox objective on the 1000 m production mesh over the K the thermal forcing rule admits | done | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-25 | 2026-09-25 | admitted K 2.5e-5 to 2.55e-4, 93 of 400: Amundsen fits from 2.5e-5 inside 3 K (+2.88 K there, 11 percent of its shelf above 5.5 degC and 19 percent above 5 degC, 6.79 degC at most) and the -1.0 degC area test sets the top (basin 4 passes 25 percent at 2.575e-4, earlier than the 2 km mesh's 3.525e-4); the -1.8 degC floor never binds and the 5.5 degC test fails only at 1.0e-5 and below. K05 2.5e-5 and K95 2.525e-4 at all five seeds, K50 6.5e-5 (6.25e-5 at three); 11 percent of the samples sit on the window's bottom and 4.9 percent on its top. dM/dT 1386, 2087 and 4476 Gt/yr per K; the term 3 warm-minus-cold response is 0.73, 1.45 and 4.2 times the ocean models'; at K95 40 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.15e-4. The offsets at issue 30's K match its files within 3.7e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr |
 | Ocean melt: the toolbox objective on the 1000 m production mesh over the K a thermal forcing rule with a 6.8 degC cap admits | superseded | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-25 | 2026-09-25 | admitted K 2.5e-5 to 2.55e-4, 93 of 400: every basin fits from 2.5e-5 inside 3 K, where Amundsen takes +2.88 K and reaches 6.79 degC, just inside the 6.8 degC cap (19 percent of its shelf above 5 degC); the -1.0 degC area test sets the top (basin 4 passes 25 percent at 2.575e-4, earlier than on the 2 km mesh's 3.525e-4); the -1.8 degC floor never binds and the warm-side tests remove no fitted K. K05 2.5e-5, K50 6.5e-5 (6.25e-5 at three of five seeds), K95 2.525e-4 at all five; 11 percent of the samples sit on the window's bottom and 4.9 percent on its top. dM/dT 1386, 2087 and 4476 Gt/yr per K; the term 3 warm-minus-cold response is 0.73, 1.45 and 4.2 times the ocean models'; at K95 40 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.15e-4. A 5 degC cap on every cell gives 7.25e-5, 7.25e-5, 2.55e-4 with 50 percent of the samples on the bottom. The offsets at issue 30's K match its files within 3.7e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr |
@@ -75,6 +76,7 @@ Status: 12 planned, 3 running, 3 stopped, 40 done, 13 superseded.
 | 2.5 km level-set pinned front (ISMIP7_CALVING=fixed) from the v4 timing cache, option 2 of issue #115 | done | antarctica_25000_2500_buffered20000, 2.5 km fine, 25 km interior, 20 km buffer, DG0 geometry | IU Quartz, debug partition | 2026-09-25 | 2026-09-25 | 80 of 80 steps solved directly (8.8 Newton iterations on average, 16 at most), resid at most 1.2e-7 Gt; calving 2,370 Gt/yr at step 2, 3,534 over 2016 and 2,839 over 2024 against the legacy twin's 12.4; mass -30,908 Gt and VAF -18.8 mm SLE over the decade |
 | 2 km control on the MAP's own mesh, with no transfer | done | antarctica_5000_2000_buffered0 | local workstation | 2026-09-22 | 2026-09-22 | peak speed 17469 m/yr, which is the inversion chain's own warm-start maximum, so the forward reproduces the MAP. Amery reads 5937 m/yr with no transfer at all, against 6041 through the transfer |
 | 2 km control from the transferred Budd snapshot | running | antarctica_20000_2000_buffered20000, 2 km fine, 20 km interior, 20 km buffer | local workstation | 2026-09-22 | - | 3.5 years: VAF drift 0.01 mm, mass balance +2 Gt/yr, residual zero. The Amery cell sits near 6 km/yr without running away |
+| 32 km probe of the tracked K50 melt calibration: core 11's stopgap forcing for 5 model years | done | antarctica_320000_32000_buffered0, DG0 geometry | IU Quartz, general partition | 2026-09-25 | 2026-09-25 | resid 0.0 Gt on all 50 rows, forward exit 0; the provenance line names the file, its sha256, K50 and both meshes, and the raster sampling is the calibration's vertex. The first step books 1069.4891 Gt/yr of melt, the forward total check_melt_bound.py gives on the same mesh (job 10644430, 1069.489), and 1068.9659 at 1984. That check exits 1 by design: at 32 km the offsets fitted on the 1000 m mesh put the basins at 0.33 (basin 6) to 1.74 (basin 10) times their fitted totals |
 
 ## Historical
 
@@ -237,6 +239,26 @@ Ocean melt: the per-basin thermal-forcing offset refitted to the July 2026 table
 - **Audit:** uncorrected totals 907, 1623 and 2625 Gt/yr at K05, K50 and K95, as calibration-melt-2km measured, which is 0.85, 1.52 and 2.46 times 1067.4; every basin reaches its July total with a root in the toolbox window, offsets -0.55 to +1.72 K at K05, -0.85 to +0.87 K at K50 and -1.17 to +0.30 K at K95, the largest Amundsen (basin 9) at K05; the 865 control needs offsets up to 1.30 K, as calibration-melt-2km found. calibrate_melt.py on the July table: K* 4.46e-5, just under K05; total-match K 5.59e-5; melt at K* 851 Gt/yr; 7 of 16 basin K inside K05 to K95
 - **Notes:** issue #30; numbers for issue #26 and file names for issue #42. Refits calibration-melt-2km, which used the 865 table. The offsets depend on the mesh: calibration-melt-1km-1067
 
+### calibration-melt-forward-1km-k50
+
+Ocean melt: the forward's own callback against the tracked K50 calibration on the 1000 m production mesh (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_10000_1000_buffered20000, DG0 cells
+- **Initial state / MAP:** the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5 for its mesh, with BedMachine v4.1 vertex-sampled onto the cells as simulation.setup_model builds a target mesh
+- **Forcing versions:** OI climatology 30_sep
+- **Melt: K, slope, deltaT:** the tracked calibration antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz (sha256 64eb824a), K 6.5e-5 with its per-basin offsets, the constant slope 5.115e-3, melted by forcing.make_climatology_ocean_callback on forcing.melt_receiving
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 4.1 GB peak, 4 min 7 s
+- **Job ids:** 10644378
+- **Code:** eee634f
+- **Started:** 2026-09-25
+- **Finished:** 2026-09-25
+- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue26/antarctica/ant_melt_bound_10644378.txt, the per-basin table
+- **Audit:** check_melt_bound.py exit 0: the forward melts 1067.390 Gt/yr against the 1067.386 its offsets were fitted to, every basin at ratio 1.0000 and the largest difference 0.006 Gt/yr (basin 14, its fit residual); 1 548 666 km2 floating over 1 398 387 cells, maximum 41.7 m/yr, 99th percentile 16.2, area mean 0.75, no cell past the libmassbffl bound. The callbacks' earlier melt set also covered 264 353 ice-free floating cells, where they booked 156.3 Gt/yr of melt and 23.1 Gt/yr of refreezing, 1200.6 Gt/yr in all
+- **Notes:** issue #30: the DG0 melt total measured against the table the calibration targets, through the forward's own callback; issue #26: the calibration chosen on 25 September. Run from a scratch clone of claude/issue-26-k50-default
+
 ### calibration-melt-toolbox-1km
 
 Ocean melt: K05, K50 and K95 from the toolbox objective on the 1000 m production mesh, offsets fitted for every K first (done), IU.
@@ -275,7 +297,7 @@ Ocean melt: the toolbox objective on the 1000 m production mesh over the K the t
 - **Finished:** 2026-09-25
 - **Results path:** Quartz antarctica/results/melt_selection/mesh1000_kmax1e-3_rule/: ensemble_per_k.nc, selection_per_k.json, tf_present_1000.npz, deltaT_per_basin_1000_K2.500e-05.npz, _K6.500e-05.npz and _K2.525e-04.npz
 - **Audit:** admitted K 2.5e-5 to 2.55e-4, 93 of 400: Amundsen fits from 2.5e-5 inside 3 K (+2.88 K there, 11 percent of its shelf above 5.5 degC and 19 percent above 5 degC, 6.79 degC at most) and the -1.0 degC area test sets the top (basin 4 passes 25 percent at 2.575e-4, earlier than the 2 km mesh's 3.525e-4); the -1.8 degC floor never binds and the 5.5 degC test fails only at 1.0e-5 and below. K05 2.5e-5 and K95 2.525e-4 at all five seeds, K50 6.5e-5 (6.25e-5 at three); 11 percent of the samples sit on the window's bottom and 4.9 percent on its top. dM/dT 1386, 2087 and 4476 Gt/yr per K; the term 3 warm-minus-cold response is 0.73, 1.45 and 4.2 times the ocean models'; at K95 40 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.15e-4. The offsets at issue 30's K match its files within 3.7e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr
-- **Notes:** issue #26: the reading of the protocol's plausible range chosen at IU on 25 September 2026. Supersedes calibration-melt-toolbox-1km-rule-cap68. Nothing is staged at a default path (issue #42)
+- **Notes:** issue #26: the reading of the protocol's plausible range chosen at IU on 25 September 2026. Supersedes calibration-melt-toolbox-1km-rule-cap68. The group chose its K50 on 25 September 2026 (issue 26): that file is tracked as antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz (sha256 64eb824a), the calibration every run reads, and calibration-melt-forward-1km-k50 measures the forward's melt against it
 
 ### calibration-melt-toolbox-1km-rule-cap68
 
@@ -1358,6 +1380,34 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Results path:** antarctica/results/ctrl2015_cesm2_waccm_t2k_budd_2000_timeseries.csv
 - **Audit:** 3.5 years: VAF drift 0.01 mm, mass balance +2 Gt/yr, residual zero. The Amery cell sits near 6 km/yr without running away
 - **Notes:** the same state that diverges at 1 km is stable here, which is what the production mesh decision, issue #20, turns on
+
+### test-32km-ocx-stopgap-k50
+
+32 km probe of the tracked K50 melt calibration: core 11's stopgap forcing for 5 model years (done), IU.
+
+- **Task type:** test
+- **ESM:** observations
+- **Scenario:** OCX stopgap
+- **Period (yr):** 1979 to 1984, reached 1984.0
+- **Friction law:** budd
+- **Mesh:** antarctica_320000_32000_buffered0, DG0 geometry
+- **Initial state / MAP:** inversion_icepack2_budd_n3_dg0_logvelnet_32000.h5, cold start, geometry vertex-sampled
+- **Branch from:** cold start
+- **Forcing versions:** RACMO2.4p1 actual-year SMB and the OI climatology 30_sep, ISMIP7_OCX_FORCING=stopgap
+- **Melt: K, slope, deltaT:** the tracked calibration deltaT_per_basin_1000_K6.500e-05.npz (sha256 64eb824a), K 6.5e-5 with its per-basin offsets, the constant slope 5.115e-3, no melt variable set
+- **Calving front, collapse:** held fixed, ice-shelf collapse ISMIP7_FRACTURE=none
+- **Apparent MB:** balance (the default)
+- **dt (yr):** 0.1
+- **Site / partition:** IU Quartz, general partition
+- **Ranks / memory:** 8 ranks, 32 GiB, 1.4 GB peak per step
+- **Job ids:** 10644429 10644430
+- **Code:** eee634f
+- **Started:** 2026-09-25
+- **Finished:** 2026-09-25
+- **Cost per model year:** 3 min 35 s for 5 model years
+- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue26/antarctica/results/ocx_issue26_32000_*
+- **Audit:** resid 0.0 Gt on all 50 rows, forward exit 0; the provenance line names the file, its sha256, K50 and both meshes, and the raster sampling is the calibration's vertex. The first step books 1069.4891 Gt/yr of melt, the forward total check_melt_bound.py gives on the same mesh (job 10644430, 1069.489), and 1068.9659 at 1984. That check exits 1 by design: at 32 km the offsets fitted on the 1000 m mesh put the basins at 0.33 (basin 6) to 1.74 (basin 10) times their fitted totals
+- **Notes:** issues #26 and #30: the default calibration read with nothing set, through the forward's own driver, on a mesh other than the one it was fitted on. Run from a scratch clone of claude/issue-26-k50-default without ISMIP7_OUTPUT
 
 ### core-c001-historical-cesm2waccm
 

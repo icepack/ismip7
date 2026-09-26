@@ -243,16 +243,18 @@ against an acceptance of 7.84, so the restart re-solved the state with the
 drag on, and its first step calved 21.7 Gt/yr where the uninterrupted run
 calved 2,865.
 
-## The per-basin melt K follows the geometry space (issue #30)
+## The melt calibration follows the forward's melt path
 
-`antarctica/scripts/calibrate_melt.py` melts on the same `ISMIP7_GEOMETRY_SPACE`
-as the forward. Under `dg0` it evaluates the forward's own cell by cell melt
-path: bed and thickness sampled onto the cells, the surface from flotation, the
-slope of `forcing.compute_sin_alpha` (the constant under the default
+The calibrations melt on the same `ISMIP7_GEOMETRY_SPACE` as the forward.
+Under `dg0` they evaluate the forward's own cell by cell melt path: bed and
+thickness sampled onto the cells, the surface from flotation, the slope of
+`forcing.compute_sin_alpha` (the constant under the default
 `ISMIP7_MELT_SLOPE=ant`, the uncapped cell slope under `local`), forcing at
-each centroid and its own draft, the callbacks' seawater floating test `forcing.is_floating` on
-cells holding ice (`h > 0`) and cell areas. A K fitted there is the K the forward applies, by
-construction.
+each centroid and its own draft, the forward's melt set
+`forcing.melt_receiving` (the seawater floating test `forcing.is_floating` on
+cells holding ice, `h > 0`) and cell areas. A K or an offset fitted there is
+the one the forward applies, by construction. The runs melt with the tracked
+calibration of item 4.
 
 The earlier K files were fitted under `cg1`: BedMachine on CG1 nodes with its
 raster mask, the nodal slope capped at 5e-3, lumped-mass areas. The K file
@@ -261,6 +263,8 @@ and `load_K_per_basin` warns once when a run melts on a geometry other than the
 one its K was fitted on, once when its slope convention or constant differs
 from the file's (an untagged file reads as `local`), and, under `local` only,
 once when the file was fitted against a capped slope while the run applies none.
+An offsets file records the same, and `load_deltaT_per_basin` refuses any of
+those differences instead.
 
 Two things were found by fitting through the forward's path, both measured on
 the 2500 m mesh (`inversion_icepack2_budd_2500.h5`, BedMachine v4.1
@@ -275,7 +279,7 @@ vertex-sampled, the 865.0 Gt/yr table, 21 September 2026):
    it on nodes). The callbacks, the calibration and `check_melt_bound.py` now
    share `forcing.is_floating`, with seawater. The rows `check_melt_bound.py`
    records for the 2 km mesh (1732 and 646 Gt/yr) were measured through the
-   fresh-water test and are to be re-measured.
+   fresh-water test with the legacy K files.
 
 2. **With a consistent floating test, the geometry space barely matters; the
    slope convention does.** What the forward's uncapped DG0 path applies with
@@ -294,7 +298,7 @@ vertex-sampled, the 865.0 Gt/yr table, 21 September 2026):
    so a K fitted to it absorbs mesh slope noise and lands every basin below
    Burgard's range, while the forward as it runs today would apply 4.1 times
    the target with the production K once the flotation test is right. The
-   slope convention is issue #26. The ISMIP7 reference example is one
+   slope convention was settled in issue 26. The ISMIP7 reference example is one
    constant mean-Antarctic slope, "no slope dependency", and the toolbox's K
    percentiles (July 2026: K05 4.75e-5, K50 8.5e-5, K95 1.375e-4) were sampled
    with sin(alpha) = 5.115e-3, back-computed from the notebook's own gamma_T
@@ -317,10 +321,26 @@ vertex-sampled, the 865.0 Gt/yr table, 21 September 2026):
    and the total-match K is 5.59e-5, between K05 and K50; K* melts 851 Gt/yr
    and 7 of 16 basin K fall in K05..K95. Both sit below K50, as a
    term-1-only fit should: the notebook's own K50 applies 1571 Gt/yr against
-   the 1067 observed, because terms 2 to 4 pull K up. The per-basin
-   adjustment the protocol offers is a temperature offset
-   at fixed K, not a per-basin K: `calibrate_deltaT.py` and
-   `ISMIP7_DELTAT_PER_BASIN_NPZ` (antarctica/README.md, section 5).
+   the 1067 observed, because terms 2 to 4 pull K up. The protocol's
+   per-basin adjustment is a temperature offset at fixed K
+   (`calibrate_deltaT.py`, antarctica/README.md section 5).
+
+4. **The tracked calibration.** The group chose on 25 September 2026 (issue
+   26) the K50 of the toolbox objective run through this path on the
+   1000 m / 10 km production mesh, with the offsets fitted for every K first
+   and the objective restricted to the K whose offsets keep present-day
+   thermal forcing plausible (`select_melt_parameters.py`): K = 6.5e-5, with
+   offsets from -0.68 to +1.20 K, tracked as
+   `antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz`. Every run
+   reads it unless another file is named. The forward melts
+   `forcing.melt_receiving`, the set the fit summed over. Measured through
+   the forward's own callback on the production mesh (run record
+   `calibration-melt-forward-1km-k50`): 1067.390 Gt/yr against the 1067.386
+   the offsets were fitted to, every basin within 0.006 Gt/yr. The
+   callbacks' earlier melt set, every `haf <= 0` cell, also covered 264 353
+   ice-free floating cells at draft 0 there and booked 156.3 Gt/yr of melt
+   and 23.1 Gt/yr of refreezing on them. At 32 km the same offsets put the
+   basins at 0.33 to 1.74 times their totals, 1069.5 Gt/yr in all.
 
 ## Incompatibilities
 
