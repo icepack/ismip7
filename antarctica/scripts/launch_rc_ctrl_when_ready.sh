@@ -3,7 +3,7 @@
 #
 # Runs antarctica/scripts/control/run.py with ISMIP7_FRICTION=regularized_coulomb
 # against inversion_icepack2_rc_500.h5: constant 2015-2029 SMB climatology,
-# the ESM's `ctrl` ocean + per-basin calibrated K, dt=0.1, 2015->T_END.
+# the ESM's `ctrl` ocean + the melt calibration, dt=0.1, 2015->T_END.
 # This is the clamp-free verification of the RC + h_clamp=0 pipeline: the
 # initial state is the true BedMachine geometry and no thickness floor is
 # ever applied, so total mass should track (SMB - melt - discharge) with no
@@ -31,7 +31,9 @@ LC="${ISMIP7_LC:-500}"
 T_END="${ISMIP7_T_END:-2025}"              # 10-yr verification by default
 DT="${ISMIP7_DT:-0.1}"
 FIXED_FRONT="${ISMIP7_FIXED_FRONT:-1}"     # remove+tally ice past the initial extent
-K_NPZ="${ISMIP7_K_PER_BASIN_NPZ:-$REPO/antarctica/results/calibrated_K_per_basin_2500.npz}"
+# The melt calibration is the tracked one unless a legacy per-basin K is
+# named here (ISMIP7_K_PER_BASIN_NPZ); an empty value exports as unset.
+K_NPZ="${ISMIP7_K_PER_BASIN_NPZ:-}"
 NRANKS="${NRANKS:-24}"
 MIN_FREE_GB="${MIN_FREE_GB:-128}"          # ~7M-DOF MUMPS, conservative
 MIN_FREE_CORES="${MIN_FREE_CORES:-28}"     # >= NRANKS with headroom
@@ -76,7 +78,7 @@ trap 'rm -f "$LOCK"' EXIT
 
 [ -f "$MESH" ]  || { log "ERROR: mesh not found: $MESH"; exit 1; }
 [ -x "$PY" ]    || { log "ERROR: python not found: $PY"; exit 1; }
-[ -f "$K_NPZ" ] || { log "ERROR: per-basin K npz not found: $K_NPZ"; exit 1; }
+[ -z "$K_NPZ" ] || [ -f "$K_NPZ" ] || { log "ERROR: per-basin K npz not found: $K_NPZ"; exit 1; }
 # Per-mesh sidecar preferred (icepack2_tools/boundary.py); the shared
 # boundary_ids.json is the fallback and is overwritten by every mesh build.
 MESH_STEM="$(basename "$MESH" .msh)"

@@ -119,7 +119,7 @@ lanes and controls carry the runaway tripwire defaults of
 | 5 | `score_transfer` | `map_check_score.script --restart <cache>`: the same discharge score on the transferred state | finite ratio, positive prior minimum |
 | 6 | `lane_transfer` | `timing_transient.script`, kind `map_check`, restart from the cache, 64 ranks under `MAP_CHECK_SOLVER` (`scpc_gamg`), the strict contract, 10 steps of dt 0.05 | the `make qualify` rule (whole interval, no diverged solve, mass residual at or under 5e-5 Gt), no tripwire, rescue off, `initial_state_source` is the release file |
 | 7 | `lane_native` | the same lane on the MAP's mesh, cold start from the MAP inside the lane (setup is timed apart from the steps), 10 steps of dt 0.1 | the same rule |
-| 8 | `control_transfer` | `submit.sh projection ISMIP7_EXPERIMENT=control ISMIP7_T_END=2025 ISMIP7_OUTPUT=1`, the production defaults (`ISMIP7_APPARENT_MB=1`, `ISMIP7_FIXED_FRONT=1`, `scpc_gamg`, dt 0.025, self-chaining), cold start from the MAP through the transfer inside the job, the K file `MAP_CHECK_K_NPZ` names, `ISMIP7_RUN_TAG=mapcheck_<law>_<snap>_<lc>` | the timeseries reaches 2025 with `resid` at 0.00 on every row and the final state written |
+| 8 | `control_transfer` | `submit.sh projection ISMIP7_EXPERIMENT=control ISMIP7_T_END=2025 ISMIP7_OUTPUT=1`, the production defaults (`ISMIP7_APPARENT_MB=1`, `ISMIP7_FIXED_FRONT=1`, `scpc_gamg`, dt 0.025, self-chaining), cold start from the MAP through the transfer inside the job, the tracked melt calibration (a legacy K file where `MAP_CHECK_K_NPZ` names one), `ISMIP7_RUN_TAG=mapcheck_<law>_<snap>_<lc>` | the timeseries reaches 2025 with `resid` at 0.00 on every row and the final state written |
 | 9 | `control_native` | the same control on the MAP's mesh | the same |
 | 10 | `audit_controls` | `map_check_audit.script`: `check_ismip6_track.py` on both series (exit codes kept), `compare_runs.py` overlay, `region_budget.py` at each final state under its own mesh triple | the audit JSON and the figure exist |
 | 11 | `summary` | the manager writes `<stem>/summary.md` from whatever JSON exists | always |
@@ -181,9 +181,10 @@ criterion); the snapshots have no velocity to compare against.
 Confounders that go with every table: the snapshots are unconverged and at
 different iteration counts under log-velocity weights re-derived per chain
 link (issue #68); Budd carries the `ISMIP7_ALPHA_GL=0.5` grounding-line collar
-and a frozen `N_ref` that regularized Coulomb has no counterpart to; the K
-file was fitted under the local slope on a 2500 m mesh and the forward now
-defaults to the constant Antarctic slope (issues #26, #30); apparent mass
+and a frozen `N_ref` that regularized Coulomb has no counterpart to; the 22
+September controls melted with `K_issue11_mesh2500.npz`, a per-basin K fitted
+under the local slope on a 2500 m mesh, under the constant Antarctic slope
+(later controls melt with the tracked calibration of issue 26); apparent mass
 balance zeroes the t = 0 tendency, so only the later drift and the size of
 the correction separate rows; the native mesh has no buffer and the
 production mesh 20 km of it, so front bookkeeping differs and the native
@@ -337,9 +338,12 @@ stage settles:
 
 ```bash
 make map-check MAP_CHECK_FRICTION=regularized_coulomb \
-  MAP_CHECK_TARGET_MESH=/N/project/ice_rheology/ISMIP7/antarctica/mesh/antarctica_10000_1000_buffered20000.msh \
-  MAP_CHECK_K_NPZ=/N/project/ice_rheology/ISMIP7/antarctica/results/issue11_melt_check/K_issue11_mesh2500.npz
+  MAP_CHECK_TARGET_MESH=/N/project/ice_rheology/ISMIP7/antarctica/mesh/antarctica_10000_1000_buffered20000.msh
 ```
+
+The controls melt with the tracked calibration (`README.md` section 5). The 22
+September pass named `MAP_CHECK_K_NPZ=.../results/issue11_melt_check/K_issue11_mesh2500.npz`,
+the per-basin K it used; naming it again reproduces those controls.
 
 The whole ladder for one law is about nine to ten hours of wall time and
 roughly 700 core-hours, and the two laws run side by side. On a full

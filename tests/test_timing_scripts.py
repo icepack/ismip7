@@ -303,20 +303,80 @@ def test_the_melt_bound_job_ends_with_the_check_s_own_status(sandbox):
     assert f"ISMIP7_INV_H5={state}" in seen and "OMP_NUM_THREADS=1" in seen
     assert "check_melt_bound exit status: 1" in proc.stdout
 
-    # with no override the check resolves results/calibrated_K_per_basin_<lc>.npz itself
-    proc, seen = run_script(sandbox, "check_melt_bound.script", ISMIP7_LC="1000",
+    # with no override the check reads the tracked calibration itself, and an
+    # offsets file is passed on the same way a legacy K is
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
                             ISMIP7_INV_H5=str(state), ISMIP7_OCX_OCEAN="warm")
     assert proc.returncode == 0, proc.stderr
     assert [ln for ln in seen if ln.startswith("ARGV")][-1] == "ARGV --ocx warm"
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
+                            ISMIP7_INV_H5=str(state), ISMIP7_OCX_OCEAN="none",
+                            ISMIP7_DELTAT_PER_BASIN_NPZ=str(k_npz))
+    assert proc.returncode == 0, proc.stderr
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1] == f"ARGV --npz {k_npz}"
+    # with neither, the check runs on its defaults; site_core.sh's set -u must
+    # not trip over the empty argument list (bash before 4.4 did)
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
+                            ISMIP7_INV_H5=str(state), ISMIP7_OCX_OCEAN="none")
+    assert proc.returncode == 0, proc.stderr
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1].rstrip() == "ARGV"
 
-    # a missing mesh source or K file stops the job before the check starts
+    # a missing mesh source or calibration, or two calibrations, stops the
+    # job before the check starts
     n_before = len(seen)
     proc, seen = run_script(sandbox, "check_melt_bound.script", ISMIP7_LC="1000")
     assert proc.returncode != 0 and "ISMIP7_INV_H5 is required" in proc.stderr
-    proc, seen = run_script(sandbox, "check_melt_bound.script", ISMIP7_LC="1000",
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
                             ISMIP7_INV_H5=str(state),
                             ISMIP7_K_PER_BASIN_NPZ=str(sandbox / "absent.npz"))
-    assert proc.returncode == 2 and "K file not found" in proc.stderr
+    assert proc.returncode == 2 and "melt calibration not found" in proc.stderr
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
+                            ISMIP7_INV_H5=str(state),
+                            ISMIP7_K_PER_BASIN_NPZ=str(k_npz),
+                            ISMIP7_DELTAT_PER_BASIN_NPZ=str(k_npz))
+    assert proc.returncode == 2 and "both set" in proc.stderr
+    assert len(seen) == n_before
+
+
+def test_the_deltaT_refit_job_passes_its_K_and_output_and_needs_both_inputs(sandbox):
+    r"""calibrate_deltaT.script: one serial fit at the K it is given, written
+    under an absolute DELTAT_OUT; the mesh source, ISMIP7_LC and the output
+    are required before the fit starts."""
+    stub = sandbox / "bin" / "python"
+    stub.write_text('#!/bin/bash\n[ "$1" = -u ] && shift\nshift\n'
+                    'exec "$FAKE_PYTHON" "$FAKE_DRIVER" "$@"\n')
+    stub.chmod(0o755)
+    mesh = sandbox / "rice_build.msh"
+    mesh.write_text("")
+    out = sandbox / "refit"
+
+    proc, seen = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                            ISMIP7_INV_H5=str(mesh), DELTAT_OUT=str(out),
+                            DELTAT_K="6.5e-5")
+    assert proc.returncode == 0, proc.stderr
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1] == (
+        f"ARGV --out {out} --K 6.5e-5")
+    assert "calibrate_deltaT exit status: 0" in proc.stdout
+    # several K, and none, which leaves the script's own default
+    proc, seen = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                            ISMIP7_INV_H5=str(mesh), DELTAT_OUT=str(out),
+                            DELTAT_K="4.75e-5 8.5e-5")
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1] == (
+        f"ARGV --out {out} --K 4.75e-5 8.5e-5")
+    proc, seen = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                            ISMIP7_INV_H5=str(mesh), DELTAT_OUT=str(out))
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1] == f"ARGV --out {out}"
+
+    n_before = len(seen)
+    proc, _ = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                         DELTAT_OUT=str(out))
+    assert proc.returncode != 0 and "ISMIP7_INV_H5 is required" in proc.stderr
+    proc, _ = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                         ISMIP7_INV_H5=str(mesh), DELTAT_OUT="refit")
+    assert proc.returncode == 2 and "must be an absolute directory" in proc.stderr
+    proc, seen = run_script(sandbox, "calibrate_deltaT.script",
+                            ISMIP7_INV_H5=str(mesh), DELTAT_OUT=str(out))
+    assert proc.returncode != 0 and "ISMIP7_LC is required" in proc.stderr
     assert len(seen) == n_before
 
 

@@ -43,11 +43,12 @@ from icepack2_tools.climatology import (
     CLIM_POOL_MARKER, clim_scenario, clim_start, clim_end,
 )
 from icepack2_tools.forcing import (
-    FORCING_PROVENANCE_MARKER, k_melt, melt_slope, sin_alpha_ant,
+    FORCING_PROVENANCE_MARKER, melt_slope, sin_alpha_ant,
 )
 from icepack2_tools.front import COLLAPSE_MARKER, FRONT_OWNER_MARKER
 from icepack2_tools.runconfig import (
-    N_FLOW_DEFAULT, dt, fracture, friction, geometry_space, lc, lc_coarse,
+    MELT_CALIBRATION_DEFAULT, N_FLOW_DEFAULT, dt, fracture, friction,
+    geometry_space, lc, lc_coarse,
 )
 from icepack2_tools.solverconfig import effective_solver_env, solver_provenance
 
@@ -88,11 +89,16 @@ def effective_env():
         "ISMIP7_CLIM_SCENARIO": clim_scenario(),
         "ISMIP7_CLIM_START": str(clim_start()),
         "ISMIP7_CLIM_END": str(clim_end()),
-        # The melt slope law and K: the default flipped from the local slope
-        # and K 1.15e-4 to the constant slope and K 8.5e-5.
+        # The melt slope law and the melt calibration: the default flipped
+        # from the local slope and K 1.15e-4 to the constant slope and K
+        # 8.5e-5, then (issue 26) to the tracked calibration, whose K and
+        # sha256 the run's own provenance line records.
         "ISMIP7_MELT_SLOPE": melt_slope(),
         "ISMIP7_SIN_ALPHA_ANT": f"{sin_alpha_ant():g}",
-        "ISMIP7_K_MELT": f"{k_melt():g}",
+        "ISMIP7_DELTAT_PER_BASIN_NPZ": (
+            "none, the legacy per-basin K named in ISMIP7_K_PER_BASIN_NPZ"
+            if os.environ.get("ISMIP7_K_PER_BASIN_NPZ")
+            else os.path.relpath(MELT_CALIBRATION_DEFAULT, _PROJECT)),
     }
     resolved.update(effective_solver_env())
     canonical_key = "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER_CANONICAL"

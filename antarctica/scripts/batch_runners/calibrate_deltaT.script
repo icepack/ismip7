@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# scripts/calibrate_deltaT.py as a job: the per-basin thermal-forcing offsets
+# at a fixed K on one mesh, through the forward's own DG0 melt path, with the
+# thermal forcing rule's verdict at each K. Serial. The offsets are written
+# under DELTAT_OUT and replace nothing on their own: the job compares the
+# tracked calibration (calibration/) and the K and deltaT files under
+# results/ before and after, and exits 4 if any changed.
+#
+# From antarctica/, refitting the tracked K on another mesh or another build
+# of the same mesh (README.md section 5):
+#
+#   scripts/batch_runners/submit.sh script scripts/batch_runners/calibrate_deltaT.script \
+#       --cd antarctica --queue debug --tasks 1 --mem 32G --time 00:40:00 \
+#       ISMIP7_LC=1000 ISMIP7_INV_H5=<a .msh or a checkpoint on the mesh> \
+#       DELTAT_K=6.5e-5 DELTAT_OUT=<absolute dir>
+#
+# DELTAT_K takes several values separated by spaces; unset, the toolbox
+# notebook's K05, K50 and K95. The log names the observation table the fit
+# read and carries the per-basin table; record them with the file.
+
+#SBATCH -o ant_calibrate_deltaT_%j.txt
+#SBATCH -e ant_calibrate_deltaT_%j.err
+
+# Resources, the account and the partition come from submit.sh, which reads
+# this cluster's sites/<name>.sh; nothing here names a cluster.
+cd "${SLURM_SUBMIT_DIR:-.}"
+# The site half only: every model setting arrives through --export.
+. scripts/batch_runners/site_core.sh
+ismip7_activate
+ismip7_persistent_jit_cache
+ismip7_banner
+
+h5="${ISMIP7_INV_H5:?ISMIP7_INV_H5 is required (a MAP, a forward state or a .msh, read for its mesh)}"
+: "${ISMIP7_LC:?ISMIP7_LC is required (it names the offsets file)}"
+out="${DELTAT_OUT:?DELTAT_OUT is required (an absolute directory for the offsets)}"
+[ -f "${h5}" ] || { echo "mesh source not found: ${h5}" >&2; exit 2; }
+case "${out}" in
+    /*) ;;
+    *) echo "DELTAT_OUT must be an absolute directory: ${out}" >&2; exit 2 ;;
+esac
+
+args=(--out "${out}")
+# Unquoted on purpose: DELTAT_K may hold several K.
+[ -z "${DELTAT_K:-}" ] || args+=(--K ${DELTAT_K})
+echo "    commit  $(git rev-parse HEAD 2>/dev/null || echo unknown)"
+env | grep -E '^(ISMIP7_|DELTAT_|OMP_NUM_THREADS=)' | sort | sed 's/^/    /'
+
+calibrations() {
+    local files=(calibration/*.npz calibration/*.source.json
+                 results/calibrated_K_per_basin_*.npz results/deltaT_per_basin_*.npz)
+    ls -l "${files[@]}" 2>/dev/null
+    { sha256sum "${files[@]}" || shasum -a 256 "${files[@]}"; } 2>/dev/null
+}
+before="$(calibrations)"
+python -u scripts/calibrate_deltaT.py "${args[@]}"
+status=$?
+if [ "$(calibrations)" != "${before}" ]; then
+    echo "the tracked calibration or a K or deltaT file under results/ changed during the job" >&2
+    status=4
+fi
+echo "calibrate_deltaT exit status: ${status}"
+exit "${status}"

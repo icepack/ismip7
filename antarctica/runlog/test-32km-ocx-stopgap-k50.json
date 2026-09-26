@@ -1,0 +1,33 @@
+{
+  "id": "test-32km-ocx-stopgap-k50",
+  "task": "test",
+  "institution": "IU",
+  "title": "32 km probe of the tracked K50 melt calibration: core 11's stopgap forcing for 5 model years",
+  "status": "done",
+  "esm": "observations",
+  "scenario": "OCX stopgap",
+  "period": "1979 to 1984, reached 1984.0",
+  "friction": "budd",
+  "mesh": "antarctica_320000_32000_buffered0, DG0 geometry",
+  "initial_state": "inversion_icepack2_budd_n3_dg0_logvelnet_32000.h5, cold start, geometry vertex-sampled",
+  "branch_from": "cold start",
+  "forcing": "RACMO2.4p1 actual-year SMB and the OI climatology 30_sep, ISMIP7_OCX_FORCING=stopgap",
+  "melt": "the tracked calibration as it then was, the K50 file fitted on IU's build (sha256 64eb824a), K 6.5e-5 with its per-basin offsets, the constant slope 5.115e-3, no melt variable set",
+  "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
+  "apparent_mb": "balance (the default)",
+  "dt": 0.1,
+  "site": "IU Quartz, general partition",
+  "resources": "8 ranks, 32 GiB, 1.4 GB peak per step",
+  "jobs": [
+    "10644429",
+    "10644430",
+    "10644548"
+  ],
+  "code": "eee634f, rerun at 65c870a",
+  "started": "2026-09-25",
+  "finished": "2026-09-25",
+  "cost": "3 min 35 s for 5 model years (2 min 40 s at 65c870a)",
+  "results": "Quartz /N/scratch/dlilien/ismip7_issue26/antarctica/results/ocx_issue26_32000_* and ocx_issue26b_32000_*",
+  "audit": "resid 0.0 Gt on all 50 rows and forward exit 0 at both commits, the rerun (job 10644548) passing the thickness-floor check; the provenance line names the file, its sha256, K50 and both meshes, and the raster sampling is the calibration's vertex. The first step books 1069.4891 Gt/yr of melt, the forward total check_melt_bound.py gives on the same mesh (job 10644430, 1069.489), and 1068.9659 at 1984. That check exits 1 by design: at 32 km the offsets fitted on the 1000 m mesh put the basins at 0.33 (basin 6) to 1.74 (basin 10) times their fitted totals",
+  "notes": "issues #26 and #30: the default calibration read with nothing set, through the forward's own driver, on a mesh other than the one it was fitted on. Run from a scratch clone of claude/issue-26-k50-default without ISMIP7_OUTPUT"
+}
