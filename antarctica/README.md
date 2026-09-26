@@ -434,10 +434,11 @@ a mesh other than the calibration's until `ISMIP7_DELTAT_PER_BASIN_NPZ` names
 a file: offsets refitted on that mesh at the same K, or the tracked file to
 run with its offsets as they are. It also refuses another build of the same
 mesh name, told apart by the vertex count in the `.msh` header against the
-sidecar's: IU's build of the production mesh on Quartz has 1,869,088
-vertices. A refit is a job (`calibrate_deltaT.script`, which also reports
-whether the thermal forcing rule admits the K there); `ISMIP7_INV_H5` names a
-checkpoint on the mesh or the `.msh` itself:
+sidecar's: the offsets were fitted on Rice's build of the production mesh
+(1,869,252 vertices), and IU's has 1,869,088. A refit is a job
+(`calibrate_deltaT.script`, which also reports whether the thermal forcing
+rule admits the K there); `ISMIP7_INV_H5` names a checkpoint on the mesh or
+the `.msh` itself:
 
 ```bash
 scripts/batch_runners/submit.sh script scripts/batch_runners/calibrate_deltaT.script \
@@ -1169,10 +1170,13 @@ inversion reads to stamp its MAP.
 1 km / 10 km Budd inversion, warm-started from the 2 km Budd snapshot 0241,
 was running at Rice on 25 September (issue #24), on Rice's build of the
 mesh (1,869,252 vertices), which is the submission mesh. A site with its own
-build (IU's on Quartz has 1,869,088 vertices) uses Rice's `.msh` with the MAP:
-a forward interpolates a MAP onto whatever `ISMIP7_MESH` names, and it refuses
-a file with the MAP mesh's name and another triangulation
-(`ISMIP7_MESH_BUILD_CHECK=0` allows that transfer on purpose).
+build (IU's has 1,869,088 vertices) uses Rice's `.msh` (release
+`maps-2km-snap-2026-09-24`, md5 `5d318c0a`) with the MAP: a forward
+interpolates a MAP onto whatever `ISMIP7_MESH` names, and it refuses a file
+with the MAP mesh's name and another triangulation (`ISMIP7_MESH_BUILD_CHECK=0`
+allows that transfer on purpose). On Quartz the default name has held Rice's
+build since 26 September, and IU's is kept as
+`mesh/antarctica_10000_1000_buffered20000_iubuild.msh`.
 
 Until that MAP exists a forward starts from a coarse MAP by transfer, the way
 the matrix's own lanes do. Name the MAP and let the forward interpolate it onto
