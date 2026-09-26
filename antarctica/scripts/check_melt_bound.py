@@ -22,8 +22,9 @@ any basin is off by more than ``--match-tol``. That is the measurement issue
 30 asked for: a calibration fitted through the forward's melt path, and the
 forward's melt on the same cells. On a mesh other than the one the offsets
 were fitted on, the table measures how far they carry over: at 32 km the
-tracked offsets put the basins at 0.33 to 1.74 times their totals (job
-10644430). The table also gives what the forward booked on ice-free cells
+K50 offsets put the basins at 0.33 to 1.74 times their totals (job 10644430),
+and the fit on IU's build of the production mesh misses basins 1 and 7 on
+Rice's build by 0.18 and 0.17 percent (job 10649416). The table also gives what the forward booked on ice-free cells
 that pass the flotation test, open ocean and bare land apart, before it
 melted only cells holding ice (``forcing.melt_receiving``).
 
@@ -518,15 +519,22 @@ def main():
         bad = match_calibration(forward, npz_path, a.match_tol)
         if bad:
             status = 1
-            fitted_on = (melt_calibration_contract(npz_path) or {}).get(
-                "mesh", "the mesh the offsets were fitted on")
+            contract = melt_calibration_contract(npz_path) or {}
+            fitted_on = contract.get("mesh", "the mesh the offsets were fitted on")
+            if contract.get("mesh_build"):
+                fitted_on += f" ({contract['mesh_build']})"
+            want = contract.get("vertices")
+            have = global_size(mesh.coordinates)
+            build = (f" This mesh has {have} vertices and the offsets were "
+                     f"fitted on {int(want)}, so it is another mesh or another "
+                     f"build of it." if want and int(want) != have else "")
             PETSc.Sys.Print(
                 f"\n  The forward's melt on this mesh is off the totals its "
-                f"offsets were fitted to in basins {bad}. On {fitted_on} that "
-                f"means the forward does not apply the melt its calibration "
-                f"was fitted to. On another mesh it measures how far the "
-                f"offsets carry over, and refitting them on this mesh "
-                f"(calibrate_deltaT.py --K {float(d['K']):.3e}) removes it.")
+                f"offsets were fitted to in basins {bad}.{build} On {fitted_on} "
+                f"that means the forward does not apply the melt its "
+                f"calibration was fitted to. On another mesh or build it "
+                f"measures how far the offsets carry over, and refitting them "
+                f"there (calibrate_deltaT.py --K {float(d['K']):.3e}) removes it.")
     if a.ocx is not None:
         status = max(status, compare_with_ocx(a, forward))
     return status

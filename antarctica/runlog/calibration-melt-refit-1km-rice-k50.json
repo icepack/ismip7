@@ -1,0 +1,25 @@
+{
+  "id": "calibration-melt-refit-1km-rice-k50",
+  "task": "calibration",
+  "institution": "IU",
+  "title": "Ocean melt: the K50 offsets refitted on Rice's build of the production mesh, the tracked calibration",
+  "status": "done",
+  "period": "present day",
+  "mesh": "antarctica_10000_1000_buffered20000, Rice's build (1,869,252 vertices; release maps-2km-snap-2026-09-24, md5 5d318c0a), DG0 cells",
+  "initial_state": "the release's .msh for its mesh, with BedMachine v4.1 vertex-sampled onto the cells (calibrate_melt.forward_cells)",
+  "forcing": "OI climatology 30_sep; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)",
+  "melt": "K 6.5e-5 held fixed, the K50 of calibration-melt-toolbox-1km-rule; one offset per basin fitted in plus or minus 3 K through the forward's DG0 melt path; the constant slope 5.115e-3",
+  "site": "IU Quartz, debug partition",
+  "resources": "serial, 3.8 GB peak, 3 min 31 s for the fit; each check about 3 min 30 s",
+  "jobs": [
+    "10649427",
+    "10649416",
+    "10649438"
+  ],
+  "code": "b0c53c4 (the fit, job 10649427, and the check of its file, job 10649438); e80f1e6 (the check of the IU-build file on this build, job 10649416)",
+  "started": "2026-09-26",
+  "finished": "2026-09-26",
+  "results": "Quartz /N/scratch/dlilien/ismip7_issue26/refit_rice/deltaT_per_basin_1000_K6.500e-05.npz, tracked as antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz (sha256 4f525009)",
+  "audit": "every basin roots inside 3 K and the thermal forcing rule admits the K; the offsets run from -0.684 to +1.200 K and differ from the fit on IU's build by at most 0.0008 K (basin 1). The IU-build offsets on this build missed basin 1 by +0.18 percent and basin 7 by -0.17 percent, 1067.355 Gt/yr in all (job 10649416). With the refit the forward's own callback melts 1067.389 Gt/yr against the 1067.386 fitted, every basin at ratio 1.0000 (job 10649438): 1 548 707 km2 floating over 1 399 171 cells, maximum 41.7 m/yr, no cell past the libmassbffl bound. The callbacks' earlier melt set covered 257 836 ice-free open-ocean cells here (156.2 Gt/yr of melt, 23.1 of refreezing) and 6 805 cells of bare land (none)",
+  "notes": "issues #26, #30 and #20: the submission mesh is Rice's build of the production mesh (issue 20), and the offsets at the chosen K are refitted there. The file it replaces as the tracked calibration is calibration-melt-toolbox-1km-rule's K50 file (sha256 64eb824a), fitted on IU's build. Run from a scratch clone of claude/issue-26-k50-default"
+}

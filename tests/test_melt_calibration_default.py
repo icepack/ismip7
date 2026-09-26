@@ -76,12 +76,16 @@ def test_the_calibration_was_fitted_under_the_run_defaults():
         assert str(d["geometry_space"]) == GEOMETRY_SPACE_DEFAULT == contract["geometry_space"]
         assert float(d["K"]) == pytest.approx(6.5e-5, rel=1e-12)
         assert float(d["K"]) == pytest.approx(contract["K"], rel=1e-12)
-        assert str(d["selected_as"]) == "K50" == contract["selected_as"]
+        assert contract["selected_as"] == "K50"
+        assert bool(d["rule_admits"]) and contract["rule_admits"]
+        assert json.loads(str(d["tf_rule"])) == contract["tf_rule"]
         assert list(d["basin_ids"]) == list(range(16))
         assert float(np.sum(d["M_obs"])) == pytest.approx(1067.4, abs=0.05)
         assert np.all(np.abs(d["deltaT_basin"]) < 3.0)
     assert contract["raster_sample"] == RASTER_SAMPLE_DEFAULT
     assert contract["mesh"] == PRODUCTION_MESH
+    # the submission mesh is Rice's build of that name (issue 20)
+    assert contract["vertices"] == 1869252 and "Rice's build" in contract["mesh_build"]
     assert contract["obs_table"]["total_gtyr"] == 1067.4
 
 
@@ -165,7 +169,8 @@ def test_the_provenance_line_names_the_file_its_hash_and_both_meshes(clean, tmp_
     assert same.startswith("Forcing provenance: ocean melt calibration ")
     assert file_sha256(NPZ) in same and "K 6.500e-05 (K50)" in same
     assert "(the tracked default)" in same
-    assert f"fitted on {PRODUCTION_MESH}; this run's mesh is {PRODUCTION_MESH}" in same
+    assert (f"fitted on {PRODUCTION_MESH} (Rice's build, 1,869,252 vertices); "
+            f"this run's mesh is {PRODUCTION_MESH}") in same
     assert "differs" not in same
     assert "this run's mesh is antarctica_320000_32000, so its integrated melt" in other
     # a copy elsewhere is described as named, by the file it is
@@ -232,6 +237,17 @@ def test_preflight_keeps_a_production_core_on_the_calibration_s_mesh(
     monkeypatch.setattr(preflight, "imbie2_basin_path",
                         lambda recorded=None: _basins(tmp_path))
     assert preflight.melt_calibration_missing(f"/m/{PRODUCTION_MESH}.msh") == []
+    # another build of the same mesh name: only the header's vertex count
+    # tells them apart (IU's build of the production mesh has 1,869,088)
+    other_build = tmp_path / f"{PRODUCTION_MESH}.msh"
+    other_build.write_text("$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n1869088\n")
+    assert preflight.msh_vertex_count(str(other_build)) == 1869088
+    miss, = preflight.melt_calibration_missing(str(other_build))
+    assert "another build of the same mesh" in miss and "1869252" in miss
+    same_build = tmp_path / "same" / f"{PRODUCTION_MESH}.msh"
+    same_build.parent.mkdir()
+    same_build.write_text("$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$Nodes\n9 1869252 1 1869252\n")
+    assert preflight.melt_calibration_missing(str(same_build)) == []
     miss, = preflight.melt_calibration_missing("/m/antarctica_320000_32000.msh")
     assert f"fitted on {PRODUCTION_MESH}" in miss and "ISMIP7_DELTAT_PER_BASIN_NPZ" in miss
     # naming the file, a refit or the tracked one, clears the mesh check

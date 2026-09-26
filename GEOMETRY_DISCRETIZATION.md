@@ -329,19 +329,23 @@ vertex-sampled, the 865.0 Gt/yr table, 21 September 2026):
    26) the K50 of the toolbox objective run through this path on the
    1000 m / 10 km production mesh, with the offsets fitted for every K first
    and the objective restricted to the K whose offsets keep present-day
-   thermal forcing plausible (`select_melt_parameters.py`): K = 6.5e-5, with
-   offsets from -0.68 to +1.20 K, tracked as
+   thermal forcing plausible (`select_melt_parameters.py`): K = 6.5e-5. The
+   offsets at that K, from -0.68 to +1.20 K, are refitted on Rice's build of
+   the mesh, the submission mesh (issue 20), and tracked as
    `antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz`. Every run
    reads it unless another file is named. The forward melts
    `forcing.melt_receiving`, the set the fit summed over. Measured through
-   the forward's own callback on the production mesh (run record
-   `calibration-melt-forward-1km-k50`): 1067.390 Gt/yr against the 1067.386
-   the offsets were fitted to, every basin within 0.006 Gt/yr. The
-   callbacks' earlier melt set, every `haf <= 0` cell, also covered 257 687
-   ice-free open-ocean cells at draft 0 there, booking 156.3 Gt/yr of melt
-   and 23.1 Gt/yr of refreezing on them, and 6 666 cells of bare land, where
-   the climatology melts nothing. At 32 km the same offsets put the
-   basins at 0.33 to 1.74 times their totals, 1069.5 Gt/yr in all.
+   the forward's own callback on Rice's build (run record
+   `calibration-melt-refit-1km-rice-k50`): 1067.389 Gt/yr against the
+   1067.386 the offsets were fitted to, every basin within 0.006 Gt/yr. The
+   callbacks' earlier melt set, every `haf <= 0` cell, also covered 257 836
+   ice-free open-ocean cells at draft 0 there, booking 156.2 Gt/yr of melt
+   and 23.1 Gt/yr of refreezing on them, and 6 805 cells of bare land, where
+   the climatology melts nothing. The fit carries between builds only to a
+   few tenths of a percent: the one on IU's build, where the K was selected,
+   missed basins 1 and 7 on Rice's by 0.18 and 0.17 percent, with offsets at
+   most 0.0008 K apart. At 32 km the offsets put the basins at 0.33 to 1.74
+   times their totals, 1069.5 Gt/yr in all.
 
 ## Incompatibilities
 

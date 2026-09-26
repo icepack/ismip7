@@ -1540,18 +1540,20 @@ def describe_melt_calibration(dT_npz, K_npz=None, mesh_basename=None):
                 f"{os.path.basename(K_npz)} sha256 {file_sha256(K_npz)}: a "
                 f"legacy per-basin K named with ISMIP7_K_PER_BASIN_NPZ, not "
                 f"the tracked calibration"]
+    contract = melt_calibration_contract(dT_npz) or {}
     with np.load(dT_npz) as data:
         K = float(data["K"])
-        selected = str(data["selected_as"]) if "selected_as" in data else ""
-    contract = melt_calibration_contract(dT_npz) or {}
+        selected = (str(data["selected_as"]) if "selected_as" in data
+                    else str(contract.get("selected_as", "")))
     fitted_on = contract.get("mesh", "a mesh its file does not record")
+    build = (f" ({contract['mesh_build']})" if contract.get("mesh_build") else "")
     named = ("the tracked default"
              if os.path.abspath(dT_npz) == os.path.abspath(MELT_CALIBRATION_DEFAULT)
              else "named with ISMIP7_DELTAT_PER_BASIN_NPZ")
     line = (f"{FORCING_PROVENANCE_MARKER} ocean melt calibration "
             f"{os.path.basename(dT_npz)} sha256 {file_sha256(dT_npz)} ({named}): "
             f"K {K:.3e}{f' ({selected})' if selected else ''} with a "
-            f"thermal-forcing offset per basin, fitted on {fitted_on}")
+            f"thermal-forcing offset per basin, fitted on {fitted_on}{build}")
     if mesh_basename:
         stem = os.path.splitext(os.path.basename(mesh_basename))[0]
         same = stem == fitted_on

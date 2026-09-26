@@ -12,7 +12,7 @@
   "initial_state": "inversion_icepack2_budd_n3_dg0_logvelnet_32000.h5, cold start, geometry vertex-sampled",
   "branch_from": "cold start",
   "forcing": "RACMO2.4p1 actual-year SMB and the OI climatology 30_sep, ISMIP7_OCX_FORCING=stopgap",
-  "melt": "the tracked calibration deltaT_per_basin_1000_K6.500e-05.npz (sha256 64eb824a), K 6.5e-5 with its per-basin offsets, the constant slope 5.115e-3, no melt variable set",
+  "melt": "the tracked calibration as it then was, the K50 file fitted on IU's build (sha256 64eb824a), K 6.5e-5 with its per-basin offsets, the constant slope 5.115e-3, no melt variable set",
   "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
   "apparent_mb": "balance (the default)",
   "dt": 0.1,

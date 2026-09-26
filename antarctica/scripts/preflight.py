@@ -143,6 +143,21 @@ def ocean_cover(esm, scenario):
     return ISMIP7Ocean(esm=esm, scenario=scenario).coverage("tf")
 
 
+def msh_vertex_count(path):
+    r"""The vertex count a gmsh ``.msh`` header gives, or None: the line after
+    ``$Nodes`` holds it in version 2 files and as its second number in
+    version 4."""
+    try:
+        with open(path, errors="replace") as f:
+            for line in f:
+                if line.startswith("$Nodes"):
+                    parts = next(f).split()
+                    return int(parts[1] if len(parts) >= 4 else parts[0])
+    except (OSError, ValueError, StopIteration, IndexError):
+        return None
+    return None
+
+
 def melt_calibration_missing(mesh_fn):
     r"""What stops a core from melting with its calibration.
 
@@ -172,14 +187,26 @@ def melt_calibration_missing(mesh_fn):
                     f"calibration's offsets are stamped through")
     contract = melt_calibration_contract(npz)
     stem = os.path.splitext(os.path.basename(mesh_fn))[0]
-    if (contract and not os.environ.get("ISMIP7_DELTAT_PER_BASIN_NPZ")
-            and contract.get("mesh") != stem):
-        miss.append(
-            f"melt calibration: {os.path.basename(npz)} was fitted on "
-            f"{contract.get('mesh')} and this core runs on {stem}. Refit the "
-            f"offsets on this mesh (calibrate_deltaT.py --K {K:.3e}) and name "
-            f"the file with ISMIP7_DELTAT_PER_BASIN_NPZ, or name the tracked "
-            f"file there to run with its offsets")
+    remedy = (f"Refit the offsets on this mesh (calibrate_deltaT.py --K {K:.3e}) "
+              f"and name the file with ISMIP7_DELTAT_PER_BASIN_NPZ, or name the "
+              f"tracked file there to run with its offsets")
+    if contract and not os.environ.get("ISMIP7_DELTAT_PER_BASIN_NPZ"):
+        if contract.get("mesh") != stem:
+            miss.append(
+                f"melt calibration: {os.path.basename(npz)} was fitted on "
+                f"{contract.get('mesh')} and this core runs on {stem}. {remedy}")
+        else:
+            # Two builds of one mesh name differ cell by cell (IU's and
+            # Rice's of the production mesh), and only the vertex count in
+            # the header tells them apart.
+            want = contract.get("vertices")
+            have = msh_vertex_count(mesh_fn) if want else None
+            if want and have is not None and have != int(want):
+                miss.append(
+                    f"melt calibration: {os.path.basename(npz)} was fitted on "
+                    f"{contract.get('mesh_build', 'a build')} of {stem} "
+                    f"({int(want)} vertices), and {mesh_fn} has {have}: "
+                    f"another build of the same mesh. {remedy}")
     return miss
 
 

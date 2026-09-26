@@ -402,11 +402,12 @@ forcing-version audit, the output writer, and the melt calibration above.
    unsettled upstream local-slope question; a legacy per-basin K named with
    `ISMIP7_K_PER_BASIN_NPZ` keeps its warnings (`GEOMETRY_DISCRETIZATION.md`).
 
-   Measured on the production mesh through the forward's own callback (run
-   record `calibration-melt-forward-1km-k50`): 1067.390 Gt/yr against the
-   1067.386 the offsets were fitted to, every basin within 0.006 Gt/yr, and
-   no cell past the bound, with a maximum of 41.7 m/yr and a 99th percentile
-   of 16.2 m/yr.
+   The offsets at that K are refitted on Rice's build of the production
+   mesh, the submission mesh. Measured there through the forward's own
+   callback (run record `calibration-melt-refit-1km-rice-k50`): 1067.389
+   Gt/yr against the 1067.386 the offsets were fitted to, every basin within
+   0.006 Gt/yr, and no cell past the bound, with a maximum of 41.7 m/yr and a
+   99th percentile of 16.2 m/yr.
 6. Optional: read the provided `ctrl` trees in place of the `ssp126`
    reference-climate pool. Closed as icepack/ismip7#43, not planned for
    September 2026.

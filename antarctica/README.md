@@ -399,10 +399,10 @@ protocol's recommendation, from a tracked file,
 
 | | |
 |---|---|
-| K | 6.5e-5, the K50 of the rule-based selection below on the 1000 m / 10 km production mesh (run record `calibration-melt-toolbox-1km-rule`), chosen by the group on 25 September 2026 (issue 26) |
-| offsets | 16 IMBIE2 basins, -0.68 K to +1.20 K (Amundsen), each basin at its July 2026 total, 1067.4 Gt/yr together |
-| fitted under | `ISMIP7_MELT_SLOPE=ant`, `ISMIP7_SIN_ALPHA_ANT=5.115e-3`, `ISMIP7_GEOMETRY_SPACE=dg0`, `ISMIP7_RASTER_SAMPLE=vertex` and the 30_sep OI climatology, on `antarctica_10000_1000_buffered20000` |
-| sidecar | `deltaT_per_basin_1000_K6.500e-05.source.json`: the file's sha256, the settings above, the input hashes, the job and the commits |
+| K | 6.5e-5, the K50 of the rule-based selection below on the 1000 m / 10 km production mesh (run record `calibration-melt-toolbox-1km-rule`, IU's build), chosen by the group on 25 September 2026 (issue 26) |
+| offsets | 16 IMBIE2 basins, -0.68 K to +1.20 K (Amundsen), each basin at its July 2026 total, 1067.4 Gt/yr together, fitted at that K on Rice's build of the mesh, the submission mesh (issue 20; `calibration-melt-refit-1km-rice-k50`) |
+| fitted under | `ISMIP7_MELT_SLOPE=ant`, `ISMIP7_SIN_ALPHA_ANT=5.115e-3`, `ISMIP7_GEOMETRY_SPACE=dg0`, `ISMIP7_RASTER_SAMPLE=vertex` and the 30_sep OI climatology, on `antarctica_10000_1000_buffered20000`, Rice's build (1,869,252 vertices) |
+| sidecar | `deltaT_per_basin_1000_K6.500e-05.source.json`: the file's sha256, the settings above, the mesh build and its vertex count, the input hashes, the jobs and the commits |
 
 Every clone carries it, so a new machine runs with it and nothing is
 calibrated or copied. The offsets are stamped onto any mesh through the
@@ -428,10 +428,17 @@ On another mesh the forward runs with these offsets and says so in that
 line, so a coarse probe needs nothing more. `preflight.py` refuses a core on
 a mesh other than the calibration's until `ISMIP7_DELTAT_PER_BASIN_NPZ` names
 a file: offsets refitted on that mesh at the same K, or the tracked file to
-run with its offsets as they are.
+run with its offsets as they are. It also refuses another build of the same
+mesh name, told apart by the vertex count in the `.msh` header against the
+sidecar's: IU's build of the production mesh on Quartz has 1,869,088
+vertices. A refit is a job (`calibrate_deltaT.script`, which also reports
+whether the thermal forcing rule admits the K there); `ISMIP7_INV_H5` names a
+checkpoint on the mesh or the `.msh` itself:
 
 ```bash
-ISMIP7_LC=<lc> ISMIP7_INV_H5=<mesh.h5> python antarctica/scripts/calibrate_deltaT.py --K 6.5e-5
+scripts/batch_runners/submit.sh script scripts/batch_runners/calibrate_deltaT.script \
+    --cd antarctica --queue debug --tasks 1 --mem 32G --time 00:40:00 \
+    ISMIP7_LC=1000 ISMIP7_INV_H5=<mesh.msh> DELTAT_K=6.5e-5 DELTAT_OUT=<absolute dir>
 ```
 
 `check_melt_bound.py` melts the reference geometry with the forward's own
@@ -440,18 +447,21 @@ and exits 1 when a basin is off by more than `--match-tol` (default 0.1
 percent):
 
 ```bash
-ISMIP7_INV_H5=<mesh.h5> python antarctica/scripts/check_melt_bound.py
+ISMIP7_INV_H5=<mesh.h5 or mesh.msh> python antarctica/scripts/check_melt_bound.py
 ```
 
-On the production mesh (run record `calibration-melt-forward-1km-k50`, Quartz
-job 10644378) the forward melts 1067.390 Gt/yr against the 1067.386 its offsets
-were fitted to, every basin within 0.006 Gt/yr, and no cell passes the
-`libmassbffl` bound (maximum 41.7 m/yr). Its earlier melt set also covered
-257 687 ice-free open-ocean cells, where it booked 156.3 Gt/yr of melt and
-23.1 Gt/yr of refreezing, and 6 666 cells of bare land, where the climatology
-melts nothing. At 32 km (job 10644430) the same offsets put the basins
-at 0.33 to 1.74 times their totals and the whole at 1069.5 Gt/yr, which is why
-a production core runs on the calibration's mesh.
+On Rice's build of the production mesh (run record
+`calibration-melt-refit-1km-rice-k50`, Quartz job 10649438) the forward melts
+1067.389 Gt/yr against the 1067.386 its offsets were fitted to, every basin
+within 0.006 Gt/yr, and no cell passes the `libmassbffl` bound (maximum 41.7
+m/yr). Its earlier melt set also covered 257 836 ice-free open-ocean cells,
+where it booked 156.2 Gt/yr of melt and 23.1 Gt/yr of refreezing, and 6 805
+cells of bare land, where the climatology melts nothing. The two builds need
+their own fits: the offsets differ by at most 0.0008 K, and the fit on IU's
+build missed basins 1 and 7 on Rice's by 0.18 and 0.17 percent (job 10649416).
+At 32 km (job 10644430) the offsets put the basins at 0.33 to 1.74 times their
+totals and the whole at 1069.5 Gt/yr, which is why a production core runs on
+the calibration's mesh.
 
 `ISMIP7_K_PER_BASIN_NPZ` names a legacy per-basin K file (next subsection)
 in place of the offsets; no run searches for one.

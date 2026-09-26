@@ -74,7 +74,8 @@ shallow-shelf formulation on Firedrake 2026.4.1)
    thermal forcing plausible (every floating cell at or above -1.8 °C, at
    most 25 percent of any basin's floating area below -1.0 °C or above
    5.5 °C). That selection gives K05 2.5e-5 and K95 2.525e-4; the toolbox
-   notebook's own are 4.75e-5, 8.5e-5 and 1.375e-4. The offsets at K50 run
+   notebook's own are 4.75e-5, 8.5e-5 and 1.375e-4. The offsets at K50,
+   refitted on the submission mesh's own cells (Rice's build of it), run
    from -0.68 K to +1.20 K (Amundsen) and bring every basin to its total in
    the July 2026 table (1067.4 Gt/yr). The group chose K50 on 25 September
    2026 (issue 26); the file is tracked as
