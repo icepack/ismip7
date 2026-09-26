@@ -1,0 +1,23 @@
+{
+  "id": "calibration-melt-toolbox-1km",
+  "task": "calibration",
+  "institution": "IU",
+  "title": "Ocean melt: K05, K50 and K95 from the toolbox objective on the 1000 m production mesh, offsets fitted for every K first",
+  "status": "done",
+  "period": "present day",
+  "mesh": "antarctica_10000_1000_buffered20000, DG0 cells",
+  "initial_state": "the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5, for its mesh only",
+  "forcing": "OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip1km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)",
+  "melt": "the notebook's K grid (120 values, 2.5e-6 to 3.0e-4), terms, weights and 100000 samples, seeds 0 to 4; one constant slope of 5.115e-3; BedMachine v4.1 vertex-sampled; per_k fits one offset per basin at every K within plus or minus 2 K, none melts without offsets",
+  "site": "IU Quartz, debug partition",
+  "resources": "serial, 6.0 GB peak, 8 min 40 s",
+  "jobs": [
+    "10605505"
+  ],
+  "code": "b68b8f3",
+  "started": "2026-09-24",
+  "finished": "2026-09-24",
+  "results": "Quartz antarctica/results/melt_selection/mesh1000/: ensemble_per_k.nc, ensemble_none.nc, selection_per_k.json, selection_none.json, deltaT_per_basin_1000_K2.750e-05.npz, _K6.250e-05.npz and _K2.700e-04.npz",
+  "audit": "offsets first: K05 2.75e-5, K50 6.25e-5 (6.5e-5 at two of five seeds), K95 2.70e-4 (2.725e-4 at one), mode 4.0e-5. Below K = 4.0e-5 Amundsen (basin 9) cannot reach its total inside plus or minus 2 K, and 26 percent of the samples land there, K05 among them (basin 9 at +2 K, 72 Gt/yr short); 3.5 percent land on the grid's top, 3.0e-4. Without offsets: K05 4.5e-5, K50 8.5e-5 (8.75e-5 at one seed), K95 1.375e-4. At the toolbox's K05, K50 and K95 the offsets match issue 30's 1 km files within 7.2e-8 K and the uncorrected totals repeat 925.2, 1655.6 and 2678.1 Gt/yr; every written file, reloaded through load_deltaT_per_basin, reproduces its basin totals within 1e-5 Gt/yr. Shelf area with TF plus offset below 0 degC: at K50 71 and 70 percent of basins 0 and 6, at K95 82 percent of basin 0 and over 40 percent in 11 of 16 basins; above 5 degC at most 6 percent (basin 9 at K05)",
+  "notes": "issue #26, evidence only. Dropping the K with an unrooted basin from the same ensemble gives K05 4.0e-5, K50 7.25e-5 and K95 2.925e-4. Nothing is staged at a default path (issue #42)"
+}

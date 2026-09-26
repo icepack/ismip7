@@ -59,7 +59,7 @@ Usage:
         python antarctica/scripts/calibrate_melt.py
 """
 
-import os, sys, csv, glob
+import os, sys, glob
 import numpy as np
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -83,6 +83,7 @@ from icepack2_tools.forcing import (quadratic_mixed_slope, compute_sin_alpha,
                                     _RHO_I)
 K05, K50, K95 = _K_PERCENTILES
 from icepack2_tools.geometry import sample_to_geometry
+from icepack2_tools.melt_selection import read_melt_table, sample_nearest
 from icepack2_tools.mpi_stats import (global_count, global_mean, global_range,
                                       global_size)
 from icepack2_tools.naming import map_basename
@@ -234,66 +235,11 @@ def _grid_interp(nc_path, var, mx, my, draft=None):
     r"""Nearest-neighbour interpolation onto mesh nodes via scipy.
 
     Loads the field once into memory (avoids xarray.interp memory blowups
-    we saw with the 8km mesh) and uses RegularGridInterpolator with
-    method='nearest'.
+    we saw with the 8km mesh); NaN in coverage gaps and points off the grid
+    read as 0, as the forward reads the climatology
+    (``melt_selection.sample_nearest``, which can keep them NaN instead).
     """
-    import xarray as xr
-    from scipy.interpolate import RegularGridInterpolator
-
-    ds = xr.open_dataset(nc_path)
-    da = ds[var]
-    # Sort axes ascending (RegularGridInterpolator requirement)
-    x_arr = np.asarray(ds["x"].values)
-    y_arr = np.asarray(ds["y"].values)
-    if x_arr[0] > x_arr[-1]:
-        x_arr = x_arr[::-1]; flip_x = True
-    else:
-        flip_x = False
-    if y_arr[0] > y_arr[-1]:
-        y_arr = y_arr[::-1]; flip_y = True
-    else:
-        flip_y = False
-
-    zdim = None
-    for d in da.dims:
-        if d.lower() in ("z", "depth", "lev"):
-            zdim = d; break
-
-    if zdim is not None:
-        z_arr = np.asarray(ds[zdim].values)
-        if z_arr[0] > z_arr[-1]:
-            z_arr = z_arr[::-1]; flip_z = True
-        else:
-            flip_z = False
-        # Order axes (z, y, x) and load
-        data = da.transpose(zdim, "y", "x").values.astype(np.float32)
-        if flip_z: data = data[::-1, :, :]
-        if flip_y: data = data[:, ::-1, :]
-        if flip_x: data = data[:, :, ::-1]
-        # Replace NaNs with 0 so nearest-neighbour returns 0 in coverage gaps
-        data = np.nan_to_num(data, nan=0.0)
-        interp = RegularGridInterpolator(
-            (z_arr, y_arr, x_arr), data,
-            method="nearest", bounds_error=False, fill_value=0.0,
-        )
-        # Clip draft into z range
-        z_clipped = np.clip(np.asarray(draft), z_arr[0], z_arr[-1])
-        pts = np.column_stack([z_clipped, my, mx])
-        out = interp(pts)
-    else:
-        data = da.transpose("y", "x").values.astype(np.float32)
-        if flip_y: data = data[::-1, :]
-        if flip_x: data = data[:, ::-1]
-        data = np.nan_to_num(data, nan=0.0)
-        interp = RegularGridInterpolator(
-            (y_arr, x_arr), data,
-            method="nearest", bounds_error=False, fill_value=0.0,
-        )
-        pts = np.column_stack([my, mx])
-        out = interp(pts)
-
-    ds.close()
-    return out
+    return sample_nearest(nc_path, var, mx, my, draft=draft, fill=0.0)
 
 
 def _compute_sin_alpha(mesh, h, s):
@@ -395,36 +341,11 @@ def fit_per_basin_K(basin, melt_1, area, bids_obs, M_obs, sigma_obs):
 
 
 def _load_obs():
-    r"""Basin ids, observed melt and its uncertainty, both in Gt/yr.
-
-    The two published tables differ in width: the Paolo+Adusumilli one carries
-    area and per-area columns between melt and its uncertainty, the combined
-    Paolo+Davison+Adusumilli one carries melt and uncertainty alone. Index 3 is
-    the uncertainty in the first and past the end of the second, and any index
-    chosen for one width reads the wrong quantity or nothing at the other.
-    Columns are located by header name so the reader takes either.
+    r"""Basin ids, observed melt and its uncertainty, both in Gt/yr, from
+    the table ``_obs_csv`` resolved (``melt_selection.read_melt_table``
+    locates the columns by header name, so either published layout reads).
     """
-    bids, mobs, sobs = [], [], []
-    with open(OBS_CSV) as f:
-        r = csv.reader(f)
-        header = next(r)
-
-        def column(want):
-            for i, name in enumerate(header):
-                if name.strip().lower() == want:
-                    return i
-            raise ValueError(
-                f"{OBS_CSV}: no {want!r} column in header {header}")
-
-        i_m = column("bmr (gt/yr)")
-        i_s = column("bmr uncert (gt/yr)")
-        for row in r:
-            if not row or not row[i_m]:
-                continue
-            bids.append(int(row[0]))
-            mobs.append(float(row[i_m]))
-            sobs.append(float(row[i_s]))
-    return np.array(bids), np.array(mobs), np.array(sobs)
+    return read_melt_table(OBS_CSV)
 
 
 def main():

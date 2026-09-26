@@ -303,19 +303,22 @@ vertex-sampled, the 865.0 Gt/yr table, 21 September 2026):
    `local`, capped in the calibration and uncapped in the forward as before.
 
 3. **Under the constant slope the geometry space is immaterial and K lands
-   between the toolbox's K05 and K50 once scaled to the July table.** Same
-   mesh, same table, seawater flotation:
+   below the toolbox's K50 on the July table.** Same mesh, same table,
+   seawater flotation:
 
 | slope | geometry | K* | K total-match | melt at K* | basins in K05..K95 |
 |---|---|---|---|---|---|
 | constant 5.115e-3 | dg0 cells | 4.06e-5 | 4.44e-5 | 791 Gt/yr | 7 of 16 |
 | constant 5.115e-3 | cg1 nodes | 4.04e-5 | 4.44e-5 | 787 Gt/yr | 7 of 16 |
 
-   The two fits agree to 0.5 percent. Scaled to the July 2026 table (1067.4
-   Gt/yr, not staged here) K* is about 5.0e-5, between the toolbox's K05 and
-   K50, which is where a term-1-only fit should sit: the notebook's own K50
-   applies 1571 Gt/yr against the 1067 observed, because terms 2 to 4 pull K
-   up. The per-basin adjustment the protocol offers is a temperature offset
+   The two fits agree to 0.5 percent. Fitted to the July 2026 table (1067.4
+   Gt/yr) on the 2 km MAP mesh, DG0 cells (24 September 2026, run record
+   `calibration-melt-2km-1067`), K* is 4.46e-5, just under the toolbox's K05,
+   and the total-match K is 5.59e-5, between K05 and K50; K* melts 851 Gt/yr
+   and 7 of 16 basin K fall in K05..K95. Both sit below K50, as a
+   term-1-only fit should: the notebook's own K50 applies 1571 Gt/yr against
+   the 1067 observed, because terms 2 to 4 pull K up. The per-basin
+   adjustment the protocol offers is a temperature offset
    at fixed K, not a per-basin K: `calibrate_deltaT.py` and
    `ISMIP7_DELTAT_PER_BASIN_NPZ` (antarctica/README.md, section 5).
 

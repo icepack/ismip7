@@ -1,0 +1,22 @@
+{
+  "id": "calibration-melt-toolbox-8km",
+  "task": "calibration",
+  "institution": "IU",
+  "title": "Ocean melt: the toolbox objective on the notebook's own 8 km grid, the check on our aggregation",
+  "status": "done",
+  "period": "present day",
+  "mesh": "the ISMIP7 8 km grid with BedMap3 v3, the toolbox notebook's geometry",
+  "forcing": "zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)",
+  "melt": "the notebook's law and constants: one slope sin(alpha) 5.1117e-3, ice density 918, no offsets; its K grid, terms, weights and 100000 samples, seeds 0 to 4",
+  "site": "IU Quartz, debug partition",
+  "resources": "serial, 11.3 GB peak, 2 min 42 s",
+  "jobs": [
+    "10605485"
+  ],
+  "code": "b68b8f3",
+  "started": "2026-09-24",
+  "finished": "2026-09-24",
+  "results": "Quartz antarctica/results/melt_selection/notebook8km/: ensemble_none.nc, selection_none.json, v1_report.json",
+  "audit": "our aggregation matches the toolbox's own calculate_term1..4 on the same melt to 1.6e-12 relative with the same NaN pattern, and the objective picks the same K in all 100000 samples; the mesh path's sampler returns the notebook's values at every point. The notebook's printed numbers reproduce: 877.8, 1570.7 and 2540.9 Gt/yr at K05, K50 and K95 against 878, 1571 and 2541, and K05 4.75e-5, K50 8.5e-5, K95 1.375e-4 at all five seeds. Its slope recipe on this BedMap3 gives sin(alpha) 5.11170e-3, the value its gamma_T printout carries",
+  "notes": "issue #26. Job 10605474 on 38a7ba7 stopped at a draft sign check that 22 positive margin drafts among 23,992 shelf points tripped; b68b8f3 counts them instead"
+}

@@ -9,9 +9,9 @@ gitignored, so these records and the per-core reports beside them are
 the trace a run leaves in the repository. A core experiment also gets
 its full report from `core_report.py`; this is the index.
 
-62 records.
+73 records.
 
-Status: 12 planned, 3 running, 5 stopped, 31 done, 11 superseded.
+Status: 12 planned, 3 running, 5 stopped, 40 done, 13 superseded.
 
 ## Inversion
 
@@ -25,7 +25,18 @@ Status: 12 planned, 3 running, 5 stopped, 31 done, 11 superseded.
 
 | Simulation | Status | Mesh | Site | Started | Finished | Headline result |
 |---|---|---|---|---|---|---|
+| Ocean melt: the per-basin thermal-forcing offset on the 1000 m production mesh | done | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | uncorrected totals 925, 1656 and 2678 Gt/yr at K05, K50 and K95, 2.0 percent above the 2 km mesh; every basin reaches its July total with a root in the toolbox window, and the offsets differ from the 2 km fit by at most 0.12 K (basin 1). The 2 km files applied here put, to first order, 1095, 1085 and 1072 Gt/yr on the fitted basins, with basins 1, 6, 12 and 13 more than 10 percent off at some K and basin 6 44 percent under at K95 |
 | Ocean melt: toolbox K and the per-basin thermal-forcing offset | done | antarctica_5000_2000_buffered0 | local workstation | 2026-09-22 | 2026-09-22 | uncorrected totals 907, 1623 and 2625 Gt/yr at K05, K50 and K95; every basin reaches its observed total with an offset inside 1.3 K, so every basin has a root in the toolbox window |
+| Ocean melt: the per-basin thermal-forcing offset refitted to the July 2026 table | done | antarctica_5000_2000_buffered0, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | uncorrected totals 907, 1623 and 2625 Gt/yr at K05, K50 and K95, as calibration-melt-2km measured, which is 0.85, 1.52 and 2.46 times 1067.4; every basin reaches its July total with a root in the toolbox window, offsets -0.55 to +1.72 K at K05, -0.85 to +0.87 K at K50 and -1.17 to +0.30 K at K95, the largest Amundsen (basin 9) at K05; the 865 control needs offsets up to 1.30 K, as calibration-melt-2km found. calibrate_melt.py on the July table: K* 4.46e-5, just under K05; total-match K 5.59e-5; melt at K* 851 Gt/yr; 7 of 16 basin K inside K05 to K95 |
+| Ocean melt: K05, K50 and K95 from the toolbox objective on the 1000 m production mesh, offsets fitted for every K first | done | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | offsets first: K05 2.75e-5, K50 6.25e-5 (6.5e-5 at two of five seeds), K95 2.70e-4 (2.725e-4 at one), mode 4.0e-5. Below K = 4.0e-5 Amundsen (basin 9) cannot reach its total inside plus or minus 2 K, and 26 percent of the samples land there, K05 among them (basin 9 at +2 K, 72 Gt/yr short); 3.5 percent land on the grid's top, 3.0e-4. Without offsets: K05 4.5e-5, K50 8.5e-5 (8.75e-5 at one seed), K95 1.375e-4. At the toolbox's K05, K50 and K95 the offsets match issue 30's 1 km files within 7.2e-8 K and the uncorrected totals repeat 925.2, 1655.6 and 2678.1 Gt/yr; every written file, reloaded through load_deltaT_per_basin, reproduces its basin totals within 1e-5 Gt/yr. Shelf area with TF plus offset below 0 degC: at K50 71 and 70 percent of basins 0 and 6, at K95 82 percent of basin 0 and over 40 percent in 11 of 16 basins; above 5 degC at most 6 percent (basin 9 at K05) |
+| Ocean melt: the toolbox objective on the 1000 m production mesh over the K the thermal forcing rule admits | done | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-25 | 2026-09-25 | admitted K 2.5e-5 to 2.55e-4, 93 of 400: Amundsen fits from 2.5e-5 inside 3 K (+2.88 K there, 11 percent of its shelf above 5.5 degC and 19 percent above 5 degC, 6.79 degC at most) and the -1.0 degC area test sets the top (basin 4 passes 25 percent at 2.575e-4, earlier than the 2 km mesh's 3.525e-4); the -1.8 degC floor never binds and the 5.5 degC test fails only at 1.0e-5 and below. K05 2.5e-5 and K95 2.525e-4 at all five seeds, K50 6.5e-5 (6.25e-5 at three); 11 percent of the samples sit on the window's bottom and 4.9 percent on its top. dM/dT 1386, 2087 and 4476 Gt/yr per K; the term 3 warm-minus-cold response is 0.73, 1.45 and 4.2 times the ocean models'; at K95 40 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.15e-4. The offsets at issue 30's K match its files within 3.7e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr |
+| Ocean melt: the toolbox objective on the 1000 m production mesh over the K a thermal forcing rule with a 6.8 degC cap admits | superseded | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-25 | 2026-09-25 | admitted K 2.5e-5 to 2.55e-4, 93 of 400: every basin fits from 2.5e-5 inside 3 K, where Amundsen takes +2.88 K and reaches 6.79 degC, just inside the 6.8 degC cap (19 percent of its shelf above 5 degC); the -1.0 degC area test sets the top (basin 4 passes 25 percent at 2.575e-4, earlier than on the 2 km mesh's 3.525e-4); the -1.8 degC floor never binds and the warm-side tests remove no fitted K. K05 2.5e-5, K50 6.5e-5 (6.25e-5 at three of five seeds), K95 2.525e-4 at all five; 11 percent of the samples sit on the window's bottom and 4.9 percent on its top. dM/dT 1386, 2087 and 4476 Gt/yr per K; the term 3 warm-minus-cold response is 0.73, 1.45 and 4.2 times the ocean models'; at K95 40 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.15e-4. A 5 degC cap on every cell gives 7.25e-5, 7.25e-5, 2.55e-4 with 50 percent of the samples on the bottom. The offsets at issue 30's K match its files within 3.7e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr |
+| Ocean melt: the toolbox objective on the 1000 m production mesh with the K grid extended to 1e-3 | done | antarctica_10000_1000_buffered20000, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | offsets first: K05 2.5e-5, K50 7.5e-5, K95 4.15e-4 (4.1e-4 to 4.15e-4 over the seeds), 99th percentile 5.4e-4; 13 percent of the samples lie above 3e-4 and 0.01 percent reach 1e-3; every basin still roots at 1e-3 (most negative offset -1.67 K, basin 11); 25 percent of the samples land below K = 4.0e-5, where Amundsen cannot root. Without offsets: K05 4.25e-5, K50 7.75e-5, K95 1.375e-4. The grid's first 120 values give back calibration-melt-toolbox-1km's percentiles exactly. Only K where every basin roots: 4.0e-5, 8.0e-5, 4.2e-4; those whose basin means of thermal forcing also stay within 0 to 5 degC: 4.0e-5, 4.0e-5, 7.0e-5. dM/dT at K05 and K95: 1362 and 7137 Gt/yr per K. The offsets at the toolbox's K match issue 30's files within 7.2e-8 K, and the written files reload within 1e-5 Gt/yr |
+| Ocean melt: K05, K50 and K95 from the toolbox objective on the 2 km mesh, offsets fitted for every K first | done | antarctica_5000_2000_buffered0, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | offsets first: K05 2.75e-5, K50 5.75e-5 (6.0e-5 at three of five seeds), K95 2.725e-4 (2.75e-4 at one), mode 4.0e-5. Below K = 4.25e-5 Amundsen (basin 9) cannot reach its total inside plus or minus 2 K, and 34 percent of the samples land there, K05 among them (basin 9 at +2 K, 78 Gt/yr short); 3.8 percent land on the grid's top, 3.0e-4. Without offsets: K05 4.5e-5 (4.75e-5 at one seed), K50 8.75e-5, K95 1.40e-4. At the toolbox's K05, K50 and K95 the offsets match issue 30's 2 km files within 1.2e-7 K and the uncorrected totals repeat 906.9, 1622.8 and 2625.2 Gt/yr; every written file, reloaded through load_deltaT_per_basin, reproduces its basin totals within 1e-5 Gt/yr. Shelf area with TF plus offset below 0 degC: at K50 67 and 62 percent of basins 0 and 6, at K95 82 percent of basin 0 and over 40 percent in nine of 16 basins; above 5 degC at most 6 percent (basin 9 at K05) |
+| Ocean melt: the toolbox objective on the 2 km mesh over the K the thermal forcing rule admits | done | antarctica_5000_2000_buffered0, DG0 cells | IU Quartz, debug partition | 2026-09-25 | 2026-09-25 | admitted K 2.5e-5 to 3.5e-4, 131 of 400: Amundsen fits from 2.5e-5 inside 3 K (+2.96 K there, 12 percent of its shelf above 5.5 degC and 22 percent above 5 degC, 6.87 degC at most) and the -1.0 degC area test sets the top (basin 4 passes 25 percent above 3.5e-4); the -1.8 degC floor never binds and the 5.5 degC test fails only at 1.0e-5 and below. K05 2.5e-5 and K50 7.0e-5 at all five seeds, K95 3.225e-4 (3.25e-4 at two); 12 percent of the samples sit on the window's bottom and 3.75 percent on its top. dM/dT 1362, 2123 and 5305 Gt/yr per K; the term 3 warm-minus-cold response is 0.74, 1.56 and 5.2 times the ocean models'; at K95 46 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.475e-4. The offsets at issue 30's K match its files within 2.8e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1.3e-5 Gt/yr |
+| Ocean melt: the toolbox objective on the 2 km mesh over the K a thermal forcing rule with a 6.8 degC cap admits | superseded | antarctica_5000_2000_buffered0, DG0 cells | IU Quartz, debug partition | 2026-09-25 | 2026-09-25 | admitted K 2.75e-5 to 3.5e-4, 130 of 400: every basin fits from 2.5e-5 inside 3 K; the 6.8 degC cap on every cell sets the bottom (Amundsen +2.75 K at 2.75e-5, 6.66 degC at most, 19 percent of its shelf above 5 degC) and the -1.0 degC area test the top (basin 4 passes 25 percent above 3.5e-4); the -1.8 degC floor never binds. K05 2.75e-5, K50 7.0e-5, K95 3.25e-4 at all five seeds; 14 percent of the samples sit on the window's bottom and 3.8 percent on its top. dM/dT 1415, 2123 and 5343 Gt/yr per K; the term 3 warm-minus-cold response is 0.80, 1.56 and 5.2 times the ocean models'; at K95 46 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.475e-4. Without the warm-side tests the window starts at 2.5e-5 and gives 2.5e-5, 7.0e-5, 3.225e-4; a 5 degC cap on every cell gives 7.25e-5, 8.0e-5, 3.475e-4 with 47 percent of the samples on the bottom. The offsets at issue 30's K match its files within 2.8e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr |
+| Ocean melt: the toolbox objective on the 2 km mesh with the K grid extended to 1e-3 | done | antarctica_5000_2000_buffered0, DG0 cells | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | offsets first: K05 2.5e-5, K50 7.5e-5 (7.25e-5 at four of five seeds), K95 4.475e-4 (4.425e-4 at four), 99th percentile 5.9e-4; 14 percent of the samples lie above 3e-4 and 0.01 percent reach 1e-3, so the tail is complete; every basin still roots at 1e-3 (most negative offset -1.75 K, basin 4); 30 percent of the samples land below K = 4.25e-5, where Amundsen cannot root. Without offsets: K05 4.5e-5, K50 8.0e-5, K95 1.375e-4. The toolbox divides each term by its median over the grid, so the extension moved K50 from 5.75e-5 to 7.5e-5 with offsets and from 8.75e-5 to 8.0e-5 without; the grid's first 120 values give back calibration-melt-toolbox-2km's percentiles exactly. Only K where every basin roots: 4.25e-5, 8.0e-5, 4.525e-4; those whose basin means of thermal forcing also stay within 0 to 5 degC: 4.25e-5, 4.25e-5, 7.25e-5. dM/dT at K05 and K95: 1337 and 7307 Gt/yr per K. The offsets at the toolbox's K match issue 30's files within 1.2e-7 K, and the written files reload within 1e-5 Gt/yr |
+| Ocean melt: the toolbox objective on the notebook's own 8 km grid, the check on our aggregation | done | the ISMIP7 8 km grid with BedMap3 v3, the toolbox notebook's geometry | IU Quartz, debug partition | 2026-09-24 | 2026-09-24 | our aggregation matches the toolbox's own calculate_term1..4 on the same melt to 1.6e-12 relative with the same NaN pattern, and the objective picks the same K in all 100000 samples; the mesh path's sampler returns the notebook's values at every point. The notebook's printed numbers reproduce: 877.8, 1570.7 and 2540.9 Gt/yr at K05, K50 and K95 against 878, 1571 and 2541, and K05 4.75e-5, K50 8.5e-5, K95 1.375e-4 at all five seeds. Its slope recipe on this BedMap3 gives sin(alpha) 5.11170e-3, the value its gamma_T printout carries |
 
 ## Test
 
@@ -170,6 +181,26 @@ Status: 12 planned, 3 running, 5 stopped, 31 done, 11 superseded.
 - **Audit:** misfit still falling about half a percent per iteration; never reaches gatol, so the chain caps at four links
 - **Notes:** issue #24. Issue #68: the auto log-velocity weight is re-derived at every warm start, so links minimise different objectives
 
+### calibration-melt-1km-1067
+
+Ocean melt: the per-basin thermal-forcing offset on the 1000 m production mesh (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_10000_1000_buffered20000, DG0 cells
+- **Initial state / MAP:** the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5, for its mesh only
+- **Forcing versions:** OI climatology 30_sep; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** K05 4.75e-5, K50 8.5e-5, K95 1.375e-4 from the toolbox; one constant mean-Antarctic slope of 5.115e-3; BedMachine v4.1 vertex-sampled; offsets in deltaT_per_basin_1000_K*.npz
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 3.4 GB peak, 3 min 9 s
+- **Job ids:** 10603590
+- **Code:** 6af8a6a
+- **Started:** 2026-09-24
+- **Finished:** 2026-09-24
+- **Results path:** Quartz antarctica/results/issue30_deltaT/mesh1000_table1067/deltaT_per_basin_1000_K*.npz
+- **Audit:** uncorrected totals 925, 1656 and 2678 Gt/yr at K05, K50 and K95, 2.0 percent above the 2 km mesh; every basin reaches its July total with a root in the toolbox window, and the offsets differ from the 2 km fit by at most 0.12 K (basin 1). The 2 km files applied here put, to first order, 1095, 1085 and 1072 Gt/yr on the fitted basins, with basins 1, 6, 12 and 13 more than 10 percent off at some K and basin 6 44 percent under at K95
+- **Notes:** issue #30; mesh evidence for issue #20. The mesh the MAP check transfers onto (MAP_CHECK.md)
+
 ### calibration-melt-2km
 
 Ocean melt: toolbox K and the per-basin thermal-forcing offset (done), Rice.
@@ -187,6 +218,205 @@ Ocean melt: toolbox K and the per-basin thermal-forcing offset (done), Rice.
 - **Results path:** antarctica/results/deltaT_per_basin_2000_K*.npz
 - **Audit:** uncorrected totals 907, 1623 and 2625 Gt/yr at K05, K50 and K95; every basin reaches its observed total with an offset inside 1.3 K, so every basin has a root in the toolbox window
 - **Notes:** issues #26, #30 and #42. Refit once the July 1067 Gt/yr table is staged locally
+
+### calibration-melt-2km-1067
+
+Ocean melt: the per-basin thermal-forcing offset refitted to the July 2026 table (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_5000_2000_buffered0, DG0 cells
+- **Initial state / MAP:** the Budd 22 September snapshot (release maps-2km-snap-2026-09-22, md5 1c5d1031651f873e386c66aea34a69fe), for its mesh only
+- **Forcing versions:** OI climatology 30_sep; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e); the Paolo and Adusumilli table, 865.0 Gt/yr (sha256 e5751383), as a control
+- **Melt: K, slope, deltaT:** K05 4.75e-5, K50 8.5e-5, K95 1.375e-4 from the toolbox; one constant mean-Antarctic slope of 5.115e-3; BedMachine v4.1 vertex-sampled; offsets in deltaT_per_basin_2000_K*.npz; calibrate_melt.py K* written with ISMIP7_K_OUT, so no run reads it
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 2.2 GB peak, 5 min 43 s for both tables and the K* fit
+- **Job ids:** 10603589
+- **Code:** 6af8a6a
+- **Started:** 2026-09-24
+- **Finished:** 2026-09-24
+- **Results path:** Quartz antarctica/results/issue30_deltaT/: mesh2000_table1067/ and mesh2000_table865/deltaT_per_basin_2000_K*.npz, K_mesh2000_table1067.npz, the job script and its log
+- **Audit:** uncorrected totals 907, 1623 and 2625 Gt/yr at K05, K50 and K95, as calibration-melt-2km measured, which is 0.85, 1.52 and 2.46 times 1067.4; every basin reaches its July total with a root in the toolbox window, offsets -0.55 to +1.72 K at K05, -0.85 to +0.87 K at K50 and -1.17 to +0.30 K at K95, the largest Amundsen (basin 9) at K05; the 865 control needs offsets up to 1.30 K, as calibration-melt-2km found. calibrate_melt.py on the July table: K* 4.46e-5, just under K05; total-match K 5.59e-5; melt at K* 851 Gt/yr; 7 of 16 basin K inside K05 to K95
+- **Notes:** issue #30; numbers for issue #26 and file names for issue #42. Refits calibration-melt-2km, which used the 865 table. The offsets depend on the mesh: calibration-melt-1km-1067
+
+### calibration-melt-toolbox-1km
+
+Ocean melt: K05, K50 and K95 from the toolbox objective on the 1000 m production mesh, offsets fitted for every K first (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_10000_1000_buffered20000, DG0 cells
+- **Initial state / MAP:** the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5, for its mesh only
+- **Forcing versions:** OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip1km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** the notebook's K grid (120 values, 2.5e-6 to 3.0e-4), terms, weights and 100000 samples, seeds 0 to 4; one constant slope of 5.115e-3; BedMachine v4.1 vertex-sampled; per_k fits one offset per basin at every K within plus or minus 2 K, none melts without offsets
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 6.0 GB peak, 8 min 40 s
+- **Job ids:** 10605505
+- **Code:** b68b8f3
+- **Started:** 2026-09-24
+- **Finished:** 2026-09-24
+- **Results path:** Quartz antarctica/results/melt_selection/mesh1000/: ensemble_per_k.nc, ensemble_none.nc, selection_per_k.json, selection_none.json, deltaT_per_basin_1000_K2.750e-05.npz, _K6.250e-05.npz and _K2.700e-04.npz
+- **Audit:** offsets first: K05 2.75e-5, K50 6.25e-5 (6.5e-5 at two of five seeds), K95 2.70e-4 (2.725e-4 at one), mode 4.0e-5. Below K = 4.0e-5 Amundsen (basin 9) cannot reach its total inside plus or minus 2 K, and 26 percent of the samples land there, K05 among them (basin 9 at +2 K, 72 Gt/yr short); 3.5 percent land on the grid's top, 3.0e-4. Without offsets: K05 4.5e-5, K50 8.5e-5 (8.75e-5 at one seed), K95 1.375e-4. At the toolbox's K05, K50 and K95 the offsets match issue 30's 1 km files within 7.2e-8 K and the uncorrected totals repeat 925.2, 1655.6 and 2678.1 Gt/yr; every written file, reloaded through load_deltaT_per_basin, reproduces its basin totals within 1e-5 Gt/yr. Shelf area with TF plus offset below 0 degC: at K50 71 and 70 percent of basins 0 and 6, at K95 82 percent of basin 0 and over 40 percent in 11 of 16 basins; above 5 degC at most 6 percent (basin 9 at K05)
+- **Notes:** issue #26, evidence only. Dropping the K with an unrooted basin from the same ensemble gives K05 4.0e-5, K50 7.25e-5 and K95 2.925e-4. Nothing is staged at a default path (issue #42)
+
+### calibration-melt-toolbox-1km-rule
+
+Ocean melt: the toolbox objective on the 1000 m production mesh over the K the thermal forcing rule admits (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_10000_1000_buffered20000, DG0 cells
+- **Initial state / MAP:** the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5, for its mesh only
+- **Forcing versions:** OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip1km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** as calibration-melt-toolbox-1km-wide, variant per_k only, with each basin's offset searched in plus or minus 3 K and the objective run on the K that melt_selection.TFRule admits: every basin fitted, every floating cell's present-day TF with its offset at or above -1.8 degC, and at most 25 percent of any basin's floating area below -1.0 degC or above 5.5 degC; 100000 samples per seed in chunks of 5000, seeds 0 to 4
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 7.1 GB peak, 11 min 55 s
+- **Job ids:** 10619005
+- **Code:** c687b4f
+- **Started:** 2026-09-25
+- **Finished:** 2026-09-25
+- **Results path:** Quartz antarctica/results/melt_selection/mesh1000_kmax1e-3_rule/: ensemble_per_k.nc, selection_per_k.json, tf_present_1000.npz, deltaT_per_basin_1000_K2.500e-05.npz, _K6.500e-05.npz and _K2.525e-04.npz
+- **Audit:** admitted K 2.5e-5 to 2.55e-4, 93 of 400: Amundsen fits from 2.5e-5 inside 3 K (+2.88 K there, 11 percent of its shelf above 5.5 degC and 19 percent above 5 degC, 6.79 degC at most) and the -1.0 degC area test sets the top (basin 4 passes 25 percent at 2.575e-4, earlier than the 2 km mesh's 3.525e-4); the -1.8 degC floor never binds and the 5.5 degC test fails only at 1.0e-5 and below. K05 2.5e-5 and K95 2.525e-4 at all five seeds, K50 6.5e-5 (6.25e-5 at three); 11 percent of the samples sit on the window's bottom and 4.9 percent on its top. dM/dT 1386, 2087 and 4476 Gt/yr per K; the term 3 warm-minus-cold response is 0.73, 1.45 and 4.2 times the ocean models'; at K95 40 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.15e-4. The offsets at issue 30's K match its files within 3.7e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr
+- **Notes:** issue #26: the reading of the protocol's plausible range chosen at IU on 25 September 2026. Supersedes calibration-melt-toolbox-1km-rule-cap68. Nothing is staged at a default path (issue #42)
+
+### calibration-melt-toolbox-1km-rule-cap68
+
+Ocean melt: the toolbox objective on the 1000 m production mesh over the K a thermal forcing rule with a 6.8 degC cap admits (superseded), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_10000_1000_buffered20000, DG0 cells
+- **Initial state / MAP:** the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5, for its mesh only
+- **Forcing versions:** OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip1km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** as calibration-melt-toolbox-1km-wide, variant per_k only, with each basin's offset searched in plus or minus 3 K and the objective run on the K that melt_selection.TFRule admits: every basin fitted, every floating cell's present-day TF with its offset at or above -1.8 degC and at or below 6.8 degC, and at most 25 percent of any basin's floating area below -1.0 degC or above 6.0 degC; 100000 samples per seed in chunks of 5000, seeds 0 to 4
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 5.4 GB peak, 9 min 53 s
+- **Job ids:** 10614496
+- **Code:** a872fc6
+- **Started:** 2026-09-25
+- **Finished:** 2026-09-25
+- **Results path:** Quartz antarctica/results/melt_selection/mesh1000_kmax1e-3_rule_cap68/: ensemble_per_k.nc, selection_per_k.json, tf_present_1000.npz, deltaT_per_basin_1000_K2.500e-05.npz, _K6.500e-05.npz and _K2.525e-04.npz
+- **Audit:** admitted K 2.5e-5 to 2.55e-4, 93 of 400: every basin fits from 2.5e-5 inside 3 K, where Amundsen takes +2.88 K and reaches 6.79 degC, just inside the 6.8 degC cap (19 percent of its shelf above 5 degC); the -1.0 degC area test sets the top (basin 4 passes 25 percent at 2.575e-4, earlier than on the 2 km mesh's 3.525e-4); the -1.8 degC floor never binds and the warm-side tests remove no fitted K. K05 2.5e-5, K50 6.5e-5 (6.25e-5 at three of five seeds), K95 2.525e-4 at all five; 11 percent of the samples sit on the window's bottom and 4.9 percent on its top. dM/dT 1386, 2087 and 4476 Gt/yr per K; the term 3 warm-minus-cold response is 0.73, 1.45 and 4.2 times the ocean models'; at K95 40 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.15e-4. A 5 degC cap on every cell gives 7.25e-5, 7.25e-5, 2.55e-4 with 50 percent of the samples on the bottom. The offsets at issue 30's K match its files within 3.7e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr
+- **Notes:** superseded by calibration-melt-toolbox-1km-rule: the warm-side tests here (6.8 degC on every cell, at most 25 percent of a basin above 6.0 degC) mirrored the cold side, and IU replaced them on 25 September 2026 with the protocol's 5 degC read as at most 25 percent of a basin above 5.5 degC. Issue #26; nothing is staged at a default path (issue #42)
+
+### calibration-melt-toolbox-1km-wide
+
+Ocean melt: the toolbox objective on the 1000 m production mesh with the K grid extended to 1e-3 (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_10000_1000_buffered20000, DG0 cells
+- **Initial state / MAP:** the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5, for its mesh only
+- **Forcing versions:** OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip1km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** as calibration-melt-toolbox-1km with the notebook's K grid extended on its 2.5e-6 step to 1e-3 (400 values, MELTSEL_K_MAX); 100000 samples per seed in chunks of 5000, seeds 0 to 4
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 7.7 GB peak, 19 min 30 s
+- **Job ids:** 10605967
+- **Code:** a290959
+- **Started:** 2026-09-24
+- **Finished:** 2026-09-24
+- **Results path:** Quartz antarctica/results/melt_selection/mesh1000_kmax1e-3/: ensemble_per_k.nc, ensemble_none.nc, selection_per_k.json, selection_none.json, deltaT_per_basin_1000_K2.500e-05.npz, _K7.500e-05.npz and _K4.150e-04.npz
+- **Audit:** offsets first: K05 2.5e-5, K50 7.5e-5, K95 4.15e-4 (4.1e-4 to 4.15e-4 over the seeds), 99th percentile 5.4e-4; 13 percent of the samples lie above 3e-4 and 0.01 percent reach 1e-3; every basin still roots at 1e-3 (most negative offset -1.67 K, basin 11); 25 percent of the samples land below K = 4.0e-5, where Amundsen cannot root. Without offsets: K05 4.25e-5, K50 7.75e-5, K95 1.375e-4. The grid's first 120 values give back calibration-melt-toolbox-1km's percentiles exactly. Only K where every basin roots: 4.0e-5, 8.0e-5, 4.2e-4; those whose basin means of thermal forcing also stay within 0 to 5 degC: 4.0e-5, 4.0e-5, 7.0e-5. dM/dT at K05 and K95: 1362 and 7137 Gt/yr per K. The offsets at the toolbox's K match issue 30's files within 7.2e-8 K, and the written files reload within 1e-5 Gt/yr
+- **Notes:** issue #26, evidence only. Nothing is staged at a default path (issue #42)
+
+### calibration-melt-toolbox-2km
+
+Ocean melt: K05, K50 and K95 from the toolbox objective on the 2 km mesh, offsets fitted for every K first (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_5000_2000_buffered0, DG0 cells
+- **Initial state / MAP:** the Budd 22 September snapshot (release maps-2km-snap-2026-09-22, md5 1c5d1031651f873e386c66aea34a69fe), for its mesh only
+- **Forcing versions:** OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip2km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** the notebook's K grid (120 values, 2.5e-6 to 3.0e-4), terms, weights and 100000 samples, seeds 0 to 4; one constant slope of 5.115e-3; BedMachine v4.1 vertex-sampled; per_k fits one offset per basin at every K within plus or minus 2 K, none melts without offsets
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 3.9 GB peak, 5 min 1 s
+- **Job ids:** 10605504
+- **Code:** b68b8f3
+- **Started:** 2026-09-24
+- **Finished:** 2026-09-24
+- **Results path:** Quartz antarctica/results/melt_selection/mesh2000/: ensemble_per_k.nc, ensemble_none.nc, selection_per_k.json, selection_none.json, deltaT_per_basin_2000_K2.750e-05.npz, _K5.750e-05.npz and _K2.725e-04.npz
+- **Audit:** offsets first: K05 2.75e-5, K50 5.75e-5 (6.0e-5 at three of five seeds), K95 2.725e-4 (2.75e-4 at one), mode 4.0e-5. Below K = 4.25e-5 Amundsen (basin 9) cannot reach its total inside plus or minus 2 K, and 34 percent of the samples land there, K05 among them (basin 9 at +2 K, 78 Gt/yr short); 3.8 percent land on the grid's top, 3.0e-4. Without offsets: K05 4.5e-5 (4.75e-5 at one seed), K50 8.75e-5, K95 1.40e-4. At the toolbox's K05, K50 and K95 the offsets match issue 30's 2 km files within 1.2e-7 K and the uncorrected totals repeat 906.9, 1622.8 and 2625.2 Gt/yr; every written file, reloaded through load_deltaT_per_basin, reproduces its basin totals within 1e-5 Gt/yr. Shelf area with TF plus offset below 0 degC: at K50 67 and 62 percent of basins 0 and 6, at K95 82 percent of basin 0 and over 40 percent in nine of 16 basins; above 5 degC at most 6 percent (basin 9 at K05)
+- **Notes:** issue #26, evidence only. Dropping the K with an unrooted basin from the same ensemble gives K05 4.25e-5, K50 6.75e-5 and K95 3.0e-4, the grid's top. Nothing is staged at a default path (issue #42)
+
+### calibration-melt-toolbox-2km-rule
+
+Ocean melt: the toolbox objective on the 2 km mesh over the K the thermal forcing rule admits (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_5000_2000_buffered0, DG0 cells
+- **Initial state / MAP:** the Budd 22 September snapshot (release maps-2km-snap-2026-09-22, md5 1c5d1031651f873e386c66aea34a69fe), for its mesh only
+- **Forcing versions:** OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip2km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** as calibration-melt-toolbox-2km-wide, variant per_k only, with each basin's offset searched in plus or minus 3 K and the objective run on the K that melt_selection.TFRule admits: every basin fitted, every floating cell's present-day TF with its offset at or above -1.8 degC, and at most 25 percent of any basin's floating area below -1.0 degC or above 5.5 degC; 100000 samples per seed in chunks of 5000, seeds 0 to 4
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 4.1 GB peak, 9 min 14 s
+- **Job ids:** 10618973
+- **Code:** c687b4f
+- **Started:** 2026-09-25
+- **Finished:** 2026-09-25
+- **Results path:** Quartz antarctica/results/melt_selection/mesh2000_kmax1e-3_rule/: ensemble_per_k.nc, selection_per_k.json, tf_present_2000.npz, deltaT_per_basin_2000_K2.500e-05.npz, _K7.000e-05.npz and _K3.225e-04.npz
+- **Audit:** admitted K 2.5e-5 to 3.5e-4, 131 of 400: Amundsen fits from 2.5e-5 inside 3 K (+2.96 K there, 12 percent of its shelf above 5.5 degC and 22 percent above 5 degC, 6.87 degC at most) and the -1.0 degC area test sets the top (basin 4 passes 25 percent above 3.5e-4); the -1.8 degC floor never binds and the 5.5 degC test fails only at 1.0e-5 and below. K05 2.5e-5 and K50 7.0e-5 at all five seeds, K95 3.225e-4 (3.25e-4 at two); 12 percent of the samples sit on the window's bottom and 3.75 percent on its top. dM/dT 1362, 2123 and 5305 Gt/yr per K; the term 3 warm-minus-cold response is 0.74, 1.56 and 5.2 times the ocean models'; at K95 46 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.475e-4. The offsets at issue 30's K match its files within 2.8e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1.3e-5 Gt/yr
+- **Notes:** issue #26: the reading of the protocol's plausible range chosen at IU on 25 September 2026. Supersedes calibration-melt-toolbox-2km-rule-cap68. Nothing is staged at a default path (issue #42)
+
+### calibration-melt-toolbox-2km-rule-cap68
+
+Ocean melt: the toolbox objective on the 2 km mesh over the K a thermal forcing rule with a 6.8 degC cap admits (superseded), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_5000_2000_buffered0, DG0 cells
+- **Initial state / MAP:** the Budd 22 September snapshot (release maps-2km-snap-2026-09-22, md5 1c5d1031651f873e386c66aea34a69fe), for its mesh only
+- **Forcing versions:** OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip2km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** as calibration-melt-toolbox-2km-wide, variant per_k only, with each basin's offset searched in plus or minus 3 K and the objective run on the K that melt_selection.TFRule admits: every basin fitted, every floating cell's present-day TF with its offset at or above -1.8 degC and at or below 6.8 degC, and at most 25 percent of any basin's floating area below -1.0 degC or above 6.0 degC; 100000 samples per seed in chunks of 5000, seeds 0 to 4
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 5.9 GB peak, 5 min 46 s
+- **Job ids:** 10614495
+- **Code:** a872fc6
+- **Started:** 2026-09-25
+- **Finished:** 2026-09-25
+- **Results path:** Quartz antarctica/results/melt_selection/mesh2000_kmax1e-3_rule_cap68/: ensemble_per_k.nc, selection_per_k.json, tf_present_2000.npz, deltaT_per_basin_2000_K2.750e-05.npz, _K7.000e-05.npz and _K3.250e-04.npz
+- **Audit:** admitted K 2.75e-5 to 3.5e-4, 130 of 400: every basin fits from 2.5e-5 inside 3 K; the 6.8 degC cap on every cell sets the bottom (Amundsen +2.75 K at 2.75e-5, 6.66 degC at most, 19 percent of its shelf above 5 degC) and the -1.0 degC area test the top (basin 4 passes 25 percent above 3.5e-4); the -1.8 degC floor never binds. K05 2.75e-5, K50 7.0e-5, K95 3.25e-4 at all five seeds; 14 percent of the samples sit on the window's bottom and 3.8 percent on its top. dM/dT 1415, 2123 and 5343 Gt/yr per K; the term 3 warm-minus-cold response is 0.80, 1.56 and 5.2 times the ocean models'; at K95 46 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.475e-4. Without the warm-side tests the window starts at 2.5e-5 and gives 2.5e-5, 7.0e-5, 3.225e-4; a 5 degC cap on every cell gives 7.25e-5, 8.0e-5, 3.475e-4 with 47 percent of the samples on the bottom. The offsets at issue 30's K match its files within 2.8e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1e-5 Gt/yr
+- **Notes:** superseded by calibration-melt-toolbox-2km-rule: the warm-side tests here (6.8 degC on every cell, at most 25 percent of a basin above 6.0 degC) mirrored the cold side, and IU replaced them on 25 September 2026 with the protocol's 5 degC read as at most 25 percent of a basin above 5.5 degC. Issue #26; nothing is staged at a default path (issue #42)
+
+### calibration-melt-toolbox-2km-wide
+
+Ocean melt: the toolbox objective on the 2 km mesh with the K grid extended to 1e-3 (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** antarctica_5000_2000_buffered0, DG0 cells
+- **Initial state / MAP:** the Budd 22 September snapshot (release maps-2km-snap-2026-09-22, md5 1c5d1031651f873e386c66aea34a69fe), for its mesh only
+- **Forcing versions:** OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip2km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** as calibration-melt-toolbox-2km with the notebook's K grid extended on its 2.5e-6 step to 1e-3 (400 values, MELTSEL_K_MAX); 100000 samples per seed in chunks of 5000, seeds 0 to 4
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 5.9 GB peak, 13 min 40 s
+- **Job ids:** 10605965
+- **Code:** a290959
+- **Started:** 2026-09-24
+- **Finished:** 2026-09-24
+- **Results path:** Quartz antarctica/results/melt_selection/mesh2000_kmax1e-3/: ensemble_per_k.nc, ensemble_none.nc, selection_per_k.json, selection_none.json, deltaT_per_basin_2000_K2.500e-05.npz, _K7.500e-05.npz and _K4.475e-04.npz
+- **Audit:** offsets first: K05 2.5e-5, K50 7.5e-5 (7.25e-5 at four of five seeds), K95 4.475e-4 (4.425e-4 at four), 99th percentile 5.9e-4; 14 percent of the samples lie above 3e-4 and 0.01 percent reach 1e-3, so the tail is complete; every basin still roots at 1e-3 (most negative offset -1.75 K, basin 4); 30 percent of the samples land below K = 4.25e-5, where Amundsen cannot root. Without offsets: K05 4.5e-5, K50 8.0e-5, K95 1.375e-4. The toolbox divides each term by its median over the grid, so the extension moved K50 from 5.75e-5 to 7.5e-5 with offsets and from 8.75e-5 to 8.0e-5 without; the grid's first 120 values give back calibration-melt-toolbox-2km's percentiles exactly. Only K where every basin roots: 4.25e-5, 8.0e-5, 4.525e-4; those whose basin means of thermal forcing also stay within 0 to 5 degC: 4.25e-5, 4.25e-5, 7.25e-5. dM/dT at K05 and K95: 1337 and 7307 Gt/yr per K. The offsets at the toolbox's K match issue 30's files within 1.2e-7 K, and the written files reload within 1e-5 Gt/yr
+- **Notes:** issue #26, evidence only. Nothing is staged at a default path (issue #42)
+
+### calibration-melt-toolbox-8km
+
+Ocean melt: the toolbox objective on the notebook's own 8 km grid, the check on our aggregation (done), IU.
+
+- **Task type:** calibration
+- **Period (yr):** present day
+- **Mesh:** the ISMIP7 8 km grid with BedMap3 v3, the toolbox notebook's geometry
+- **Forcing versions:** zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
+- **Melt: K, slope, deltaT:** the notebook's law and constants: one slope sin(alpha) 5.1117e-3, ice density 918, no offsets; its K grid, terms, weights and 100000 samples, seeds 0 to 4
+- **Site / partition:** IU Quartz, debug partition
+- **Ranks / memory:** serial, 11.3 GB peak, 2 min 42 s
+- **Job ids:** 10605485
+- **Code:** b68b8f3
+- **Started:** 2026-09-24
+- **Finished:** 2026-09-24
+- **Results path:** Quartz antarctica/results/melt_selection/notebook8km/: ensemble_none.nc, selection_none.json, v1_report.json
+- **Audit:** our aggregation matches the toolbox's own calculate_term1..4 on the same melt to 1.6e-12 relative with the same NaN pattern, and the objective picks the same K in all 100000 samples; the mesh path's sampler returns the notebook's values at every point. The notebook's printed numbers reproduce: 877.8, 1570.7 and 2540.9 Gt/yr at K05, K50 and K95 against 878, 1571 and 2541, and K05 4.75e-5, K50 8.5e-5, K95 1.375e-4 at all five seeds. Its slope recipe on this BedMap3 gives sin(alpha) 5.11170e-3, the value its gamma_T printout carries
+- **Notes:** issue #26. Job 10605474 on 38a7ba7 stopped at a draft sign check that 22 positive margin drafts among 23,992 shelf points tripped; b68b8f3 counts them instead
 
 ### core01-32km-hist-cesm2waccm-i104off
 

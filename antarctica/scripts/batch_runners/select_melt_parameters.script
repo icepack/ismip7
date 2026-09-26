@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Our own K05, K50 and K95 from the ISMIP7 toolbox objective
+# (scripts/select_melt_parameters.py, ocean-forcing protocol section 2.3): a
+# per-basin thermal-forcing offset fitted at every K of the toolbox
+# notebook's grid, then the toolbox's objective on the forward's DG0 cells.
+# MELTSEL_GEOMETRY=notebook8km runs the same aggregation on the notebook's own
+# 8 km grid against the toolbox's own term functions, and the job exits 1
+# when that check fails. Serial. Everything is written under MELTSEL_OUT; the
+# job compares the default K and deltaT files under results/ before and
+# after, and exits 4 if they changed.
+#
+# From antarctica/, the check first, then one mesh (issue #26 evidence):
+#
+#   scripts/batch_runners/submit.sh script scripts/batch_runners/select_melt_parameters.script \
+#       --cd antarctica --queue debug --tasks 1 --mem 96G --time 01:00:00 \
+#       MELTSEL_GEOMETRY=notebook8km MELTSEL_OUT=<absolute dir> \
+#       ISMIP7_DATA_ROOT=<ISMIP7/AIS> ISMIP7_MELT_OBS_CSV=<per-basin table>
+#
+#   ... --mem 32G ... MELTSEL_GEOMETRY=mesh MELTSEL_OUT=<absolute dir> \
+#       ISMIP7_DATA_ROOT=<ISMIP7/AIS> ISMIP7_OBS_DATA_ROOT=<BedMachine's root> \
+#       ISMIP7_MELT_OBS_CSV=<table> ISMIP7_LC=2000 ISMIP7_INV_H5=<MAP or forward state>
+#
+# ISMIP7_INV_H5 supplies the mesh and nothing else. MELTSEL_ISSUE30 names a
+# directory of calibrate_deltaT.py files for the same mesh to compare the
+# offsets against; MELTSEL_VARIANTS (per_k none), MELTSEL_SAMPLES and
+# MELTSEL_SEEDS narrow a run. MELTSEL_K_MAX extends the notebook's K grid
+# upward on its step, and MELTSEL_CHUNK sets the samples per objective call
+# (10000 by default; 5000 keeps a 400 K grid near 6 GB). MELTSEL_DT_WINDOW
+# sets the offset search to plus or minus that many K (3 by default).
+# MELTSEL_TF_FLOOR, MELTSEL_TF_FLOOR_AREA ("DEGC SHARE"), MELTSEL_TF_CAP and
+# MELTSEL_TF_CAP_AREA change the thermal forcing rule the admitted K must
+# meet, each taking "none" to drop that test, and MELTSEL_KEEP_UNFITTED=1
+# admits a K at which some basin cannot reach its observed total.
+
+#SBATCH -o ant_melt_selection_%j.txt
+#SBATCH -e ant_melt_selection_%j.err
+
+# Resources, the account and the partition come from submit.sh, which reads
+# this cluster's sites/<name>.sh; nothing here names a cluster.
+cd "${SLURM_SUBMIT_DIR:-.}"
+# The site half only: every model setting arrives through --export.
+. scripts/batch_runners/site_core.sh
+ismip7_activate
+ismip7_persistent_jit_cache
+ismip7_banner
+
+geometry="${MELTSEL_GEOMETRY:?MELTSEL_GEOMETRY is required (mesh or notebook8km)}"
+out="${MELTSEL_OUT:?MELTSEL_OUT is required (an absolute directory)}"
+: "${ISMIP7_DATA_ROOT:?ISMIP7_DATA_ROOT is required (the ISMIP7/AIS tree)}"
+csv="${ISMIP7_MELT_OBS_CSV:?ISMIP7_MELT_OBS_CSV is required (the per-basin table)}"
+case "${out}" in /*) ;; *) echo "MELTSEL_OUT must be absolute: ${out}" >&2; exit 2 ;; esac
+[ -f "${csv}" ] || { echo "table not found: ${csv}" >&2; exit 2; }
+args=(--geometry "${geometry}" --out "${out}")
+if [ "${geometry}" = mesh ]; then
+    : "${ISMIP7_OBS_DATA_ROOT:?ISMIP7_OBS_DATA_ROOT is required (BedMachine)}"
+    : "${ISMIP7_LC:?ISMIP7_LC is required}"
+    h5="${ISMIP7_INV_H5:?ISMIP7_INV_H5 is required (read for its mesh)}"
+    [ -f "${h5}" ] || { echo "mesh source not found: ${h5}" >&2; exit 2; }
+    if [ -n "${MELTSEL_ISSUE30:-}" ]; then args+=(--issue30 "${MELTSEL_ISSUE30}"); fi
+fi
+if [ -n "${MELTSEL_VARIANTS:-}" ]; then read -r -a v <<< "${MELTSEL_VARIANTS}"; args+=(--variants "${v[@]}"); fi
+if [ -n "${MELTSEL_SAMPLES:-}" ]; then args+=(--samples "${MELTSEL_SAMPLES}"); fi
+if [ -n "${MELTSEL_SEEDS:-}" ]; then read -r -a v <<< "${MELTSEL_SEEDS}"; args+=(--seeds "${v[@]}"); fi
+if [ -n "${MELTSEL_K_MAX:-}" ]; then args+=(--k-max "${MELTSEL_K_MAX}"); fi
+if [ -n "${MELTSEL_CHUNK:-}" ]; then args+=(--chunk "${MELTSEL_CHUNK}"); fi
+if [ -n "${MELTSEL_DT_WINDOW:-}" ]; then args+=(--dt-window "${MELTSEL_DT_WINDOW}"); fi
+if [ -n "${MELTSEL_TF_FLOOR:-}" ]; then args+=(--tf-floor "${MELTSEL_TF_FLOOR}"); fi
+if [ -n "${MELTSEL_TF_FLOOR_AREA:-}" ]; then read -r -a v <<< "${MELTSEL_TF_FLOOR_AREA}"; args+=(--tf-floor-area "${v[@]}"); fi
+if [ -n "${MELTSEL_TF_CAP:-}" ]; then args+=(--tf-cap "${MELTSEL_TF_CAP}"); fi
+if [ -n "${MELTSEL_TF_CAP_AREA:-}" ]; then read -r -a v <<< "${MELTSEL_TF_CAP_AREA}"; args+=(--tf-cap-area "${v[@]}"); fi
+if [ "${MELTSEL_KEEP_UNFITTED:-0}" = 1 ]; then args+=(--keep-unfitted); fi
+
+echo "    commit  $(git rev-parse HEAD 2>/dev/null || echo unknown)"
+env | grep -E '^(ISMIP7_|MELTSEL_|OMP_NUM_THREADS=)' | sort | sed 's/^/    /'
+
+defaults() {
+    ls -l results/calibrated_K_per_basin_*.npz results/deltaT_per_basin_*.npz 2>/dev/null
+    { sha256sum results/calibrated_K_per_basin_*.npz results/deltaT_per_basin_*.npz \
+        || shasum -a 256 results/calibrated_K_per_basin_*.npz results/deltaT_per_basin_*.npz; } 2>/dev/null
+}
+before="$(defaults)"
+python -u scripts/select_melt_parameters.py "${args[@]}"
+status=$?
+if [ "$(defaults)" != "${before}" ]; then
+    echo "a default K or deltaT file under results/ changed during the job" >&2
+    status=4
+fi
+echo "select_melt_parameters exit status: ${status}"
+exit "${status}"

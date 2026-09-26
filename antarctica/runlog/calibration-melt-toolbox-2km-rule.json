@@ -1,0 +1,23 @@
+{
+  "id": "calibration-melt-toolbox-2km-rule",
+  "task": "calibration",
+  "institution": "IU",
+  "title": "Ocean melt: the toolbox objective on the 2 km mesh over the K the thermal forcing rule admits",
+  "status": "done",
+  "period": "present day",
+  "mesh": "antarctica_5000_2000_buffered0, DG0 cells",
+  "initial_state": "the Budd 22 September snapshot (release maps-2km-snap-2026-09-22, md5 1c5d1031651f873e386c66aea34a69fe), for its mesh only",
+  "forcing": "OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip2km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)",
+  "melt": "as calibration-melt-toolbox-2km-wide, variant per_k only, with each basin's offset searched in plus or minus 3 K and the objective run on the K that melt_selection.TFRule admits: every basin fitted, every floating cell's present-day TF with its offset at or above -1.8 degC, and at most 25 percent of any basin's floating area below -1.0 degC or above 5.5 degC; 100000 samples per seed in chunks of 5000, seeds 0 to 4",
+  "site": "IU Quartz, debug partition",
+  "resources": "serial, 4.1 GB peak, 9 min 14 s",
+  "jobs": [
+    "10618973"
+  ],
+  "code": "c687b4f",
+  "started": "2026-09-25",
+  "finished": "2026-09-25",
+  "results": "Quartz antarctica/results/melt_selection/mesh2000_kmax1e-3_rule/: ensemble_per_k.nc, selection_per_k.json, tf_present_2000.npz, deltaT_per_basin_2000_K2.500e-05.npz, _K7.000e-05.npz and _K3.225e-04.npz",
+  "audit": "admitted K 2.5e-5 to 3.5e-4, 131 of 400: Amundsen fits from 2.5e-5 inside 3 K (+2.96 K there, 12 percent of its shelf above 5.5 degC and 22 percent above 5 degC, 6.87 degC at most) and the -1.0 degC area test sets the top (basin 4 passes 25 percent above 3.5e-4); the -1.8 degC floor never binds and the 5.5 degC test fails only at 1.0e-5 and below. K05 2.5e-5 and K50 7.0e-5 at all five seeds, K95 3.225e-4 (3.25e-4 at two); 12 percent of the samples sit on the window's bottom and 3.75 percent on its top. dM/dT 1362, 2123 and 5305 Gt/yr per K; the term 3 warm-minus-cold response is 0.74, 1.56 and 5.2 times the ocean models'; at K95 46 percent of the shelf area refreezes at present day. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5, 4.475e-4. The offsets at issue 30's K match its files within 2.8e-5 K (the root tolerance, now bracketed in 3 K), and the written files reload within 1.3e-5 Gt/yr",
+  "notes": "issue #26: the reading of the protocol's plausible range chosen at IU on 25 September 2026. Supersedes calibration-melt-toolbox-2km-rule-cap68. Nothing is staged at a default path (issue #42)"
+}

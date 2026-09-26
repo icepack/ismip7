@@ -1,0 +1,12 @@
+{
+  "repository": "ismip/ismip7-antarctic-ocean-forcing",
+  "path": "parameterisations/parameter_selection_toolbox.py",
+  "tag": "main",
+  "commit": "84d17692935867d62b9c8e26f076a9869d74be31",
+  "committed": "2026-09-08",
+  "vendored": "2026-09-24",
+  "file_commit": "132beb155e63fd07957e28407a83cb9d2c954447",
+  "file_committed": "2026-06-23",
+  "sha256": "3d016c04987d7c66c2603e2c3110d8a6a68cee0b6193c7f47bccf64aaa1ce029",
+  "licence": "MIT, ismip7_parameter_selection_toolbox.LICENSE"
+}

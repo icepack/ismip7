@@ -1,0 +1,23 @@
+{
+  "id": "calibration-melt-toolbox-1km-wide",
+  "task": "calibration",
+  "institution": "IU",
+  "title": "Ocean melt: the toolbox objective on the 1000 m production mesh with the K grid extended to 1e-3",
+  "status": "done",
+  "period": "present day",
+  "mesh": "antarctica_10000_1000_buffered20000, DG0 cells",
+  "initial_state": "the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5, for its mesh only",
+  "forcing": "OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip1km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)",
+  "melt": "as calibration-melt-toolbox-1km with the notebook's K grid extended on its 2.5e-6 step to 1e-3 (400 values, MELTSEL_K_MAX); 100000 samples per seed in chunks of 5000, seeds 0 to 4",
+  "site": "IU Quartz, debug partition",
+  "resources": "serial, 7.7 GB peak, 19 min 30 s",
+  "jobs": [
+    "10605967"
+  ],
+  "code": "a290959",
+  "started": "2026-09-24",
+  "finished": "2026-09-24",
+  "results": "Quartz antarctica/results/melt_selection/mesh1000_kmax1e-3/: ensemble_per_k.nc, ensemble_none.nc, selection_per_k.json, selection_none.json, deltaT_per_basin_1000_K2.500e-05.npz, _K7.500e-05.npz and _K4.150e-04.npz",
+  "audit": "offsets first: K05 2.5e-5, K50 7.5e-5, K95 4.15e-4 (4.1e-4 to 4.15e-4 over the seeds), 99th percentile 5.4e-4; 13 percent of the samples lie above 3e-4 and 0.01 percent reach 1e-3; every basin still roots at 1e-3 (most negative offset -1.67 K, basin 11); 25 percent of the samples land below K = 4.0e-5, where Amundsen cannot root. Without offsets: K05 4.25e-5, K50 7.75e-5, K95 1.375e-4. The grid's first 120 values give back calibration-melt-toolbox-1km's percentiles exactly. Only K where every basin roots: 4.0e-5, 8.0e-5, 4.2e-4; those whose basin means of thermal forcing also stay within 0 to 5 degC: 4.0e-5, 4.0e-5, 7.0e-5. dM/dT at K05 and K95: 1362 and 7137 Gt/yr per K. The offsets at the toolbox's K match issue 30's files within 7.2e-8 K, and the written files reload within 1e-5 Gt/yr",
+  "notes": "issue #26, evidence only. Nothing is staged at a default path (issue #42)"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "calibration-melt-2km-1067",
+  "task": "calibration",
+  "institution": "IU",
+  "title": "Ocean melt: the per-basin thermal-forcing offset refitted to the July 2026 table",
+  "status": "done",
+  "period": "present day",
+  "mesh": "antarctica_5000_2000_buffered0, DG0 cells",
+  "initial_state": "the Budd 22 September snapshot (release maps-2km-snap-2026-09-22, md5 1c5d1031651f873e386c66aea34a69fe), for its mesh only",
+  "forcing": "OI climatology 30_sep; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e); the Paolo and Adusumilli table, 865.0 Gt/yr (sha256 e5751383), as a control",
+  "melt": "K05 4.75e-5, K50 8.5e-5, K95 1.375e-4 from the toolbox; one constant mean-Antarctic slope of 5.115e-3; BedMachine v4.1 vertex-sampled; offsets in deltaT_per_basin_2000_K*.npz; calibrate_melt.py K* written with ISMIP7_K_OUT, so no run reads it",
+  "site": "IU Quartz, debug partition",
+  "resources": "serial, 2.2 GB peak, 5 min 43 s for both tables and the K* fit",
+  "jobs": [
+    "10603589"
+  ],
+  "code": "6af8a6a",
+  "started": "2026-09-24",
+  "finished": "2026-09-24",
+  "results": "Quartz antarctica/results/issue30_deltaT/: mesh2000_table1067/ and mesh2000_table865/deltaT_per_basin_2000_K*.npz, K_mesh2000_table1067.npz, the job script and its log",
+  "audit": "uncorrected totals 907, 1623 and 2625 Gt/yr at K05, K50 and K95, as calibration-melt-2km measured, which is 0.85, 1.52 and 2.46 times 1067.4; every basin reaches its July total with a root in the toolbox window, offsets -0.55 to +1.72 K at K05, -0.85 to +0.87 K at K50 and -1.17 to +0.30 K at K95, the largest Amundsen (basin 9) at K05; the 865 control needs offsets up to 1.30 K, as calibration-melt-2km found. calibrate_melt.py on the July table: K* 4.46e-5, just under K05; total-match K 5.59e-5; melt at K* 851 Gt/yr; 7 of 16 basin K inside K05 to K95",
+  "notes": "issue #30; numbers for issue #26 and file names for issue #42. Refits calibration-melt-2km, which used the 865 table. The offsets depend on the mesh: calibration-melt-1km-1067"
+}

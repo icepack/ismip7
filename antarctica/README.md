@@ -465,8 +465,9 @@ ISMIP7_LC=2000 python antarctica/scripts/calibrate_deltaT.py --K 8.5e-5
 runs the fit on the forward's own melt path (the same DG0 geometry, OI
 climatology at the draft, constant mean-Antarctic slope and seawater
 flotation test the forward uses, from `calibrate_melt.forward_geometry`),
-solving `M_b(deltaT) = M_obs(b)` per basin by a bracketed root in the
-toolbox's window of plus or minus 2 K, and writes
+solving `M_b(deltaT) = M_obs(b)` per basin by a bracketed root in plus or
+minus 3 K (`melt_selection.DT_WINDOW`; the toolbox searches plus or minus
+2 K and the protocol sets no window), and writes
 `antarctica/results/deltaT_per_basin_<lc>_K<K>.npz` (basin ids, offsets, K,
 residual, dM/dT, the slope and geometry conventions). A run applies it with
 
@@ -480,14 +481,139 @@ per-basin K file. A driver refuses to start when the file is missing or
 `ISMIP7_K_SCALE` is not 1, since the offsets were fitted at the file's K.
 The fit reduces every basin total across ranks, so `mpiexec -n N` writes the
 same offsets as a serial run.
-Measured on the 2 km MAP mesh against the 865 Gt/yr table (22 September
-2026): K05 907, K50 1623 and K95 2625 Gt/yr uncorrected, each brought to
-865 by offsets within plus or minus 1.3 K, every basin with a root in the
-window. The 865 covers the fitted basins. Floating ice outside them (a basin
-the table lacks, a coverage gap, off the 8 km grid) keeps a zero offset and
-still melts at the file's K, as the toolbox applies its one K everywhere, so
-a run's integrated melt exceeds 865 by that amount; the first forcing step
-prints it (`Melt ... Gt/yr, of which ... outside the fitted basins`).
+Measured on the 2 km MAP mesh against the July table (24 September 2026, run
+record `calibration-melt-2km-1067`): K05 907, K50 1623 and K95 2625 Gt/yr
+uncorrected, each brought to 1067.4 by offsets from -0.55 to +1.72 K at K05,
+-0.85 to +0.87 K at K50 and -1.17 to +0.30 K at K95, every basin with a root
+in the window; Amundsen (basin 9) takes the largest, +1.72 K at K05. Against
+the 865 Gt/yr table the same fit needs offsets within plus or minus 1.3 K.
+A file reproduces the basin totals on the mesh it was fitted on. On the
+1000 m / 10 km production mesh (`calibration-melt-1km-1067`) the uncorrected
+totals are 2 percent higher and the offsets differ by up to 0.12 K; the 2 km
+files applied there put 1072 to 1095 Gt/yr on the fitted basins to first
+order, with single basins up to 44 percent off (basin 6 at K95). The 1067.4
+covers the fitted basins. Floating ice outside them (a basin the table lacks,
+a coverage gap, off the 8 km grid) keeps a zero offset and still melts at the
+file's K, as the toolbox applies its one K everywhere, so a run's integrated
+melt exceeds 1067.4 by that amount; the first forcing step prints it
+(`Melt ... Gt/yr, of which ... outside the fitted basins`).
+
+### K05, K50 and K95 from the toolbox objective (`select_melt_parameters.py`)
+
+Protocol section 2.3 asks for the percentiles of K to come out of the
+toolbox's objective with melt computed by the model's own code on its own
+grid, and prefers fitting the per-basin offsets for every K before the
+objective runs. `select_melt_parameters.py` does both on the forward's DG0
+cells:
+
+```bash
+ISMIP7_LC=2000 ISMIP7_INV_H5=<mesh.h5> ISMIP7_MELT_OBS_CSV=<table.csv> \
+    python antarctica/scripts/select_melt_parameters.py --geometry mesh --out /abs/dir
+```
+
+For each K of the toolbox notebook's grid (120 values, 2.5e-6 to 3.0e-4, or
+on its step to `--k-max`), variant `per_k` fits one offset per IMBIE2 basin
+to the table with the fit above, melts the present-day climatology, the 12
+ocean-model states and the
+13 observed states with those offsets, and sums the toolbox's four terms on
+the cells (`icepack2_tools/melt_selection.py`); variant `none` melts without
+offsets, the notebook's own order. The toolbox's
+`calculate_objective_function`, vendored unchanged
+(`icepack2_tools/ismip7_parameter_selection_toolbox.py`, with its MIT
+licence and source record), then draws the notebook's weights 100000 times
+per seed; seed 0 is the headline and seeds 1 to 4 the spread. Two
+departures from the notebook are deliberate: an offset is a bracketed root,
+where the notebook takes the nearest point of a 0.04 K grid, so term 1 is
+flat across the K whose basins all root; and each ocean state melts with its
+own salinity, as notebook cells 12, 15 and 65 do (cell 63 reuses the
+climatology's).
+
+Under `per_k` the objective runs on the K that `melt_selection.TFRule`
+admits. Section 2.1 asks the offsets to keep present-day thermal forcing
+"not significantly below 0 degC or above 5 degC", and this repository reads
+significantly as a bound on every floating cell and a bound on a share of
+each basin's area. A K is admitted when, with each basin's offset applied:
+
+| test | default | option |
+|---|---|---|
+| every basin reaches its observed total inside the offset window | plus or minus 3 K | `--dt-window`, `--keep-unfitted` |
+| every floating cell at or above | -1.8 degC | `--tf-floor` |
+| at most this share of any basin's floating area below | 25 percent below -1.0 degC | `--tf-floor-area` |
+| at most this share of any basin's floating area above | 25 percent above 5.5 degC | `--tf-cap-area` |
+| every floating cell at or below | no bound | `--tf-cap` |
+
+The warm side applies the cold side's 25 percent share half a degree past
+the protocol's 5 degC and bounds no single cell; `none` drops any of the
+four TF tests. The toolbox searches
+offsets in plus or minus 2 K and keeps a K whose fit ends at the window
+edge, with its residual in term 1; the objective over every K, handled that
+way inside the same 3 K window, is recorded beside the admitted one in
+`selection_per_k.json`.
+`--geometry notebook8km` runs the same aggregation on the notebook's 8 km
+grid beside the toolbox's own `calculate_term1..4`, the check that comes
+before a mesh result is read. Everything is written under `--out`:
+`ensemble_<variant>.nc` (terms, offsets, residuals and TF plausibility at
+every K), `selection_<variant>.json`, `tf_present_<lc>.npz` (each floating
+cell's present-day TF, area and basin, enough to test another rule against
+the ensemble's offsets) and, for `per_k`, `deltaT_per_basin_<lc>_K<K>.npz`
+at each selected K, which `ISMIP7_DELTAT_PER_BASIN_NPZ` applies at that
+file's K. On a cluster: `scripts/batch_runners/select_melt_parameters.script`.
+
+Measured on 24 September 2026 against the July table (run records
+`calibration-melt-toolbox-8km`, `-2km` and `-1km`), evidence for the
+percentile choice (issue #26):
+
+| grid | offsets | K05 | K50 | K95 |
+|---|---|---|---|---|
+| notebook's 8 km | none | 4.75e-5 | 8.5e-5 | 1.375e-4 |
+| 2 km MAP mesh | none | 4.5e-5 | 8.75e-5 | 1.40e-4 |
+| 1000 m / 10 km production mesh | none | 4.5e-5 | 8.5e-5 | 1.375e-4 |
+| 2 km MAP mesh | fitted for every K | 2.75e-5 | 5.75e-5 | 2.725e-4 |
+| 1000 m / 10 km production mesh | fitted for every K | 2.75e-5 | 6.25e-5 | 2.70e-4 |
+| 2 km MAP mesh, grid to 1e-3 | none | 4.5e-5 | 8.0e-5 | 1.375e-4 |
+| 1000 m / 10 km production mesh, grid to 1e-3 | none | 4.25e-5 | 7.75e-5 | 1.375e-4 |
+| 2 km MAP mesh, grid to 1e-3 | fitted for every K | 2.5e-5 | 7.5e-5 | 4.475e-4 |
+| 1000 m / 10 km production mesh, grid to 1e-3 | fitted for every K | 2.5e-5 | 7.5e-5 | 4.15e-4 |
+| 2 km MAP mesh, grid to 1e-3 | fitted for every K in 3 K, admitted K only | 2.5e-5 | 7.0e-5 | 3.225e-4 |
+| 1000 m / 10 km production mesh, grid to 1e-3 | fitted for every K in 3 K, admitted K only | 2.5e-5 | 6.5e-5 | 2.525e-4 |
+
+On the notebook's grid the aggregation matches the toolbox's term functions
+to 1.6e-12 and reproduces the notebook's printed percentiles and totals
+(877.8, 1570.7 and 2540.9 Gt/yr against 878, 1571 and 2541). With the
+offsets fitted first, term 1 is flat wherever every basin roots and terms 2
+to 4 place K. Below K = 4.25e-5 (4.0e-5 on the 1000 m mesh) Amundsen
+(basin 9) cannot reach its total inside plus or minus 2 K, and 34 percent of
+the samples (26) still land there, K05 among them; 3.8 percent (3.5) land on
+the grid's top, 3.0e-4. `--k-max 1e-3` (run records ending `-wide`)
+extends the grid on its step: 14 percent of the samples (13) then lie above
+3.0e-4 and 0.01 percent reach 1e-3, so the tail is complete. The toolbox
+divides each term by its median over the grid, so the grid's reach moves
+every percentile; the table's rows to 1e-3 differ from the notebook grid's
+at K50 too. At K95 the offsets put over 40 percent of the shelf area of nine
+basins (eleven) below 0 degC. On Quartz the 30_sep files the
+forward reads are byte-identical to the notebook's 06_nov tf v3 and so v4.
+
+The rows marked admitted K only (25 September 2026, run records ending
+`-rule`) search the offsets in 3 K and apply the thermal forcing rule above.
+Every basin then fits from K = 2.5e-5, where Amundsen takes +2.96 K on the 2
+km mesh (+2.88 K) and puts 12 percent of its shelf (11) above 5.5 degC, and
+the admitted K run from 2.5e-5 to 3.5e-4 on the 2 km mesh and to 2.55e-4 on
+the 1000 m mesh. The top is where basin 4 passes 25 percent of its area
+below -1.0 degC, and that basin alone moves the top between the meshes. The
+-1.8 degC floor never binds and the 5.5 degC test fails only at K of 1.0e-5
+and below, so the 3 K window sets the bottom. 12 percent of the samples (11)
+sit on the bottom and 3.75 percent (4.9) on the top, and the seeds agree
+within one step. At the 2 km K05, K50 and K95 the present-day dM/dT is 1362,
+2123 and 5305 Gt/yr per K (1386, 2087 and 4476), against 1787 to 2893 at the
+notebook's percentiles; the term 3 warm-minus-cold response is 0.74, 1.56
+and 5.2 times the ocean models' (0.73, 1.45 and 4.2), and at K95 46 percent
+of the shelf area (40) refreezes at present day. The superseded
+`-rule-cap68` runs also bounded every cell at 6.8 degC, which lifted the 2
+km K05 to 2.75e-5; a 5 degC bound on every cell would leave 7.25e-5, 8.0e-5
+and 3.475e-4 (7.25e-5, 7.25e-5 and 2.55e-4) with half the samples on the
+bottom. The objective over every K, unfitted K kept, gives 1.75e-5, 7.75e-5
+and 4.475e-4 (4.15e-4). The offsets at issue 30's K match its files within
+3.7e-5 K, the root tolerance in the wider bracket.
 
 ## 6. Control and projections
 
@@ -778,7 +904,7 @@ redeclare those literals.
 | `ISMIP7_DELTAT_PER_BASIN_NPZ` | per-basin TF offset at one toolbox K from `calibrate_deltaT.py`; when set, every ocean callback melts with that file's K and the K file is not read. Refused with `ISMIP7_K_SCALE` other than 1 | unset |
 | `ISMIP7_MELT_OBS_CSV` | per-basin melt observation table read by `scripts/calibrate_melt.py`; columns are located by header name, so either published table serves | `Melt_Paolo_Davison_Adusumilli_imbie2.csv` under `<DATA_ROOT>/meltobs/`, else under `<DATA_ROOT>/parameterisations/ocean/meltobs/`, else the older Paolo and Adusumilli table with a `[!]` line |
 | `ISMIP7_MELT_SLOPE` | the draft slope the quadratic melt law sees, in the forward and in `scripts/calibrate_melt.py` and `scripts/calibrate_deltaT.py`: `ant` is one constant `sin(alpha)` on every shelf, the protocol's reference ("mean Antarctic slope, no slope dependency"); `local` is this mesh's draft slope. A K or deltaT file records the convention it was fitted under and a run under the other is told once | `ant` |
-| `ISMIP7_SIN_ALPHA_ANT` | the constant under `ant`. The default is the value the toolbox's K percentiles were sampled with, back-computed from its own gamma_T conversion; the notebook's recipe on the 8 km v3 topography gives 5.7e-3 | `5.115e-3` |
+| `ISMIP7_SIN_ALPHA_ANT` | the constant under `ant`. The toolbox's K percentiles were sampled with 5.1117e-3, which its own gamma_T conversion gives and the notebook's slope recipe on the 8 km BedMap3 v3 topography reproduces; the default rounds it up by 0.065 percent | `5.115e-3` |
 | `ISMIP7_SIN_ALPHA_CAP` | `local` slope only: cap on `sin(alpha)` in `scripts/calibrate_melt.py`; the forward applies none | none under `dg0`, `5e-3` under `cg1` |
 | `ISMIP7_K_OUT` | output path for `scripts/calibrate_melt.py`, overriding the generated name. Use it for a calibration made as a check, so it cannot replace the K that every forward and inversion in the checkout reads. A bare filename resolves under `results/` | `results/calibrated_K_per_basin_<lc>.npz` |
 | `ISMIP7_ESM` | ESM for the control | `CESM2-WACCM` |

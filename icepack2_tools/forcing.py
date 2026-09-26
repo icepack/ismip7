@@ -1533,11 +1533,13 @@ def is_floating(s, b):
 # shelves. The local slope is the notebook's other option, with its caveat
 # that gridded slopes are bumpy. The toolbox's K05, K50 and K95 belong to the
 # constant-slope law: its own gamma_T conversion gives the value they were
-# sampled with, sin(alpha) = 5.115e-3 for all three (K = gamma_T * 2|f| rho_sw
-# / (rho_i g beta_S S0 sin(alpha) yr) with the notebook's constants). The
-# notebook's recipe on the ISMIP7 8 km v3 topography gives 5.7e-3; Burgard et
-# al. (2022) tuned against 2.9e-3. The default is the value the percentiles
-# carry, so a K read against them means the same thing here.
+# sampled with, sin(alpha) = 5.1117e-3 for all three (K = gamma_T * 2|f| rho_sw
+# / (rho_i g beta_S S0 sin(alpha) yr) with the notebook's constants), and the
+# notebook's slope recipe on the ISMIP7 8 km BedMap3 v3 topography gives the
+# same 5.1117e-3 (select_melt_parameters.py --geometry notebook8km, September
+# 2026). Burgard et al. (2022) tuned against 2.9e-3. The default rounds the
+# value the percentiles carry up by 0.065 percent, which moves melt by that
+# fraction, so a K read against them means the same thing here.
 MELT_SLOPES = ("ant", "local")
 MELT_SLOPE_DEFAULT = "ant"
 SIN_ALPHA_ANT_DEFAULT = 5.115e-3

@@ -1,0 +1,23 @@
+{
+  "id": "calibration-melt-toolbox-2km-wide",
+  "task": "calibration",
+  "institution": "IU",
+  "title": "Ocean melt: the toolbox objective on the 2 km mesh with the K grid extended to 1e-3",
+  "status": "done",
+  "period": "present day",
+  "mesh": "antarctica_5000_2000_buffered0, DG0 cells",
+  "initial_state": "the Budd 22 September snapshot (release maps-2km-snap-2026-09-22, md5 1c5d1031651f873e386c66aea34a69fe), for its mesh only",
+  "forcing": "OI climatology 30_sep, byte-identical on Quartz to zhou_annual_06_nov tf v3 and so v4; the toolbox's 12 ocean-model and 13 observed states; buttressing bins from BFRN_ismip2km_v2; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)",
+  "melt": "as calibration-melt-toolbox-2km with the notebook's K grid extended on its 2.5e-6 step to 1e-3 (400 values, MELTSEL_K_MAX); 100000 samples per seed in chunks of 5000, seeds 0 to 4",
+  "site": "IU Quartz, debug partition",
+  "resources": "serial, 5.9 GB peak, 13 min 40 s",
+  "jobs": [
+    "10605965"
+  ],
+  "code": "a290959",
+  "started": "2026-09-24",
+  "finished": "2026-09-24",
+  "results": "Quartz antarctica/results/melt_selection/mesh2000_kmax1e-3/: ensemble_per_k.nc, ensemble_none.nc, selection_per_k.json, selection_none.json, deltaT_per_basin_2000_K2.500e-05.npz, _K7.500e-05.npz and _K4.475e-04.npz",
+  "audit": "offsets first: K05 2.5e-5, K50 7.5e-5 (7.25e-5 at four of five seeds), K95 4.475e-4 (4.425e-4 at four), 99th percentile 5.9e-4; 14 percent of the samples lie above 3e-4 and 0.01 percent reach 1e-3, so the tail is complete; every basin still roots at 1e-3 (most negative offset -1.75 K, basin 4); 30 percent of the samples land below K = 4.25e-5, where Amundsen cannot root. Without offsets: K05 4.5e-5, K50 8.0e-5, K95 1.375e-4. The toolbox divides each term by its median over the grid, so the extension moved K50 from 5.75e-5 to 7.5e-5 with offsets and from 8.75e-5 to 8.0e-5 without; the grid's first 120 values give back calibration-melt-toolbox-2km's percentiles exactly. Only K where every basin roots: 4.25e-5, 8.0e-5, 4.525e-4; those whose basin means of thermal forcing also stay within 0 to 5 degC: 4.25e-5, 4.25e-5, 7.25e-5. dM/dT at K05 and K95: 1337 and 7307 Gt/yr per K. The offsets at the toolbox's K match issue 30's files within 1.2e-7 K, and the written files reload within 1e-5 Gt/yr",
+  "notes": "issue #26, evidence only. Nothing is staged at a default path (issue #42)"
+}

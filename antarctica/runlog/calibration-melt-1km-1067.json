@@ -1,0 +1,23 @@
+{
+  "id": "calibration-melt-1km-1067",
+  "task": "calibration",
+  "institution": "IU",
+  "title": "Ocean melt: the per-basin thermal-forcing offset on the 1000 m production mesh",
+  "status": "done",
+  "period": "present day",
+  "mesh": "antarctica_10000_1000_buffered20000, DG0 cells",
+  "initial_state": "the 1000 m timing state timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5, for its mesh only",
+  "forcing": "OI climatology 30_sep; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)",
+  "melt": "K05 4.75e-5, K50 8.5e-5, K95 1.375e-4 from the toolbox; one constant mean-Antarctic slope of 5.115e-3; BedMachine v4.1 vertex-sampled; offsets in deltaT_per_basin_1000_K*.npz",
+  "site": "IU Quartz, debug partition",
+  "resources": "serial, 3.4 GB peak, 3 min 9 s",
+  "jobs": [
+    "10603590"
+  ],
+  "code": "6af8a6a",
+  "started": "2026-09-24",
+  "finished": "2026-09-24",
+  "results": "Quartz antarctica/results/issue30_deltaT/mesh1000_table1067/deltaT_per_basin_1000_K*.npz",
+  "audit": "uncorrected totals 925, 1656 and 2678 Gt/yr at K05, K50 and K95, 2.0 percent above the 2 km mesh; every basin reaches its July total with a root in the toolbox window, and the offsets differ from the 2 km fit by at most 0.12 K (basin 1). The 2 km files applied here put, to first order, 1095, 1085 and 1072 Gt/yr on the fitted basins, with basins 1, 6, 12 and 13 more than 10 percent off at some K and basin 6 44 percent under at K95",
+  "notes": "issue #30; mesh evidence for issue #20. The mesh the MAP check transfers onto (MAP_CHECK.md)"
+}

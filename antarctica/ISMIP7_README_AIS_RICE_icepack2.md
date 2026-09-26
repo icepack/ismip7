@@ -74,8 +74,8 @@ shallow-shelf formulation on Firedrake 2026.4.1)
    `antarctica/scripts/calibrate_melt.py` to the observed basin totals
    through the model's own melt path; the forward applies this per-basin
    field and `ISMIP7_K_SCALE` multiplies it. K* = 4.06e-5 on the 865 Gt/yr
-   table (about 5.0e-5 on the July 2026 table, between K05 and K50); see
-   `GEOMETRY_DISCRETIZATION.md`.
+   table (2500 m mesh) and 4.46e-5 on the July 2026 table (2 km mesh), just
+   under K05; see `GEOMETRY_DISCRETIZATION.md`.
    **[confirm #42]** that every submitted run read this calibration. Thermal
    forcing (`tf`) and salinity (`so`) are read at the cell's draft from the
    ISMIP7 ocean forcing, nearest neighbour in depth and in the plane, and
