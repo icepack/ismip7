@@ -1225,9 +1225,9 @@ applied to the p4 annual files moves 131, 451 and 571 Gt/yr out of the
 pixels the fill blanks in 2150, 2250 and 2300 (against the class-wide 535 at
 2300 above) and leaves 250, 978 and 1,200 Gt/yr there: 216, 937 and 1,094 of
 them the reference's share on emptied marine cells, and 0.4, 8.7 and 20 the
-reference melted on emptied land cells, which the melt law counts as afloat
-at zero thickness. The runs in this report predate the change, and
-their `lifmassbf` is zero.
+reference melted on emptied land cells, which the melt law of these runs
+counted as afloat at zero thickness. The runs in this report predate the
+change, and their `lifmassbf` is zero.
 
 ### True area
 

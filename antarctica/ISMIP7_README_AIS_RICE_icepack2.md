@@ -287,14 +287,16 @@ versions across it. Where the melt lands depends on the time step: the
 thickness floor lets a cell melt only the ice it held when a step began, so
 a receiving cell ends the year holding the last step's inflow, and where
 that exceeds 1 m the cell counts as ice and its melt stays in `libmassbffl`,
-where the fill keeps it. In the 32 km CESM2-WACCM ssp585 at 2300 (map-plane
-area, `ISMIP7_DT=0.1`), `lifmassbf` carries 603 Gt/yr, and the gridded
-`libmassbffl` still leaves out 1,200 Gt/yr of the native melt: 1,094 is the
-reference's share on emptied marine cells, 20 is the reference's supply
-melted on emptied land cells, which the melt law counts as afloat at zero
-thickness (issue #105), and 87 is shelf ice that melted away within the
-year. **[confirm #109]** the production ssp585's numbers, which
-the writer prints.
+where the fill keeps it. In the 32 km CESM2-WACCM ssp585 of 23 September at
+2300 (map-plane area, `ISMIP7_DT=0.1`), `lifmassbf` carries 603 Gt/yr, and
+the gridded `libmassbffl` still leaves out 1,200 Gt/yr of the native melt:
+1,094 is the reference's share on emptied marine cells, 20 is the reference's
+supply melted on emptied land cells, which the melt law of that run counted
+as afloat at zero thickness (issue #105), and 87 is shelf ice that melted
+away within the year. The model now melts only cells holding ice and forces
+no open ocean, so the land melt and the reference's share on marine cells
+that stay empty no longer arise. **[confirm #109]** the production ssp585's
+numbers, which the writer prints.
 
 Compliance: isschecker 0.5.1 of 22 September 2026, which grades a range
 finding by the share of values outside the bounds (discussion #46). A 32 km

@@ -607,8 +607,8 @@ Output and submission:
     Applied to the p4 annual files, the split moves 571 Gt/yr at 2300 out of
     the pixels the fill blanks and leaves 1,200 there: 1,094 the reference's
     share on emptied marine cells, 20 the reference melted on emptied land
-    cells, which the melt law counts as afloat at zero thickness, and 87
-    shelf ice; the submission README states the booking. A main and
+    cells, which the melt law of that run counted as afloat at zero
+    thickness, and 87 shelf ice; the submission README states the booking. A main and
     branch pair restarted from p4 at 2294.0 checked it end to end on Quartz
     (runlog `test-32km-ssp585-front-melt-main` and `-branch`): the forward's
     split matches the function applied offline to 1.5e-14 m/yr, the tool's
