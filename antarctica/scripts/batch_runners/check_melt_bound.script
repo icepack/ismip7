@@ -17,8 +17,9 @@
 #       --cd antarctica --queue debug --tasks 1 --mem 16G --time 00:30:00 \
 #       ISMIP7_INV_H5=$PWD/mesh/<map>.h5
 #
-# ISMIP7_INV_H5 supplies the mesh and nothing else, so a forward state serves
-# where no MAP exists yet at that resolution:
+# ISMIP7_INV_H5 supplies the mesh and nothing else, so a forward state, or a
+# gmsh .msh such as another site's build of the same mesh, serves where no MAP
+# exists yet:
 #
 #       ISMIP7_INV_H5=$PWD/results/<run>_1000_final.h5
 #
@@ -43,7 +44,7 @@ ismip7_activate
 ismip7_persistent_jit_cache
 ismip7_banner
 
-h5="${ISMIP7_INV_H5:?ISMIP7_INV_H5 is required (a MAP or a forward state, read for its mesh)}"
+h5="${ISMIP7_INV_H5:?ISMIP7_INV_H5 is required (a MAP, a forward state or a .msh, read for its mesh)}"
 [ -f "${h5}" ] || { echo "mesh source not found: ${h5}" >&2; exit 2; }
 if [ -n "${ISMIP7_DELTAT_PER_BASIN_NPZ:-}" ] && [ -n "${ISMIP7_K_PER_BASIN_NPZ:-}" ]; then
     echo "ISMIP7_DELTAT_PER_BASIN_NPZ and ISMIP7_K_PER_BASIN_NPZ are both set; name one calibration" >&2

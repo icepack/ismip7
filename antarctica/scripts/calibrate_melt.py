@@ -6,8 +6,8 @@ with one K and a thermal-forcing offset per basin, the tracked calibration
 reads a file written here only when ISMIP7_K_PER_BASIN_NPZ names it.
 
 Mesh: the section 4 MAP for the configured ISMIP7_FRICTION, named by
-`icepack2_tools/naming.py` (ISMIP7_LC; ISMIP7_INV_H5 names a different MAP).
-Only the mesh is read from it.
+`icepack2_tools/naming.py` (ISMIP7_LC; ISMIP7_INV_H5 names a different MAP, a
+forward state or a gmsh .msh). Only the mesh is read from it.
 
 Geometry: the same ISMIP7_GEOMETRY_SPACE the forward reads (default dg0).
 
@@ -211,7 +211,13 @@ RHO_RATIO = 917.0 / 1024.0
 
 
 def _load_mesh():
+    r"""The mesh ``INV_H5`` names: a MAP or forward-state checkpoint, or a
+    gmsh ``.msh``, which serves where two builds of one mesh name differ and
+    no checkpoint on the build in question exists yet (Rice's build of the
+    production mesh against IU's)."""
     PETSc.Sys.Print(f"  Loading mesh from: {INV_H5}")
+    if INV_H5.endswith(".msh"):
+        return fd.Mesh(INV_H5)
     with CheckpointFile(INV_H5, "r") as chk:
         mesh = chk.load_mesh()
     return mesh
