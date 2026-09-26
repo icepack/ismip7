@@ -57,9 +57,9 @@ RESULTS_DIR = os.path.join(_ROOT, "results")
 
 # Repo root on the path for the shared dual-friction operator.
 sys.path.insert(0, os.path.dirname(_ROOT))
-from mesh_naming import mesh_filename
+from mesh_naming import mesh_filename, mesh_stem
 
-from icepack2_tools.transfer import interpolate_with_fill
+from icepack2_tools.transfer import interpolate_with_fill, meshes_match
 from icepack2_tools.mpi_stats import (
     global_count,
     global_extreme_location,
@@ -77,14 +77,16 @@ from icepack2_tools.front import (
     collapse_banner, collapse_cell_counts, collapse_csv_fields,
     COLLAPSE_CSV_COLUMNS, COLLAPSE_MARKER, FRONT_OWNER_MARKER,
 )
-from icepack2_tools.timeseries import format_year, rows_kept_on_resume
+from icepack2_tools.timeseries import (
+    format_year, resumed_step, rows_kept_on_resume, step_changed,
+)
 from icepack2_tools.runconfig import (
     obs_data_root,
     BUDD_SHELF_GATE as _BUDD_SHELF_GATE,
     residual_stabilizers,
     friction as _friction, geometry_space as _geometry_space,
     mesh_override as _mesh_override,
-    lc as _lc, lc_coarse as _lc_coarse, n_flow as _n_flow,
+    lc as _lc, lc_coarse as _lc_coarse, n_flow as _n_flow, buffer_m as _buffer_m,
     TARGET_MESH_GEOMETRY_METHOD,
     calving_law as _calving_law, calving_sigma_max as _calving_sigma_max,
     fracture as _fracture_mode, ismip7_output as _ismip7_output,
@@ -95,6 +97,7 @@ from icepack2_tools.runconfig import (
     fixed_front as _fixed_front, auto_resume, apparent_mb_mode,  # noqa: F401
     front_hmin as _front_hmin,
     GEOMETRY_YEAR,
+    allow_dt_change, mesh_build_check,
 )
 DATA_DIR = obs_data_root()
 from icepack2_tools.solverconfig import (
@@ -117,7 +120,7 @@ from icepack2_tools.solverconfig import (
 
 lc = _lc()
 lc_coarse = _lc_coarse()
-buffer_m = float(os.environ.get("ISMIP7_BUFFER_M", "20000"))
+buffer_m = _buffer_m()
 
 # Flow-law exponent for the composite viscous rheology: owned by
 # icepack2_tools.runconfig, which the inversion that produced the MAP reads
@@ -423,6 +426,28 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
             f"({global_size(mesh.coordinates)} vertices, "
             f"{mesh.comm.allreduce(mesh.cell_set.size)} cells)"
         )
+        # The transfer below interpolates the checkpoint onto this file. Two
+        # builds of one mesh name can differ: Rice's production mesh has
+        # 1,869,252 vertices and IU's 1,869,088 (issue 20), and a transfer
+        # across them ran without a word, starting the run from a state its
+        # MAP was never solved on. The same name with another triangulation is
+        # refused; a transfer between differently named meshes is the timing
+        # matrix's and the MAP check's, and stays allowed.
+        if (mesh_stem(mesh_fn) == mesh_stem(source_mesh_basename)
+                and mesh_build_check()
+                and not meshes_match(source_mesh, mesh)):
+            raise RuntimeError(
+                f"ISMIP7_MESH={mesh_fn} ({global_size(mesh.coordinates)} "
+                f"vertices, {mesh.comm.allreduce(mesh.cell_set.size)} cells) "
+                f"has the name of the mesh {source_chk} was solved on "
+                f"({global_size(source_mesh.coordinates)} vertices, "
+                f"{source_mesh.comm.allreduce(source_mesh.cell_set.size)} "
+                f"cells) and another triangulation: a different build of the "
+                f"same mesh. Use the build the checkpoint was solved on (for "
+                f"the production mesh, Rice's .msh travels with the MAP), "
+                f"ISMIP7_MESH=checkpoint to solve on the checkpoint's own "
+                f"mesh, or ISMIP7_MESH_BUILD_CHECK=0 to transfer on purpose."
+            )
     else:
         mesh = source_mesh
         target_lc_coarse = chk_lc_coarse
@@ -565,6 +590,7 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     phys_div = None
     h_dg_state = None
     t_restart = None
+    restart_dt = None
     A_prior_f = None
     ismip7_resume = None
     # The fluidity baseline, here because the loader below fills the prior
@@ -680,6 +706,11 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 N_ref = load_checkpoint_field(chk, "N_ref", Q_g)
             if chk.has_attr("/", "t_yr"):
                 t_restart = float(chk.get_attr("/", "t_yr"))
+            # The step the run that wrote this checkpoint took (absent before
+            # the production step moved to 0.025, issue 20); run_simulation
+            # holds a resumed series to it.
+            if chk.has_attr("/", "dt_yr"):
+                restart_dt = float(chk.get_attr("/", "dt_yr"))
             # The ISMIP7 year in progress, so a link that stopped mid-year
             # continues the same year's flux means instead of losing them.
             from icepack2_tools.ismip7_output import AnnualOutput as _AnnualOutput
@@ -1582,6 +1613,8 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         # Resume time (None on a cold start); run_simulation continues the
         # timeline from here instead of the caller's t_start.
         "t_restart": t_restart,
+        # The step the checkpoint's run took, when it records one.
+        "restart_dt": restart_dt,
         # Timing-cache identity, if this is a prepared timing restart.
         # Ordinary production checkpoints legitimately omit these fields.
         "checkpoint_metadata": checkpoint_metadata,
@@ -1687,6 +1720,9 @@ def save_model_state(ctx, final_path, t_now, extra_attrs=None):
                 chk.set_attr("/", _key, _val)
 
         chk.set_attr("/", "t_yr", float(t_now))
+        # The step, so a resume can hold the series to it (run_simulation).
+        if ctx.get("dt") is not None:
+            chk.set_attr("/", "dt_yr", float(ctx["dt"]))
         if ctx.get("calving_law") is not None:
             chk.set_attr("/", "calving_law", str(ctx["calving_law"].describe()))
         chk.set_attr("/", "friction", str(ctx.get("friction", "budd")))
@@ -1792,6 +1828,44 @@ def run_simulation(
     PETSc.Sys.Print(
         f"\nTime-stepping: {t_start}->{t_end}, dt={dt}yr, {nsteps} steps"
     )
+    # Every checkpoint this run writes records its step (save_model_state).
+    ctx["dt"] = dt
+
+    # A resumed run continues its own timeseries, and a series keeps one step:
+    # a hand resume of a 0.05 run under the 0.025 default (issue 20) used to
+    # continue at the new step without a word. The series' step is the
+    # checkpoint's dt_yr, or, for a checkpoint older than that record, read
+    # back from the rows up to the resume year. A branch from another run's
+    # endpoint keeps no row of its own series and starts one at its own step.
+    csv_fn = os.path.join(RESULTS_DIR, f"{experiment_name}_{lc}_timeseries.csv")
+    prior_dt, prior_from = None, None
+    if t_restart is not None and mesh.comm.rank == 0 and os.path.exists(csv_fn):
+        with open(csv_fn) as _cf:
+            prior_dt, prior_from = resumed_step(
+                rows_kept_on_resume(_cf.readlines(), "", t_start, dt),
+                ctx.get("restart_dt"))
+    prior_dt, prior_from = mesh.comm.bcast((prior_dt, prior_from), root=0)
+    if prior_dt is not None and step_changed(prior_dt, dt):
+        _change = (f"{os.path.basename(csv_fn)} was written at dt={prior_dt:g} yr "
+                   f"({prior_from}) and this run steps at dt={dt:g}")
+        if not allow_dt_change():
+            raise RuntimeError(
+                f"Resume refused: {_change}. A resumed series keeps its step: "
+                f"set ISMIP7_DT={prior_dt:g} to continue it, or "
+                f"ISMIP7_ALLOW_DT_CHANGE=1 to change the step on purpose."
+            )
+        PETSc.Sys.Print(
+            f"  WARNING: {_change}; continuing under ISMIP7_ALLOW_DT_CHANGE=1")
+    elif prior_from == "unknown":
+        PETSc.Sys.Print(
+            f"  Resume: too few rows of {os.path.basename(csv_fn)} to read its "
+            f"step back; continuing at dt={dt:g}")
+    elif prior_dt is None and ctx.get("restart_dt") is not None \
+            and step_changed(ctx["restart_dt"], dt):
+        PETSc.Sys.Print(
+            f"  Restart: the checkpoint's run stepped at "
+            f"dt={ctx['restart_dt']:g} yr; this run starts its own series at "
+            f"dt={dt:g}")
 
     # Checkpoint cadence in YEARS (default 5) so a reboot loses bounded wall
     # time regardless of dt; keep only the last few (plus _final.h5) to bound
@@ -2302,7 +2376,6 @@ def run_simulation(
     # warm restart, drop the rows after the resume year, then append. The
     # year is written at full precision (icepack2_tools.timeseries): the trim
     # and the audits' step both read it back.
-    csv_fn = os.path.join(RESULTS_DIR, f"{experiment_name}_{lc}_timeseries.csv")
     csv_header = ("year,vaf_mm_sle,mass_gt,smb_gtyr,melt_gtyr,"
                   "outflux_gtyr,calv_gt,clamp_gt,resid_gt,amb_gtyr,"
                   + ",".join(COLLAPSE_CSV_COLUMNS) + "\n")

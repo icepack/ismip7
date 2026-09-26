@@ -52,3 +52,87 @@ def test_the_default_step_is_the_production_step(unset):
 def test_a_named_step_wins(unset):
     unset.setenv("ISMIP7_DT", "0.1")
     assert dt() == 0.1
+
+
+# --- one outline buffer -------------------------------------------------------
+# The outline extraction defaulted to 0 while every mesh name defaulted to
+# 20000, so a bare call built an unbuffered outline for a buffered name.
+
+from icepack2_tools.runconfig import (  # noqa: E402
+    BUFFER_M_DEFAULT, allow_dt_change, buffer_m, mesh_build_check,
+)
+from mesh_naming import (  # noqa: E402
+    buffer_from_name, mesh_stem, resolve_outline_buffer,
+)
+
+
+def test_the_names_and_the_outline_read_one_buffer_default(unset):
+    assert buffer_m() == DEFAULT_BUFFER_M == float(BUFFER_M_DEFAULT) == 20000.0
+    unset.setenv("ISMIP7_BUFFER_M", "0")
+    assert buffer_m() == get_buffer_m() == 0.0
+
+
+@pytest.mark.parametrize("name, buffer", [
+    (PRODUCTION_MESH, 20000.0),
+    (f"antarctica/mesh/{PRODUCTION_MESH}.msh", 20000.0),
+    ("antarctica_5000_2000_buffered0", 0.0),
+    (f"{PRODUCTION_MESH}_adapt1", 20000.0),
+    ("antarctica_64000_2500_buffered", None),   # legacy, no size
+    ("antarctica_ua_180000_2000_obs", None),
+    ("antarctica_320000_32000", None),
+])
+def test_a_mesh_name_records_its_buffer_or_says_nothing(name, buffer):
+    assert buffer_from_name(name) == buffer
+
+
+def test_a_new_mesh_takes_the_first_buffer_that_is_known():
+    r"""adapt_mesh.py: a checkpoint's record, else its name's tag, else a
+    named ISMIP7_BUFFER_M, else nothing, which it refuses."""
+    assert resolve_outline_buffer(0.0, PRODUCTION_MESH, "5000") == 0.0
+    assert resolve_outline_buffer(None, PRODUCTION_MESH, "5000") == 20000.0
+    assert resolve_outline_buffer(None, "antarctica_ua_180000_2000", "5000") == 5000.0
+    assert resolve_outline_buffer(None, "antarctica_ua_180000_2000") is None
+
+
+def test_the_outline_is_buffered_by_the_shared_default(unset):
+    r"""A synthetic 400 km ice square at 4 km pixels: with no buffer named
+    the outline grows by 20 km on each side, and an explicit 0 keeps it."""
+    pytest.importorskip("gmsh")
+    import numpy as np
+    from icepack2_tools.mesh import extract_ice_outline
+    x = y = np.arange(0.0, 1.0e6, 4.0e3)
+    mask = np.zeros((y.size, x.size), dtype=np.int8)
+    mask[50:150, 50:150] = 2                     # grounded ice
+    bare = extract_ice_outline(mask, x, y, buffer_m=0.0)
+    grown = extract_ice_outline(mask, x, y)
+    side = np.sqrt(bare.area)
+    assert side == pytest.approx(4.0e5, rel=0.05)
+    assert np.sqrt(grown.area) == pytest.approx(side + 2 * 2.0e4, rel=0.02)
+    unset.setenv("ISMIP7_BUFFER_M", "0")
+    assert extract_ice_outline(mask, x, y).area == pytest.approx(bare.area)
+
+
+def test_mesh_names_compare_without_directory_or_extension():
+    assert mesh_stem(f"/a/b/{PRODUCTION_MESH}.msh") == mesh_stem(PRODUCTION_MESH)
+    assert mesh_stem(f"{PRODUCTION_MESH}.msh") == PRODUCTION_MESH
+
+
+# --- the two new integer flags ------------------------------------------------
+
+@pytest.mark.parametrize("value, allow, check", [
+    (None, False, True), ("", False, True), ("0", False, False), ("1", True, True),
+])
+def test_the_resume_and_build_flags_read_like_auto_resume(unset, value, allow, check):
+    for name in ("ISMIP7_ALLOW_DT_CHANGE", "ISMIP7_MESH_BUILD_CHECK"):
+        if value is None:
+            unset.delenv(name, raising=False)
+        else:
+            unset.setenv(name, value)
+    assert allow_dt_change() is allow
+    assert mesh_build_check() is check
+
+
+def test_a_flag_that_is_not_an_integer_is_an_error(unset):
+    unset.setenv("ISMIP7_MESH_BUILD_CHECK", "no")
+    with pytest.raises(ValueError, match="ISMIP7_MESH_BUILD_CHECK"):
+        mesh_build_check()

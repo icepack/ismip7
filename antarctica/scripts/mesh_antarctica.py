@@ -20,7 +20,9 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PROJECT = os.path.dirname(_ROOT)
 sys.path.insert(0, _PROJECT)
 
-from icepack2_tools.runconfig import obs_data_root, lc as _lc, lc_coarse as _lc_coarse
+from icepack2_tools.runconfig import (
+    obs_data_root, lc as _lc, lc_coarse as _lc_coarse, buffer_m as _buffer_m,
+)
 
 DATA_DIR = obs_data_root()
 from icepack2_tools.mesh import (
@@ -54,7 +56,7 @@ def parse_args():
     parser.add_argument(
         "--buffer-m",
         type=float,
-        default=float(os.environ.get("ISMIP7_BUFFER_M", "20000")),
+        default=_buffer_m(),
         help=(
             "Outline buffer pushed into the ocean before meshing, in meters "
             "(0 disables buffering)"
@@ -151,9 +153,9 @@ def main():
 
     lc, lc_coarse, buffer_m = args.lc, args.lc_coarse, args.buffer_m
 
-    # icepack2_tools.mesh.extract_ice_outline() reads ISMIP7_BUFFER_M itself,
-    # so the CLI override must be mirrored into the environment for the
-    # actual buffering (not just the output filenames) to pick it up.
+    # Mirrored into the environment as well as passed to the outline below,
+    # so anything this process reads through runconfig.buffer_m() agrees with
+    # the file name.
     os.environ["ISMIP7_BUFFER_M"] = str(buffer_m)
     print(f"Mesh: lc={lc} m, lc_coarse={lc_coarse} m, buffer={buffer_m/1e3:.0f} km")
 
@@ -169,7 +171,7 @@ def main():
     cf_decay_buf = max(20e3, 1.25 * lc)
 
     mask, x, y = load_bedmachine_mask(DATA_DIR)
-    outline = extract_ice_outline(mask, x, y)
+    outline = extract_ice_outline(mask, x, y, buffer_m=buffer_m)
     boundaries, names = classify_boundaries(outline, mask, x, y)
     refinement = load_velocity_for_sizing(DATA_DIR)
 

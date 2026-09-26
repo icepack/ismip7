@@ -45,7 +45,11 @@ what this branch does.
    `--experiment-name` so parallel experiments cannot overwrite each other in
    the shared `antarctica/mesh/`. The `.msh` files are regenerated with these
    flags; the sidecars are committed. The `_obs` mesh is what the NOTS
-   inversions and the committed MAP names refer to.
+   inversions and the committed MAP names refer to. The new mesh's outline
+   buffer is the checkpoint's `buffer_m`, else its mesh name's
+   `_buffered<N>` tag, else a named `ISMIP7_BUFFER_M`, and a mesh with none
+   of them is refused, since 0 and 20000 are each wrong for some legacy mesh.
+   A scaffold (`--source-mesh`) takes a named `ISMIP7_BUFFER_M` first.
 2. Invert on that mesh.
 3. Run the forward on it, without adaptation.
 

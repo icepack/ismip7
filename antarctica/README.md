@@ -859,8 +859,8 @@ redeclare those literals.
 | Env var | Meaning | Default |
 |---------|---------|---------|
 | `ISMIP7_LC` / `ISMIP7_LC_COARSE` | fine and coarse mesh resolution tags, selecting mesh and MAP | `1000` / `10000`, the production pair (`2500` / `64000` until 2026-09-19) |
-| `ISMIP7_BUFFER_M` | outline buffer (m) in the default mesh and sidecar names | `20000` |
-| `ISMIP7_MESH` | mesh path for the inversion and tools. A forward takes its mesh from the checkpoint unless this names another mesh, in which case the MAP is transferred onto it. `checkpoint` means the mesh embedded in the MAP or restart file: `site_env.sh` always exports a derived path, so this is how a job submitted through `submit.sh projection` runs MAP-native | `mesh/antarctica_<COARSE>_<LC>_buffered<BUFFER_M>.msh` |
+| `ISMIP7_BUFFER_M` | outline buffer (m) the mesh is built with and named by (`runconfig.BUFFER_M_DEFAULT`, which the outline extraction and the mesh and sidecar names all read) | `20000` |
+| `ISMIP7_MESH` | mesh path for the inversion and tools. A forward takes its mesh from the checkpoint unless this names another mesh, in which case the MAP is transferred onto it; a file with the checkpoint mesh's name and another triangulation is refused (`ISMIP7_MESH_BUILD_CHECK`). `checkpoint` means the mesh embedded in the MAP or restart file: `site_env.sh` always exports a derived path, so this is how a job submitted through `submit.sh projection` runs MAP-native | `mesh/antarctica_<COARSE>_<LC>_buffered<BUFFER_M>.msh` |
 | `ISMIP7_RASTER_SAMPLE` | how BedMachine lands on a DG0 cell. `vertex` projects the CG1 vertex interpolant; `cell_mean` takes the raster's true cell mean. `cell_mean` measured rougher: neighbouring cells share two of three vertex samples, so `vertex` damps jumps by construction. Cell means raised interior surface jumps 6% and bed and thickness jumps 35%, and at 2 km the momentum solve did not converge within 60 minutes. It does classify flotation better (32 km misclassification 9.1% to 3.2%), so the knob stays. Stamped into the MAP and read back by the forward. Reproduce with `probe_raster_sampling.py` | `vertex` |
 | `ISMIP7_INVERSION` | explicit MAP path for a forward or preflight. The forward checks the MAP's recorded `friction`, `n_flow` and `geometry_space` against the run and aborts on a mismatch, warning only when the MAP predates those attributes; `preflight.py` checks that the file exists. Use it to A/B MAPs on one mesh, or, with `ISMIP7_MESH` also set (the timing matrix, `make map-check`), to run a MAP on a different mesh: its continuous fields are then interpolated onto `ISMIP7_MESH` by strict point location (`icepack2_tools/transfer.py`), and a target dof outside the MAP's outline takes a stated fill (0 for the log controls, the constant baseline for the fluidity prior, the raster sample for `velocity_obs`), counted and printed as `Transfer fill:` lines (`MAP_CHECK.md`) | derived |
 | `ISMIP7_CALVING` | `none`, `fixed` or `vonmises` (see above) | `none` |
@@ -879,6 +879,8 @@ redeclare those literals.
 | `ISMIP7_OUTPUT_INTERVAL` | budget log line every N steps; the timeseries gets a row every step | `10` |
 | `ISMIP7_CHECKPOINT_EVERY_YR` / `ISMIP7_KEEP_CHECKPOINTS` | checkpoint cadence in model years, and how many to keep besides `_final.h5` | `5` / `3` |
 | `ISMIP7_RESTART` | restart checkpoint | `hist_<esm>[_<tag>]_<lc>_final.h5` if present; refused when it is short of the branch year |
+| `ISMIP7_ALLOW_DT_CHANGE` | a resume that continues its experiment's own timeseries at another step than the series was written at (the checkpoint's `dt_yr`, or read back from the rows for an older checkpoint) is refused; `1` continues it at the new step with a warning. A branch from another run's endpoint starts its own series and is never refused | `0` |
+| `ISMIP7_MESH_BUILD_CHECK` | refuse a MAP or restart whose mesh has the `ISMIP7_MESH` file's name and another triangulation (vertex and cell counts and two centroid sums, `transfer.meshes_match`), the way two sites' builds of the production mesh differ; `0` transfers across them on purpose | `1` |
 | `ISMIP7_AUTO_RESUME` | resume from this experiment's newest checkpoint when no `ISMIP7_RESTART` is given. An integer flag, `=0` disables it, since the runners export it unconditionally and `--export=ALL` cannot unset. `projection.sbatch` refuses to chain when it is off | unset |
 | `ISMIP7_RUN_TAG` | experiment-name suffix for a parallel method line | unset |
 | `ISMIP7_WALL_STOP_MIN` | wall-clock budget in minutes from process start, checked before each step against the longest step so far, so the run writes its final checkpoint and exits with `t_yr` short of `t_end` for a chained job to resume. `projection.sbatch` derives it from the job's own TimeLimit, holding back 25 minutes. `0` disables | `0` |
@@ -1093,9 +1095,9 @@ inversion reads to stamp its MAP.
 was running at Rice on 25 September (issue #24), on Rice's build of the
 mesh (1,869,252 vertices), which is the submission mesh. A site with its own
 build (IU's on Quartz has 1,869,088 vertices) uses Rice's `.msh` with the MAP:
-the forward interpolates a MAP onto whatever `ISMIP7_MESH` names and does not
-compare the two builds, so a local build turns the MAP into a transfer, and
-only the vertex count in the log shows it.
+a forward interpolates a MAP onto whatever `ISMIP7_MESH` names, and it refuses
+a file with the MAP mesh's name and another triangulation
+(`ISMIP7_MESH_BUILD_CHECK=0` allows that transfer on purpose).
 
 Until that MAP exists a forward starts from a coarse MAP by transfer, the way
 the matrix's own lanes do. Name the MAP and let the forward interpolate it onto
@@ -1380,7 +1382,8 @@ Per experiment in `results/`:
   reference, and `levelset` when a calving law is configured. Under `dg0` the
   saved `thickness` is the prognostic state; a `cg1` run also saves
   `thickness_dg`. The `geometry_space` and `mesh_basename` attributes let a
-  restart resolve the same sidecar.
+  restart resolve the same sidecar, and `dt_yr` records the step, which a
+  resume of the same series has to keep (`ISMIP7_ALLOW_DT_CHANGE`).
 - `<exp>_t<year>.h5`, periodic checkpoints, keeping the
   `ISMIP7_KEEP_CHECKPOINTS` most recently written.
 - `<exp>_timeseries.csv`, one row per step, the year at six decimals:

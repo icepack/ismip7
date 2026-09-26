@@ -108,3 +108,43 @@ def test_the_track_audit_reads_the_step_without_being_told(tmp_path, dt, fmt, re
     assert r.returncode in (0, 1), r.stdout + r.stderr
     (read,) = re.findall(r"dt=(\S+) yr", r.stdout)
     assert float(read) == pytest.approx(dt, rel=rel)
+
+
+# --- a resumed series keeps its step -----------------------------------------
+# run_simulation refuses a resume whose series was written at another step
+# (ISMIP7_ALLOW_DT_CHANGE=1 overrides); these are the rules it applies.
+
+from icepack2_tools.timeseries import resumed_step, step_changed  # noqa: E402
+
+
+def test_a_restart_that_keeps_no_row_of_its_own_series_starts_a_new_one():
+    r"""A projection branching from a historical's endpoint: its own series
+    has no row at or before the branch year, whatever the parent's step."""
+    assert resumed_step([HEADER]) == (None, None)
+    assert resumed_step([HEADER], checkpoint_dt=0.05) == (None, None)
+
+
+def test_the_checkpoint_record_is_the_step_of_a_resumed_series():
+    kept = series(2015.0, 2020.0, 0.05)
+    assert resumed_step(kept, checkpoint_dt=0.05) == (0.05, "the checkpoint's dt_yr")
+
+
+def test_a_checkpoint_older_than_the_record_is_read_from_its_rows():
+    r"""The hand resume of an old 0.05 run: no dt_yr, one-decimal years."""
+    kept = series(2015.0, 2020.0, 0.05, fmt=lambda t: f"{t:.1f}")
+    step, where = resumed_step(kept)
+    assert step == pytest.approx(0.05, rel=2e-2) and "100 rows" in where
+    assert step_changed(step, 0.025)
+    assert not step_changed(step, 0.05)
+
+
+def test_one_row_without_a_record_cannot_say():
+    assert resumed_step([HEADER, "2015.025000,0.0\n"]) == (None, "unknown")
+
+
+@pytest.mark.parametrize("prior, dt, changed", [
+    (0.05, 0.025, True), (0.025, 0.05, True), (0.1, 0.125, True),
+    (0.025, 0.025, False), (0.0505, 0.05, False),
+])
+def test_a_step_change_is_a_ratio_past_the_tolerance(prior, dt, changed):
+    assert step_changed(prior, dt) is changed

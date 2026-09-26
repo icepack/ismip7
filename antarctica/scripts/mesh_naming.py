@@ -17,11 +17,15 @@ script that loads a mesh agree on where to find/write them.
 import os
 import re
 
+from icepack2_tools.runconfig import BUFFER_M_DEFAULT, buffer_m as _buffer_m
+
 MESH_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mesh")
 
-DEFAULT_BUFFER_M = 20000.0
+# Owned by icepack2_tools.runconfig, which the outline extraction reads too.
+DEFAULT_BUFFER_M = float(BUFFER_M_DEFAULT)
 
 _ADAPT_RE = re.compile(r"_adapt(\d+)$")
+_BUFFER_TAG_RE = re.compile(r"_buffered(\d+)(?=_|$)")
 
 
 def adapt_lineage(name):
@@ -88,4 +92,30 @@ def bndids_filename(lc_coarse, lc, buffer_m):
 
 def get_buffer_m():
     """Read ISMIP7_BUFFER_M from the environment with the shared default."""
-    return float(os.environ.get("ISMIP7_BUFFER_M", str(DEFAULT_BUFFER_M)))
+    return _buffer_m()
+
+
+def mesh_stem(name):
+    """A mesh's name without directory or `.msh` extension, the form the
+    checkpoints' `mesh_basename` attribute may or may not carry."""
+    stem = os.path.basename(str(name))
+    return stem[:-len(".msh")] if stem.endswith(".msh") else stem
+
+
+def buffer_from_name(name):
+    """The outline buffer (meters) a mesh name's `_buffered<N>` tag records, or
+    None for a name without one (the untagged legacy names, and the adaptive
+    preset's `antarctica_ua_*`). Directory and `.msh` extension are ignored."""
+    m = _BUFFER_TAG_RE.search(mesh_stem(name))
+    return float(m.group(1)) if m else None
+
+
+def resolve_outline_buffer(first, name, last=None):
+    """The outline buffer (meters) a new mesh is built with: ``first`` when
+    given, else the `_buffered<N>` tag of ``name``, else ``last``; None when
+    none of them says. No default is right for every legacy mesh, so a caller
+    with None refuses rather than guessing."""
+    for value in (first, buffer_from_name(name), last):
+        if value is not None:
+            return float(value)
+    return None

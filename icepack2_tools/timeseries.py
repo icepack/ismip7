@@ -15,9 +15,15 @@ rows the restart writes again. Pure Python, so these rules are tested without
 Firedrake.
 """
 
-__all__ = ["YEAR_DECIMALS", "format_year", "rows_kept_on_resume", "step_from_years"]
+__all__ = ["YEAR_DECIMALS", "STEP_CHANGE_RTOL", "format_year", "rows_kept_on_resume",
+           "step_from_years", "resumed_step", "step_changed"]
 
 YEAR_DECIMALS = 6
+# How far a step read back from a series may sit from the run's own before
+# it counts as a change: a step read from one-decimal years over a year or
+# more lands within 10 %, and the steps in use (0.1, 0.05, 0.025) differ
+# by a factor of two.
+STEP_CHANGE_RTOL = 0.2
 
 
 def format_year(t):
@@ -60,3 +66,36 @@ def step_from_years(years):
     if not span > 0.0:
         raise ValueError(f"the series spans {span:g} yr, so it carries no step")
     return span / (n - 1)
+
+
+def resumed_step(kept, checkpoint_dt=None):
+    r"""The step of the series a warm restart continues, and where it was read.
+
+    ``kept`` is :func:`rows_kept_on_resume`'s result, header first. A restart
+    that keeps no row of its own series starts a new one, as a branch from
+    another run's endpoint does, and gets ``(None, None)``. Otherwise the
+    checkpoint's ``dt_yr`` record is the step; a checkpoint written before the
+    record existed is read from the kept rows, and ``(None, "unknown")`` means
+    they are too few to say.
+    """
+    years = []
+    for line in kept[1:]:
+        try:
+            years.append(float(line.split(",", 1)[0]))
+        except (ValueError, IndexError):
+            pass
+    if not years:
+        return None, None
+    if checkpoint_dt is not None:
+        return float(checkpoint_dt), "the checkpoint's dt_yr"
+    try:
+        return step_from_years(years), f"read from its {len(years)} rows"
+    except ValueError:
+        return None, "unknown"
+
+
+def step_changed(prior, dt):
+    r"""Whether a run at ``dt`` changes the step of a series written at
+    ``prior``: the larger over the smaller exceeds 1 + :data:`STEP_CHANGE_RTOL`."""
+    lo, hi = sorted((float(prior), float(dt)))
+    return hi > (1.0 + STEP_CHANGE_RTOL) * lo

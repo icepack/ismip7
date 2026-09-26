@@ -23,7 +23,7 @@ from firedrake import COMM_WORLD
 from firedrake.petsc import PETSc
 from mpi4py import MPI
 
-from icepack2_tools.runconfig import mesh_override
+from icepack2_tools.runconfig import buffer_m as _buffer_m, mesh_override
 from icepack2_tools.solverconfig import (
     diagnostic_solver_label,
     diagnostic_solver_mode,
@@ -264,7 +264,7 @@ def _load_and_validate_map_check_cache():
         manifest,
         lc=lc,
         lc_coarse=int(os.environ["ISMIP7_LC_COARSE"]),
-        buffer_m=int(round(float(os.environ.get("ISMIP7_BUFFER_M", "20000")))),
+        buffer_m=int(round(_buffer_m())),
         friction=_friction(),
         source_basename=source_basename,
         mesh_name=manifest.get("mesh_basename"),
@@ -445,7 +445,7 @@ def main():
     TIMING_DIR.mkdir(parents=True, exist_ok=True)
     ncores = COMM_WORLD.size
     target_lc_coarse = int(os.environ.get("ISMIP7_LC_COARSE", "0"))
-    target_buffer_m = float(os.environ.get("ISMIP7_BUFFER_M", "20000"))
+    target_buffer_m = _buffer_m()
     overall_t0 = perf_counter()
     configuration = solver_provenance()
     ctx = None
