@@ -271,7 +271,8 @@ def test_the_chain_depth_cap_stops_it(sandbox):
 # The real driver's weight, in the real driver's order: read the warm start's
 # attributes, resolve the weight, write it into the checkpoint as save_map
 # does. FAKE_DERIVED stands in for the chi^2 / log ratio at the state a link
-# starts from, which is all the solve contributes to the decision.
+# starts from, which is all the solve contributes to the decision; like the
+# driver, a link given a number derives nothing.
 WEIGHT_DRIVER = r'''
 import os
 import sys
@@ -302,10 +303,11 @@ if warm:
         recorded = recorded_objective(Checkpoint(handle))
 misfit_norm = os.environ.get("ISMIP7_MISFIT_NORM", "sigma").lower()
 eps = float(os.environ.get("ISMIP7_LOG_VEL_EPS", "1.0"))
+requested = os.environ.get("ISMIP7_LOG_VEL_WEIGHT", "0")
+derived = float(os.environ["FAKE_DERIVED"]) if requested.lower() == "auto" else None
 weight, source, note = resolve_log_vel_weight(
-    os.environ.get("ISMIP7_LOG_VEL_WEIGHT", "0"), float(os.environ["FAKE_DERIVED"]),
-    recorded, misfit_norm=misfit_norm, eps=eps)
-print(f"driver: log_vel_weight={weight!r} source={source}")
+    requested, derived, recorded, misfit_norm=misfit_norm, eps=eps)
+print(f"driver: log_vel_weight={weight!r} source={source} note={note!r}")
 
 with h5py.File(map_out, "w") as handle:
     handle["/"].attrs["misfit_norm"] = misfit_norm
@@ -347,6 +349,36 @@ def test_two_links_minimise_one_log_velocity_weight(sandbox):
         assert handle["/"].attrs["log_vel_weight_source"] == "warm_start"
 
 
+def test_a_weight_passed_by_hand_reaches_every_link(sandbox):
+    r"""Rice's 1 km Budd inversion warm-starts from the 2 km snapshot 0241
+    with the weight fixed by hand at 85,380, the value 0241 recorded at its
+    fourth link. The number is queued with the successor and used as given in
+    both links, whatever the checkpoint records or the state would derive."""
+    h5py = pytest.importorskip("h5py")
+    driver = sandbox / "weight_driver.py"
+    driver.write_text(WEIGHT_DRIVER)
+    snapshot = sandbox / "budd_2km_0241.h5"
+    with h5py.File(snapshot, "w") as handle:
+        handle["/"].attrs["misfit_norm"] = "sigma"
+        handle["/"].attrs["log_vel_weight"] = 85380.0
+        handle["/"].attrs["log_vel_eps"] = 1.0
+    by_hand = {"FAKE_DRIVER": str(driver), "ISMIP7_LOG_VEL_WEIGHT": "85380",
+               "ISMIP7_WARM_START": str(snapshot)}
+
+    rc, log, calls = run_job(sandbox, FAKE_DIE_AFTER="map_write", **by_hand)
+    assert rc == 137, log
+    assert "driver: log_vel_weight=85380.0 source=requested note=''" in log
+    assert "ENV: ISMIP7_LOG_VEL_WEIGHT=85380" in calls.splitlines()
+
+    rc, log, _ = run_job(sandbox, job_id="424244", **by_hand)
+    assert rc == 0, log
+    assert f"warm-starting theta/phi from the periodic checkpoint {map_out(sandbox)}" in log
+    assert "driver: log_vel_weight=85380.0 source=requested note=''" in log
+    with h5py.File(map_out(sandbox), "r") as handle:
+        assert float(handle["/"].attrs["log_vel_weight"]) == 85380.0
+        assert handle["/"].attrs["log_vel_weight_source"] == "requested"
+
+
 SIGMA = {"misfit_norm": "sigma", "log_vel_eps": 1.0}
 
 
@@ -385,8 +417,10 @@ def test_auto_derives_when_the_warm_start_holds_no_comparable_weight(recorded, w
 
 def test_a_number_is_used_as_given():
     recorded = {**SIGMA, "log_vel_weight": 17451.9897644}
-    # IU resubmitted its second link with the recorded weight by hand.
+    # IU resubmitted its second link with the recorded weight by hand, and a
+    # copy rounded to a few figures is the same objective.
     assert resolve("17451.9897644", None, recorded) == (17451.9897644, "requested", "")
+    assert resolve("17452", None, recorded) == (17452.0, "requested", "")
     assert resolve("0", None, None) == (0.0, "requested", "")
     weight, source, note = resolve("2495", None, recorded)
     assert (weight, source) == (2495.0, "requested")

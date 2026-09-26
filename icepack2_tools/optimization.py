@@ -89,8 +89,10 @@ def resolve_log_vel_weight(requested, derived, recorded, *, misfit_norm, eps):
     gave 2495 where the first link of IU's 32 km chain had 17452 (issue 68).
     Otherwise the weight is ``derived`` (source ``derived``), and ``note``
     says why the warm start's weight was not taken. A number is used as given
-    (source ``requested``), and ``note`` says so when it replaces a different
-    weight the warm start was minimised under.
+    (source ``requested``), as Rice's 1 km inversion passes 85,380, and
+    ``note`` says so when it differs by more than 0.1 percent from the weight
+    the warm start was minimised under; a copy of that weight rounded by hand
+    is the same objective.
     """
     held, why = _held_weight(recorded, misfit_norm, eps)
     if str(requested).strip().lower() == "auto":
@@ -99,7 +101,7 @@ def resolve_log_vel_weight(requested, derived, recorded, *, misfit_norm, eps):
         note = f"the warm start's weight is not used: {why}" if why else ""
         return float(derived), "derived", note
     weight = float(requested)
-    if held is not None and not math.isclose(weight, held, rel_tol=1e-9):
+    if held is not None and not math.isclose(weight, held, rel_tol=1e-3):
         return weight, "requested", (
             f"it replaces the weight {held:.6g} the warm start was minimised under")
     return weight, "requested", ""
