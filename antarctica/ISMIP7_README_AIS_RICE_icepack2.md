@@ -155,10 +155,20 @@ shallow-shelf formulation on Firedrake 2026.4.1)
 19. SMB is applied as a cell-mean source in the finite-volume thickness
     transport: RACMO2.4p1 climatology plus the ISMIP7 `acabf-anomaly`
     (SDBN1 8 km, v2 for CESM2-WACCM, v1 for MRI-ESM2-0) re-referenced so the
-    anomaly's mean over the control window vanishes. No surface-elevation
-    feedback: neither the runoff gradient `dmrrodz` the protocol prefers nor
-    `dacabfdz` is used (discussion #36), and no lapse rate (`dtsdz`), there
-    being no thermal model. Precipitation is not used. Forcing is NaN
+    anomaly's mean over the control window vanishes. The SMB carries the
+    surface-elevation feedback on the SMB gradient `dacabfdz`, the one the
+    SMB focus group's Atmospheric forcing README (September 2026) recommends
+    for Antarctica; the organisers accept either gradient when the README
+    names it (discussion #36). SMB(t) = SMB_ref + SMB_anom(t) +
+    dacabfdz(t) (s - s_ref), with `dacabfdz` from the same SDBN1 8 km product
+    and version as the anomaly, and s_ref the model's surface at the initial
+    state of each experiment chain: the historical's, which the projections
+    and the control inherit by branching from its end, and OCX's own. The
+    control reads the ESM's `ctrl` gradient, the same in every year, and OCX
+    the OCX product's gradient at v2 (its v1 was spatially shifted,
+    discussion #45). The surface change is taken from the geometry at the
+    start of each time step and is unbounded. There is no lapse rate
+    (`dtsdz`), there being no thermal model. Precipitation is not used. Forcing is NaN
     outside the downscaled mask and is filled with zero there (discussion
     #39). CESM2-WACCM ends in 2299 in its CMIP archive; its 2300
     atmosphere files, as distributed, are the 2290-2299 mean, and are read

@@ -33,17 +33,21 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from icepack2_tools.runconfig import apparent_mb_mode, auto_resume, ismip7_output
+from icepack2_tools.runconfig import (
+    apparent_mb_mode, auto_resume, ismip7_output, smb_elevation_feedback,
+)
 from icepack2_tools.solverconfig import diagnostic_solver_mode
 
 try:
     resume = auto_resume()
     amb = apparent_mb_mode()
     out = ismip7_output()
+    feedback = smb_elevation_feedback()
 except ValueError as exc:
     print(f"driver: {exc}")
     sys.exit(2)
 print(f"driver: auto_resume={resume} apparent_mb={amb} ismip7_output={out}")
+print(f"driver: smb_elevation_feedback={feedback}")
 print(f"driver: solver={diagnostic_solver_mode()} dt={os.environ.get('ISMIP7_DT')}")
 # srun takes SLURM_EXPORT_ENV as its own --export, so a list there would
 # reach the real driver's environment through the launcher.
@@ -286,6 +290,31 @@ def test_unset_output_writes_the_submission(sandbox):
     rc, log, _ = run_job(sandbox, FAKE_T_YR="2301")
     assert rc == 0, log
     assert "driver: auto_resume=True apparent_mb=balance ismip7_output=True" in log
+
+
+def test_unset_smb_feedback_is_on_in_the_driver(sandbox):
+    r"""The runner exports nothing for the feedback; the driver's own default
+    (runconfig) turns it on."""
+    rc, log, _ = run_job(sandbox, FAKE_T_YR="2301")
+    assert rc == 0, log
+    assert "driver: smb_elevation_feedback=True" in log
+
+
+@pytest.mark.parametrize("value", ["0", ""])
+def test_smb_feedback_off_reaches_the_driver(sandbox, value):
+    r"""``submit.sh projection ISMIP7_SMB_ELEVATION_FEEDBACK=0`` (or empty) is
+    how an A/B run turns the feedback off; the runner passes it through."""
+    rc, log, _ = run_job(sandbox, FAKE_T_YR="2301",
+                         ISMIP7_SMB_ELEVATION_FEEDBACK=value)
+    assert rc == 0, log
+    assert "driver: smb_elevation_feedback=False" in log
+
+
+def test_a_bad_smb_feedback_value_aborts_the_run(sandbox):
+    rc, log, calls = run_job(sandbox, ISMIP7_SMB_ELEVATION_FEEDBACK="yes")
+    assert rc == 2, log
+    assert "ISMIP7_SMB_ELEVATION_FEEDBACK must be 1 to enable" in log
+    assert calls == ""
 
 
 @pytest.mark.parametrize("value", ["0", ""])

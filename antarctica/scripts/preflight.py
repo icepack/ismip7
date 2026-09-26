@@ -5,9 +5,10 @@ Answers "which experiments can run on this machine right now?" in a few
 seconds, checking every input each core needs: mesh, MAP inversion,
 boundary ids, per-basin K, RACMO, the OI climatology (core 11's stopgap),
 and the (ESM, scenario) atmosphere/ocean trees over the run period, the
-control's `ctrl` ocean among them. Honors the same
+control's `ctrl` ocean among them, and under the SMB-elevation feedback the
+`dacabfdz` gradient each core reads. Honors the same
 environment knobs as the runs (ISMIP7_LC, ISMIP7_FRICTION,
-ISMIP7_OI_VERSION, ...).
+ISMIP7_OI_VERSION, ISMIP7_SMB_ELEVATION_FEEDBACK, ...).
 
 Usage:
     python scripts/preflight.py
@@ -22,7 +23,7 @@ sys.path.insert(0, _PROJECT)
 sys.path.insert(0, _SCRIPTS)
 
 from icepack2_tools.forcing import (
-    ISMIP7Atmosphere, ISMIP7Ocean, OCX, OCX_ATMOSPHERE_SOURCE,
+    ISMIP7Atmosphere, ISMIP7Ocean, OCX, OCX_ATMOSPHERE_SOURCE, SMB_GRADIENT,
     _oi_climatology_path, _find_ismip7_data,
 )
 from icepack2_tools.boundary import sidecar_path
@@ -33,7 +34,7 @@ from icepack2_tools.runconfig import (
     calving_law as _calving_law, calving_sigma_max as _calving_sigma_max,
     friction as _friction, geometry_space as _geometry_space, lc as _lc,
     lc_coarse as _lc_coarse, ocx_forcing as _ocx_forcing, ocx_ocean as _ocx_ocean,
-    mesh_override,
+    mesh_override, smb_elevation_feedback as _smb_elevation_feedback,
 )
 DATA_DIR = obs_data_root()
 from mesh_naming import get_buffer_m, mesh_filename
@@ -143,6 +144,20 @@ def ocean_cover(esm, scenario):
     return ISMIP7Ocean(esm=esm, scenario=scenario).coverage("tf")
 
 
+def gradient_problem(esm, scenario, y0, y1):
+    r"""What keeps the SMB gradient the feedback reads from serving ``y0`` to
+    ``y1`` at an accepted version, or None. The reader's own rule
+    (``coverage_problem``, ``version_problem``), the one
+    ``forcing.SMBElevationFeedback.check`` refuses a run on."""
+    atm = ISMIP7Atmosphere(esm=esm, scenario=scenario)
+    problem = (atm.coverage_problem(y0, y1, SMB_GRADIENT)
+               or atm.version_problem(SMB_GRADIENT))
+    if problem is None:
+        return None
+    return (f"{problem} (the SMB-elevation feedback reads it; "
+            f"ISMIP7_SMB_ELEVATION_FEEDBACK=0 runs without it)")
+
+
 def shared_missing(warn=None):
     r"""Missing shared inputs. Non-fatal caveats are appended to ``warn``."""
     miss = []
@@ -214,9 +229,13 @@ def oi_ok():
 
 def main():
     geom = _geometry_space()
+    feedback = _smb_elevation_feedback()
     print(f"Preflight: lc={lc}, friction={friction}, geometry={geom}, "
           f"OI={oi_version}, climatology=historical+{CLIM_SCENARIO} "
           f"{CLIM_START}-{CLIM_END}")
+    print(f"  SMB-elevation feedback: "
+          + (f"on, every core needs its {SMB_GRADIENT}" if feedback
+             else "off (ISMIP7_SMB_ELEVATION_FEEDBACK=0)"))
     warn = []
     base_missing = shared_missing(warn)
     if base_missing:
@@ -317,6 +336,14 @@ def main():
                 miss.append(f"{esm}/{scenario} ocean tf/so")
             elif oc[0] > y0 or oc[1] < y1 - 1:
                 miss.append(f"ocean covers {oc[0]}-{oc[1]}, need {y0}-{y1}")
+        if feedback:
+            # the gradient each driver reads: the OCX product's in either OCX
+            # mode, the ESM's ctrl for the control, else the core's own
+            tree = ((OCX_ATMOSPHERE_SOURCE, OCX) if core == 11
+                    else (esm, "ctrl") if scenario is None else (esm, scenario))
+            problem = gradient_problem(*tree, y0, y1)
+            if problem:
+                miss.append(problem)
 
         status = "BLOCKED" if miss else "PARTIAL" if degraded else "READY  "
         shown = miss + degraded + notes

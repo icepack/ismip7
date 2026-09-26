@@ -68,10 +68,14 @@ OUTPUT_PROCESSING_DIR = (
 SCENARIO_ESMS = ("CESM2-WACCM", "MRI-ESM2-0")
 SCENARIO_NAMES = ("historical", "ssp126", "ssp370", "ssp585")
 # Minimal runtime vars (what experiment.py actually reads): re-referenced
-# aSMB + full-acabf fallback, ocean tf/so at draft, fracture masks. The
-# rest (pr/tas/ts/gradients, thetao, SDBN1-2000m, ocean extras) stays
-# upstream until something consumes it.
-SCENARIO_ATM_VARS = ("acabf", "acabf-anomaly")
+# aSMB + full-acabf fallback, the SMB gradient dacabfdz of the SMB-elevation
+# feedback, ocean tf/so at draft, fracture masks. The rest (pr/tas/ts, the
+# other gradients, thetao, SDBN1-2000m, ocean extras) stays upstream until
+# something consumes it.
+SCENARIO_ATM_VARS = ("acabf", "acabf-anomaly", "dacabfdz")
+# The control reads no ESM SMB, only the ctrl gradient for its feedback
+# (control/run.py), so `--scenario ctrl` fetches that and the ctrl ocean.
+SCENARIO_ATM_VARS_BY_SCENARIO = {"ctrl": ("dacabfdz",)}
 SCENARIO_OCEAN_VARS = ("tf", "so")
 
 _LTM = "{var}_CESM2-WACCM_ltm_SDBN1_1960-1989.nc"
@@ -416,8 +420,8 @@ def _atmosphere_dir(tc, base, resolution="8000m"):
 def download_scenarios(tc, esms=SCENARIO_ESMS, scenarios=SCENARIO_NAMES,
                        dry_run=False, resync=False):
     r"""Mirror the minimal per-(ESM, scenario) runtime sets from the new
-    /ISMIP7/AIS tree: SDBN1-8000m {acabf, acabf-anomaly}, ocean {tf, so},
-    and the fracture masks. One recursive-dir Globus transfer per
+    /ISMIP7/AIS tree: SDBN1-8000m {acabf, acabf-anomaly, dacabfdz} (only
+    dacabfdz for ctrl), ocean {tf, so}, and the fracture masks. One recursive-dir Globus transfer per
     (ESM, scenario); sync_level=checksum makes re-runs incremental, so an
     already-complete local set costs one listing pass server-side.
 
@@ -441,7 +445,7 @@ def download_scenarios(tc, esms=SCENARIO_ESMS, scenarios=SCENARIO_NAMES,
             atm = _atmosphere_dir(tc, base)
             groups = (
                 [(f"{base}/{atm}/{v}", f"{esm}/{scen}/{atm}/{v}")
-                 for v in SCENARIO_ATM_VARS]
+                 for v in SCENARIO_ATM_VARS_BY_SCENARIO.get(scen, SCENARIO_ATM_VARS)]
                 + [(f"{base}/ocean/{v}", f"{esm}/{scen}/ocean/{v}")
                    for v in SCENARIO_OCEAN_VARS]
                 + [(f"{base}/fracture", f"{esm}/{scen}/fracture")]

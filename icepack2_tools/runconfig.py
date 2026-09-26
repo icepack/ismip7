@@ -256,6 +256,33 @@ def ismip7_output():
     )
 
 
+# The SMB-elevation feedback from the ISMIP7 SMB gradient ``dacabfdz``
+# (forcing.SMBElevationFeedback), decided on icepack/ismip7 issue 116. On by
+# default here, so every driver and the report resolve the same value whether
+# or not a runner exports it.
+SMB_ELEVATION_FEEDBACK_DEFAULT = "1"
+
+
+def smb_elevation_feedback():
+    r"""``ISMIP7_SMB_ELEVATION_FEEDBACK``: add ``dacabfdz`` times the surface
+    change since the chain's initial state to the SMB.
+
+    Unset or ``1`` enables it; ``0`` and the empty string disable it. The
+    value set is closed, like ``ismip7_output``: anything else raises rather
+    than silently deciding whether a run carries the feedback.
+    """
+    value = os.environ.get("ISMIP7_SMB_ELEVATION_FEEDBACK",
+                           SMB_ELEVATION_FEEDBACK_DEFAULT).strip()
+    if value in ("", "0"):
+        return False
+    if value == "1":
+        return True
+    raise ValueError(
+        f"ISMIP7_SMB_ELEVATION_FEEDBACK must be 1 to enable or 0/empty to "
+        f"disable, got {value!r}"
+    )
+
+
 def calving_law():
     r"""``ISMIP7_CALVING``: ``none``, ``fixed`` or ``vonmises``."""
     value = os.environ.get("ISMIP7_CALVING", CALVING_DEFAULT).lower()
