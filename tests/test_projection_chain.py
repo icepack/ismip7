@@ -380,6 +380,63 @@ def test_a_named_solver_and_step_win(sandbox):
     assert "driver: solver=full_mumps dt=0.1" in log
 
 
+# ── follow-on experiments (ISMIP7_CHAIN_THEN) ───────────────────────────────
+def _submits(calls):
+    r"""One text block per recorded sbatch call: its ARGV line and ENV lines."""
+    return ["ARGV: " + block for block in calls.split("ARGV: ")[1:]]
+
+
+def test_a_finished_run_queues_its_follow_ons(sandbox):
+    r"""The historical reached 2015, so the control and the projection that
+    branch from its endpoint are queued, each behind this job, each a fresh
+    chain that queues nothing further and runs its own driver's period."""
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="2015", FAKE_START_YEAR="1990", ISMIP7_T_END="2015",
+        ISMIP7_T_START="1990", ISMIP7_EXPERIMENT="hist_mri_esm2",
+        ISMIP7_CHAIN_THEN="control ssp585_mri_esm2")
+    assert rc == 0, log
+    submits = _submits(calls)
+    assert len(submits) == 2, calls
+    for sub, exp in zip(submits, ("control", "ssp585_mri_esm2")):
+        assert f"ENV: ISMIP7_EXPERIMENT={exp}\n" in sub
+        assert "ISMIP7_CHAIN_THEN" not in sub
+        # each follow-on's driver owns its period
+        assert "ISMIP7_T_START" not in sub
+        assert "ISMIP7_T_END" not in sub
+        assert f"--dependency=afterok:{JOB_ID}" in sub
+        assert "-J ismip7_fwd" in sub
+
+
+def test_a_run_short_of_its_end_carries_its_follow_ons_on(sandbox):
+    r"""Stopped by the wall clock at 1950: the historical resubmits itself,
+    still carrying the follow-ons, and queues neither of them yet."""
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="1950", FAKE_START_YEAR="1900", ISMIP7_T_END="2015",
+        ISMIP7_EXPERIMENT="hist_mri_esm2", ISMIP7_CHAIN_THEN="control")
+    assert rc == 0, log
+    submits = _submits(calls)
+    assert len(submits) == 1, calls
+    assert "ENV: ISMIP7_EXPERIMENT=hist_mri_esm2\n" in submits[0]
+    assert "ENV: ISMIP7_CHAIN_THEN=control\n" in submits[0]
+
+
+def test_a_stalled_run_queues_no_follow_on(sandbox):
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="1950", FAKE_STALLED="1", ISMIP7_T_END="2015",
+        ISMIP7_EXPERIMENT="hist_mri_esm2", ISMIP7_CHAIN_THEN="control")
+    assert rc == 1, log
+    assert calls == ""
+
+
+def test_an_unknown_follow_on_is_refused_before_the_run(sandbox):
+    rc, log, calls = run_job(
+        sandbox, ISMIP7_EXPERIMENT="hist_mri_esm2", ISMIP7_CHAIN_THEN="control contrl")
+    assert rc == 2
+    assert "unknown experiment 'contrl' in ISMIP7_CHAIN_THEN" in log
+    assert "driver:" not in log
+    assert calls == ""
+
+
 def test_the_launcher_selects_romio_for_the_ranks(sandbox):
     r"""Open MPI's default ompio writes a parallel HDF5 file to NFS twenty
     times slower than romio321 (site_core.sh has the numbers), so the launcher
