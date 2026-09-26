@@ -61,3 +61,27 @@ def test_the_report_lifts_the_front_owner_an_external_law_names(tmp_path):
     line = f"{FRONT_OWNER_MARKER} level-set prescribed law (external: hfb sigma_max=0.15)"
     log.write_text(f"  {line}\nstep 1\n")
     assert core_report.front_owner(str(log)) == [line]
+
+
+def test_the_report_states_the_smb_feedback_left_at_its_default(monkeypatch):
+    r"""The feedback is on by default and no runner exports the knob, so a
+    report built from the exported environment alone would not say whether
+    the run carried it."""
+    monkeypatch.delenv("ISMIP7_SMB_ELEVATION_FEEDBACK", raising=False)
+    env = core_report.effective_env()
+    assert env["ISMIP7_SMB_ELEVATION_FEEDBACK"] == "1    # default (not exported)"
+    monkeypatch.setenv("ISMIP7_SMB_ELEVATION_FEEDBACK", "0")
+    assert core_report.effective_env()["ISMIP7_SMB_ELEVATION_FEEDBACK"] == "0"
+
+
+def test_the_report_lifts_the_smb_feedback_banner_and_not_its_yearly_lines(tmp_path):
+    from icepack2_tools.forcing import smb_feedback_banner
+    log = tmp_path / "run.log"
+    banner = smb_feedback_banner(None)
+    log.write_text(f"  {banner}\n  dacabfdz feedback 2015: net +0.00 Gt/yr\n"
+                   f"  {banner}\n")
+    assert core_report.smb_feedback_record(str(log)) == [banner]
+    old = tmp_path / "old.log"
+    old.write_text("step 1\n")
+    (none,) = core_report.smb_feedback_record(str(old))
+    assert "ran without the feedback" in none

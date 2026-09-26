@@ -2,7 +2,13 @@
 r"""ISMIP7 Core Experiments 9/10: CTRL2015 -- constant 2015 climate.
 
 Atmosphere: RACMO2.4p1 2000-2029 SMB climatology held fixed (falls back
-            to the pooled ISMIP7 acabf climatology if RACMO is absent).
+            to the pooled ISMIP7 acabf climatology if RACMO is absent),
+            plus the SMB-elevation feedback on the ESM's own `ctrl`
+            gradient `dacabfdz`, the organisers' reference-climate
+            gradient, the same in every year (forcing.SMBElevationFeedback;
+            ISMIP7_SMB_ELEVATION_FEEDBACK=0 turns it off). The SMB is
+            rewritten from the climatology every step, so the feedback never
+            compounds.
 Ocean:      the ESM's own `ctrl` tree (tf + so, v3), the organisers'
             2000-2029 mean of historical and ssp126, identical every year
             (forum threads 15 and 28, icepack/ismip7#107). It is read and
@@ -38,6 +44,9 @@ from icepack2_tools.forcing import (
     describe_observational_forcing,
     load_racmo_smb_climatology,
     make_forcing_callback,
+    build_smb_feedback,
+    feedback_mode,
+    smb_feedback_banner,
     reject_collapse_mask,
     compute_sin_alpha,
     quadratic_mixed_slope,
@@ -252,7 +261,14 @@ def main():
                 f"(or set ISMIP7_SYNTHETIC_MELT=1 for the uncalibrated stopgap)."
             )
 
-    ctx = setup_model(restart_from=restart_from)
+    # The SMB-elevation feedback reads the ESM's own ctrl gradient, checked
+    # here with the ocean, before the setup.
+    feedback = build_smb_feedback(
+        ISMIP7Atmosphere(esm=ESM, scenario=CTRL_SCENARIO),
+        int(T_START), forcing_year(T_END), log=PETSc.Sys.Print)
+
+    ctx = setup_model(restart_from=restart_from,
+                      smb_feedback=feedback_mode(feedback))
 
     # Forcing fields live on the GEOMETRY space (DG0 by default), whose
     # dofs are cell centroids, not mesh vertices. Sampling climatologies
@@ -301,22 +317,35 @@ def main():
             PETSc.Sys.Print(
                 f"  Climatological SMB: area-weighted mean={mean_smb:.4f} m/yr"
             )
+    # The SMB assigned above is the base the callback writes every step, with
+    # the feedback on top of it.
+    smb_base = ctx["accum"].dat.data_ro.copy()
+    PETSc.Sys.Print(f"  {smb_feedback_banner(feedback)}")
+    for line in feedback.provenance() if feedback is not None else ():
+        PETSc.Sys.Print(f"  {line}")
 
     # Ocean melt: synthetic stopgap (no data) or the ESM's ctrl ocean.
     if ocean is None:
         tf_max = float(os.environ.get("ISMIP7_SYNTH_TF_MAX", "1.5"))
         depth_ref = float(os.environ.get("ISMIP7_SYNTH_DEPTH_REF", "1000.0"))
-        callback = make_synthetic_ocean_callback(tf_max, depth_ref)
+        synthetic_melt = make_synthetic_ocean_callback(tf_max, depth_ref)
+        smb_only = make_forcing_callback(smb_baseline=smb_base,
+                                         smb_feedback=feedback)
+
+        def callback(ctx_, t_yr):
+            smb_only(ctx_, t_yr)
+            synthetic_melt(ctx_, t_yr)
         melt_desc = "Synthetic ocean melt stopgap (ISMIP7_SYNTHETIC_MELT)"
     else:
         for line in describe_forcing_provenance(ocean):
             PETSc.Sys.Print(f"  {line}")
-        # The projections' callback (experiment.py) with no atmosphere, so the
-        # SMB assigned above stays: the offsets file's TF shift at its one K,
-        # else the per-basin K, either one times ISMIP7_K_SCALE.
+        # The projections' callback (experiment.py) with the fixed SMB as its
+        # baseline and no atmosphere: the offsets file's TF shift at its one
+        # K, else the per-basin K, either one times ISMIP7_K_SCALE.
         callback = make_forcing_callback(
             ocean=ocean, K=_K_DEFAULT,
             K_per_basin_npz=None if dT_npz is not None else K_NPZ,
+            smb_baseline=smb_base, smb_feedback=feedback,
         )
         source = (f"per-basin deltaT from {dT_npz}" if dT_npz is not None
                   else f"per-basin K from {K_NPZ}")

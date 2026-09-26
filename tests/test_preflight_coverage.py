@@ -11,6 +11,9 @@ it.
 files in the layout ``atmosphere_path`` resolves. The shared mesh/MAP checks
 are stubbed out so the status reflects the forcing coverage alone; everything
 else, including the printed status line, is the shipped code.
+
+The SMB-elevation feedback is on by default, so every tree here carries the
+``dacabfdz`` gradient its core reads unless a test says otherwise.
 """
 import importlib
 import os
@@ -27,9 +30,10 @@ ESM, SCENARIO = "CESM2-WACCM", "ssp585"
 CORE_7 = "core  7"
 
 
-def _tree(root, years, esm=ESM, scenario=SCENARIO):
-    r"""Empty acabf-anomaly files for `years`, in the layout the reader uses."""
-    for var in ("acabf-anomaly", "acabf"):
+def _tree(root, years, esm=ESM, scenario=SCENARIO,
+          variables=("acabf-anomaly", "acabf", "dacabfdz")):
+    r"""Empty files of `variables` for `years`, in the layout the reader uses."""
+    for var in variables:
         d = os.path.join(root, esm, scenario, "SDBN1-8000m", var, "v2")
         os.makedirs(d, exist_ok=True)
         for y in years:
@@ -37,11 +41,17 @@ def _tree(root, years, esm=ESM, scenario=SCENARIO):
             open(os.path.join(d, head), "wb").close()
 
 
-def _run(monkeypatch, tmp_path, years, ocean_cover=lambda e, s: (2015, 2300)):
-    r"""preflight.main() over a tree covering `years`, returning its output."""
+def _run(monkeypatch, tmp_path, years, ocean_cover=lambda e, s: (2015, 2300),
+         gradient=True, ctrl_gradient=True):
+    r"""preflight.main() over a tree covering `years`, returning its output.
+    `gradient` and `ctrl_gradient` add the ``dacabfdz`` that core 7 and the
+    CESM2-WACCM control read."""
     root = str(tmp_path / "ISMIP7" / "AIS")
     os.makedirs(root, exist_ok=True)
-    _tree(root, years)
+    _tree(root, years, variables=("acabf-anomaly", "acabf")
+          + (("dacabfdz",) if gradient else ()))
+    if ctrl_gradient:
+        _tree(root, range(2015, 2301), scenario="ctrl", variables=("dacabfdz",))
     monkeypatch.setenv("ISMIP7_DATA_ROOT", root)
     sys.modules.pop("preflight", None)
     preflight = importlib.import_module("preflight")
@@ -118,6 +128,39 @@ def test_the_control_is_ready_on_its_ctrl_ocean(monkeypatch, tmp_path, capsys):
     assert "READY" in line, line
 
 
+# --- the SMB-elevation feedback reads each core's own gradient -------------
+
+def test_core_7_is_blocked_without_its_gradient(monkeypatch, tmp_path, capsys):
+    r"""The reader turns an absent variable into zeros, so a run on this tree
+    would carry no feedback and say nothing; the gate refuses it as the run
+    does (forcing.SMBElevationFeedback.check)."""
+    monkeypatch.delenv("ISMIP7_SMB_ELEVATION_FEEDBACK", raising=False)
+    _run(monkeypatch, tmp_path, range(2015, 2301), gradient=False)
+    out = capsys.readouterr().out
+    line = [ln for ln in out.splitlines() if CORE_7 in ln][0]
+    assert "BLOCKED" in line and "dacabfdz" in line and "no files" in line, line
+    assert "ISMIP7_SMB_ELEVATION_FEEDBACK=0" in line
+    assert "SMB-elevation feedback: on" in out
+
+
+def test_core_7_needs_no_gradient_with_the_feedback_off(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("ISMIP7_SMB_ELEVATION_FEEDBACK", "0")
+    _run(monkeypatch, tmp_path, range(2015, 2301), gradient=False)
+    out = capsys.readouterr().out
+    line = [ln for ln in out.splitlines() if CORE_7 in ln][0]
+    assert "READY" in line and "dacabfdz" not in line, line
+    assert "SMB-elevation feedback: off" in out
+
+
+def test_the_control_reads_the_ctrl_gradient(monkeypatch, tmp_path, capsys):
+    r"""The control's feedback reads the ESM's ``ctrl`` gradient, so that tree
+    gates cores 9 and 10 even with the scenario gradients all present."""
+    monkeypatch.delenv("ISMIP7_SMB_ELEVATION_FEEDBACK", raising=False)
+    _run(monkeypatch, tmp_path, range(2015, 2301), ctrl_gradient=False)
+    line = _core_line(capsys, "core  9")
+    assert "BLOCKED" in line and "dacabfdz for CESM2-WACCM ctrl" in line, line
+
+
 # --- core 11 asks for the OCX product the driver will insist on -------------
 
 def _ocx_tree(root, years):
@@ -132,11 +175,26 @@ def _ocx_tree(root, years):
         open(os.path.join(d, f"{var}_AIS_OCX_ocean_main_v1_1950-2025.nc"), "wb").close()
 
 
-def _run_core_11(monkeypatch, tmp_path, years, forcing="protocol"):
+def _ocx_gradient(root, years, version):
+    from icepack2_tools.forcing import OCX_ATMOSPHERE_SOURCE as SRC
+    d = os.path.join(root, "OCX", SRC, "SDBN1-8000m", "dacabfdz", version)
+    os.makedirs(d, exist_ok=True)
+    for y in years:
+        open(os.path.join(d, f"dacabfdz_AIS_{SRC}_OCX_SDBN1-8000m_{version}_{y}.nc"),
+             "wb").close()
+
+
+def _run_core_11(monkeypatch, tmp_path, years, forcing="protocol",
+                 gradient_versions=("v2",)):
+    r"""preflight.main() over an OCX tree, with the ``dacabfdz`` of the
+    SMB-elevation feedback at each of `gradient_versions` over 1979-2025."""
     root = str(tmp_path / "ISMIP7" / "AIS")
     os.makedirs(root, exist_ok=True)
     if years is not None:
         _ocx_tree(root, years)
+    for version in gradient_versions:
+        _ocx_gradient(root, range(1979, 2026), version)
+    monkeypatch.delenv("ISMIP7_SMB_ELEVATION_FEEDBACK", raising=False)
     monkeypatch.setenv("ISMIP7_DATA_ROOT", root)
     monkeypatch.setenv("ISMIP7_OCX_FORCING", forcing)
     monkeypatch.delenv("ISMIP7_OCX_OCEAN", raising=False)
@@ -167,6 +225,24 @@ def test_core_11_on_the_stopgap_says_that_is_what_it_is(monkeypatch, tmp_path, c
     _run_core_11(monkeypatch, tmp_path, None, forcing="stopgap")
     line = _core_line(capsys, "core 11")
     assert "READY" in line and "ISMIP7_OCX_FORCING=stopgap" in line
+
+
+def test_core_11_refuses_the_shifted_ocx_gradient(monkeypatch, tmp_path, capsys):
+    r"""The OCX ``dacabfdz`` v1 is the spatially shifted file of discussion
+    #45. With no v2 beside it the reader would fall back to it, so the gate
+    blocks it, on the stopgap too, whose feedback reads the same gradient."""
+    for forcing in ("protocol", "stopgap"):
+        _run_core_11(monkeypatch, tmp_path, range(1979, 2026), forcing=forcing,
+                     gradient_versions=("v1",))
+        line = _core_line(capsys, "core 11")
+        assert "BLOCKED" in line and "dacabfdz" in line, line
+        assert "is v1 on disk" in line and "v2 or newer" in line
+
+
+def test_core_11_reads_the_v2_gradient_beside_the_v1(monkeypatch, tmp_path, capsys):
+    _run_core_11(monkeypatch, tmp_path, range(1979, 2026), gradient_versions=("v1", "v2"))
+    line = _core_line(capsys, "core 11")
+    assert "READY" in line, line
 
 
 # ── the melt calibration a run reads ────────────────────────────────────────

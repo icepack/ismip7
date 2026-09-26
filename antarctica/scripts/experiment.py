@@ -8,8 +8,15 @@ scripts/historical/ and scripts/projections/ are thin shims over
 so projection minus control is a clean forced signal:
 
     SMB(t)  = RACMO_clim + [aSMB(t) - mean(aSMB | reference window)]
+              + dacabfdz(t) * (s - s_ref)
     ocean   = ISMIP7 bias-corrected tf/so at draft (Burgard quadratic
               mixed-slope, calibrated per-basin K)
+
+The last SMB term is the SMB-elevation feedback on the scenario's own SMB
+gradient, with s_ref the surface of the chain's initial state
+(forcing.SMBElevationFeedback). It is on by default, and
+ISMIP7_SMB_ELEVATION_FEEDBACK=0 turns it off; a run with it on refuses to
+start without the gradient files.
 
 The aSMB re-reference pool is historical + ISMIP7_CLIM_SCENARIO (default
 ssp126, per protocol) over ISMIP7_CLIM_START..END (default 2000-2029), the
@@ -43,6 +50,7 @@ from icepack2_tools.forcing import (
     ISMIP7Atmosphere, ISMIP7Ocean, ISMIP7Fracture,
     make_forcing_callback, load_racmo_smb_climatology, forcing_coords,
     describe_forcing_provenance, forcing_year, k_melt,
+    build_smb_feedback, feedback_mode, smb_feedback_banner,
 )
 from icepack2_tools.climatology import (
     clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
@@ -175,6 +183,12 @@ def run_core_experiment(*, core, title, name, esm, scenario,
     first, last = int(math.floor(t_start + 1e-9)), forcing_year(t_end)
     cover = ISMIP7Ocean(esm=esm, scenario=scenario).require_years(first, last)
     PETSc.Sys.Print(f"  Ocean forcing: tf, so cover {cover[0]}-{cover[1]}")
+    # The SMB-elevation feedback reads this scenario's own gradient. A run
+    # forced to zero SMB has no tree to read it from, so it refuses here
+    # unless the feedback is off as well.
+    feedback = build_smb_feedback(
+        atm if atm is not None else ISMIP7Atmosphere(esm=esm, scenario=scenario),
+        first, last, log=PETSc.Sys.Print)
 
     if restart:
         PETSc.Sys.Print(f"  Restart: {restart}")
@@ -186,7 +200,8 @@ def run_core_experiment(*, core, title, name, esm, scenario,
     # thinning undone (issue #117); a restart carries its own geometry.
     ctx = setup_model(
         restart_from=restart,
-        backdate_years=0.0 if restart else geometry_backdate_years(t_start))
+        backdate_years=0.0 if restart else geometry_backdate_years(t_start),
+        smb_feedback=feedback_mode(feedback))
 
     smb_anomaly, smb_baseline = False, None
     if atm is not None:
@@ -223,6 +238,9 @@ def run_core_experiment(*, core, title, name, esm, scenario,
     for line in describe_forcing_provenance(
             atm, ocean, fracture if fracture_mode() != "none" else None):
         PETSc.Sys.Print(f"  {line}")
+    PETSc.Sys.Print(f"  {smb_feedback_banner(feedback)}")
+    for line in feedback.provenance() if feedback is not None else ():
+        PETSc.Sys.Print(f"  {line}")
 
     K_npz = None if dT_npz is not None else find_k_npz()
     K_melt = k_melt()
@@ -239,6 +257,7 @@ def run_core_experiment(*, core, title, name, esm, scenario,
         atm=atm, ocean=ocean, fracture=fracture,
         K=K_melt, K_per_basin_npz=K_npz,
         smb_anomaly=smb_anomaly, smb_baseline=smb_baseline,
+        smb_feedback=feedback,
     )
 
     PETSc.Sys.Print(f"\nCore Experiment {core}: {title}")

@@ -51,8 +51,9 @@ The year in progress rides in the run's OWN checkpoint, not here: see
 Conventions (from the request and discussions #16, #19, #22):
 
 * ``acabf`` is the surface mass balance the transport applied: the forcing
-  SMB (RACMO climatology plus the re-referenced anomaly) less its share of any
-  sink the positivity limiter withheld. The apparent-mass-balance reference ``a_ref`` is NOT
+  SMB (RACMO climatology plus the re-referenced anomaly) and the
+  SMB-elevation feedback on ``dacabfdz`` (``forcing.SMBElevationFeedback``),
+  less its share of any sink the positivity limiter withheld. The apparent-mass-balance reference ``a_ref`` is NOT
   part of it: it cancels the discrete flux
   divergence spike by spike (up to ~1000 m/yr at the Pine Island grounding
   zone) and reported as SMB it would sit two orders of magnitude outside the

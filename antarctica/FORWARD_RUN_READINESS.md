@@ -37,7 +37,9 @@ whichever exists.
 **Control experiment (#28, #15).** ctrlclim is the 2000-2029 climatology of the
 last 15 years of `historical` and the first 15 of `ssp126`, per ESM. Files are
 time varying so the setup matches a projection. Fracture and excess meltwater
-hold at 2015 conditions; SMB-height feedback, calving and GIA stay free.
+hold at 2015 conditions; SMB-height feedback, calving and GIA stay free. The
+control carries the SMB-elevation feedback on its ESM's `ctrl` gradient, which
+is the same in every year (`control/run.py`).
 
 **Historical start is free (#34).** A steady initial state may be assigned to
 1960 or 1975 rather than 1850, with the 1960-1989 anomaly reference driving
@@ -47,9 +49,10 @@ changes from there. This closes the 1 K cooling question at an 1850 start.
 the group's choice, no fracture forcing for historical or OCX (use the observed
 front positions in `obs/`), ice mask ends 2021. The spatially shifted AIS OCX
 `dacabfdz` of #45 was replaced IN PLACE around 8 September, confirmed on the
-17th to be OCX only; the OCX gradients are v2 on the mirror. Nothing here reads
-them (no SMB-height feedback), but it is the case that showed a re-sync could
-not see a replaced file, see section 6. Open since 17 September: the OCX `main`
+17th to be OCX only; the OCX gradients are v2 on the mirror. Core 11's
+SMB-elevation feedback reads the OCX `dacabfdz` and refuses anything older than
+v2 (`ATMOSPHERE_MIN_VERSION` in `icepack2_tools/forcing.py`). It is also the
+case that showed a re-sync could not see a replaced file, see section 6. Open since 17 September: the OCX `main`
 thermal forcing departs from the Zhou climatology around Mertz (#48). Confirmed
 upstream on 20 September: OCX was built on an earlier extrapolation and is
 being regenerated, with no date set, section 7.
@@ -109,6 +112,14 @@ mirror's own version and none behind. Every `ctrl` row for
 cores 9 and 10 have their forcing. The 376 absent entries are the 2 km
 atmospheres, `dEBM2`, and the per-scenario fields that only an SMB-height
 feedback or a perturbed member reads.
+
+Every core now reads `dacabfdz` for the SMB-elevation feedback, which is on by
+default (antarctica/README.md, section 6), and the preflight blocks a core
+whose gradient is absent. A listing on Quartz on 25 September 2026 found it
+for both ESMs, at 8 km and 2 km, for `historical`, `ssp126`, `ssp370`,
+`ssp534-over`, `ssp585` and `ctrl`, all at v2 (MRI-ESM2-0 also keeps v1), and
+for OCX at v1 and v2. The trees at Rice NOTS and UChicago Midway were not
+listed.
 
 ## 3. Output and submission
 
@@ -470,8 +481,9 @@ Forcing data:
       2000-2029 pool and there is no temperature forcing, so no jump at the
       start of a historical. The README now says the historical starts in 1850
       from the 2015 state.
-- [x] #35, #36 runoff-gradient sign, which gradient: no SMB-height feedback, and
-      the README names both gradients as unused.
+- [x] #35, #36 runoff-gradient sign, which gradient: the runs carry the
+      SMB-elevation feedback on the SMB gradient `dacabfdz`, and README
+      question 19 names it.
 - [x] #32, #33, #41 item 6 OCX: the readers open the real tree and core 11 runs
       on it by default (`ISMIP7_OCX_FORCING`).
 - [~] #48 Mertz, and Cook by the product author's account: OCX confirmed built

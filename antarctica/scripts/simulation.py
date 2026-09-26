@@ -77,6 +77,7 @@ from icepack2_tools.front import (
     collapse_banner, collapse_cell_counts, collapse_csv_fields,
     COLLAPSE_CSV_COLUMNS, COLLAPSE_MARKER, FRONT_OWNER_MARKER,
 )
+from icepack2_tools.forcing import SMB_FEEDBACK_ATTR, smb_feedback_restart_error
 from icepack2_tools.runconfig import (
     obs_data_root,
     BUDD_SHELF_GATE as _BUDD_SHELF_GATE,
@@ -227,7 +228,7 @@ def historical_endpoint(esm_tag, tag_sfx, t_branch, lc_val=None):
 
 
 def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
-                backdate_years=0.0):
+                backdate_years=0.0, smb_feedback=None):
     r"""Load mesh, data, inversion fields, and build diagnostic solver.
 
     ``allow_timing_cache_a_ref`` is the narrow exception used after a timing
@@ -239,6 +240,12 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     years of the Smith mean dH/dt are undone on grounded ice after the friction
     anchors are built, so the 2015 friction and fluidity carry over unchanged
     and the run starts from the earlier ice (issue #117). A restart ignores it.
+
+    ``smb_feedback`` is the SMB-elevation feedback mode of a forward driver,
+    ``forcing.SMB_GRADIENT`` or ``forcing.SMB_FEEDBACK_OFF``: every checkpoint
+    the run writes records it, and a restart from a checkpoint recorded in the
+    other mode is refused (``forcing.smb_feedback_restart_error``). None, for
+    the callers that apply no forcing, records and checks nothing.
     """
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -710,6 +717,13 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 )
             _adapted_t0 = bool(chk.has_attr("/", "adapted_initial")
                                and int(chk.get_attr("/", "adapted_initial")))
+            _feedback_problem = smb_feedback_restart_error(
+                str(chk.get_attr("/", SMB_FEEDBACK_ATTR))
+                if chk.has_attr("/", SMB_FEEDBACK_ATTR) else None,
+                smb_feedback, adapted_initial=_adapted_t0)
+            if _feedback_problem:
+                raise RuntimeError(
+                    f"Restart checkpoint {source_chk}: {_feedback_problem}")
             if a_ref_mb is None and amb_env is not None and phys_div is not None:
                 PETSc.Sys.Print("  Apparent MB: adapted checkpoint, a_ref will be "
                                 "rebuilt from the transferred physical divergence")
@@ -1573,6 +1587,9 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         "N_ref": N_ref,
         "A_prior": A_prior_f,
         "H_init": H_init,
+        # SMB-elevation feedback mode of a forward driver, stamped into every
+        # checkpoint (None for callers that apply no forcing).
+        "smb_elevation_feedback": smb_feedback,
         # Frozen t=0 apparent-MB correction (restart only; else None).
         "a_ref_mb": a_ref_mb,
         "phys_div": phys_div,
@@ -1689,6 +1706,9 @@ def save_model_state(ctx, final_path, t_now, extra_attrs=None):
         if ctx.get("calving_law") is not None:
             chk.set_attr("/", "calving_law", str(ctx["calving_law"].describe()))
         chk.set_attr("/", "friction", str(ctx.get("friction", "budd")))
+        if ctx.get("smb_elevation_feedback") is not None:
+            chk.set_attr("/", SMB_FEEDBACK_ATTR,
+                         str(ctx["smb_elevation_feedback"]))
         if str(ctx.get("friction", "budd")) == "budd":
             # Provenance of the shelf gate this state was solved under
             # (runconfig.BUDD_SHELF_GATE); timing-cache manifests require it.

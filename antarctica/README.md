@@ -41,7 +41,7 @@ own venv and call it by absolute path.
 | BedMachine Antarctica v4.1, MEaSUREs velocity v2 | 8 GB | `scripts/download_data.py` (Earthdata login) | x | x | x | |
 | RACMO2.4p1 SMB climatology | 2 GB | same script | | x | | |
 | ISMIP7 observations MIPkit v1.2 (Smith dH/dt) | 9 GB | `scripts/download_mirror.py --product ismip7-ais-observations data/mipkit/`, landing at `ISMIP7/AIS/obs/mipkit/AntarcticaObsISMIP7-v1.2.nc` (`ISMIP7_OBS_KIT` overrides). `scripts/download_forcing.py --calibration` stages the same v1.2 file in the same place over Globus | `ISMIP7_DHDT_WEIGHT` | | `--from-obs` | |
-| ISMIP7 forcing per ESM and scenario: SMB anomaly 7.5 GB, ocean `tf` 11 GB, `so` 6.9 GB (ssp585; historical 4.3 GB) | 25 GB each | `scripts/download_mirror.py` | | x | | |
+| ISMIP7 forcing per ESM and scenario: SMB anomaly 7.5 GB, SMB gradient `dacabfdz` 0.2 GB, ocean `tf` 11 GB, `so` 6.9 GB (ssp585; historical 4.3 GB) | 25 GB each | `scripts/download_mirror.py` | | x | | |
 | ISMIP7 fracture (collapse mask, lake properties, excess melt) | 3 GB per scenario | same, `data/<ESM>/<scenario>/fracture/` | | `ISMIP7_FRACTURE=mask` | | |
 | Ocean OI climatology and IMBIE basin numbers | 3 GB | `scripts/download_forcing.py --ocean --calibration` | | x | | |
 | Whole AIS tree (all ESMs, scenarios, `ctrl`, OCX, calibration) | 313 GB | same | | | | |
@@ -51,12 +51,16 @@ own venv and call it by absolute path.
 Source Cooperative carries the data-freeze copy and needs no account.
 
 ```bash
-# one scenario for one ESM (about 25 GB)
+# one scenario for one ESM (about 25 GB); dacabfdz is the SMB gradient the
+# SMB-elevation feedback reads (section 6)
 python antarctica/scripts/download_mirror.py \
     data/CESM2-WACCM/ssp585/SDBN1-8000m/acabf-anomaly/ \
+    data/CESM2-WACCM/ssp585/SDBN1-8000m/dacabfdz/ \
     data/CESM2-WACCM/ssp585/ocean/tf/ data/CESM2-WACCM/ssp585/ocean/so/
-# the control's ocean for one ESM, which cores 9 and 10 read (about 18 GB)
+# the control's ocean and SMB gradient for one ESM, which cores 9 and 10 read
+# (about 18 GB)
 python antarctica/scripts/download_mirror.py \
+    data/CESM2-WACCM/ctrl/SDBN1-8000m/dacabfdz/ \
     data/CESM2-WACCM/ctrl/ocean/tf/ data/CESM2-WACCM/ctrl/ocean/so/
 # the observations MIPkit (about 9 GB)
 python antarctica/scripts/download_mirror.py --product ismip7-ais-observations data/mipkit/
@@ -227,13 +231,15 @@ python scripts/download_forcing.py --status
 | `GLOBUS_LOCAL_ENDPOINT` | your Globus Connect Personal endpoint UUID | required to transfer |
 
 Scenario forcing lives in the collection's top-level `/ISMIP7/AIS/<ESM>/<scenario>/`
-tree. `--scenarios` mirrors the minimal runtime sets (SDBN1-8000m `acabf` and
-`acabf-anomaly`, ocean `tf` and `so`, fracture) with version autodetection and
-checksum sync, so re-runs are completeness checks. Climatology, obs and
-calibration sets come from `/ISMIP6/ISMIP7_Prep/CMIP6_test_protocol/AIS`; the
-`OCEAN_FILES` and `CALIBRATION_FILES` dicts in the script are the manifest.
-Without `GLOBUS_LOCAL_ENDPOINT` the script prints the paths for a manual
-transfer in the web app.
+tree. `--scenarios` mirrors the minimal runtime sets (SDBN1-8000m `acabf`,
+`acabf-anomaly` and the SMB gradient `dacabfdz`, ocean `tf` and `so`, fracture)
+with version autodetection and checksum sync, so re-runs are completeness
+checks. `--scenario ctrl` fetches the control's set, its `dacabfdz` and ocean.
+Climatology, obs and calibration sets come from
+`/ISMIP6/ISMIP7_Prep/CMIP6_test_protocol/AIS`; the `OCEAN_FILES` and
+`CALIBRATION_FILES` dicts in the script are the manifest. Without
+`GLOBUS_LOCAL_ENDPOINT` the script prints the paths for a manual transfer in
+the web app.
 
 ### 2b. The runtime tree
 
@@ -648,7 +654,40 @@ historical endpoint so only the first link starts there; `--tag` or
 resumes its own files; `--checkpoint-interval` sets the step-count fallback.
 Checkpoints carry the mesh, geometry, inversion fields and the full `(u, M, τ)`
 state, so restarts work at any rank count. A resume refuses to start when
-`ISMIP7_FRICTION` or `ISMIP7_APPARENT_MB` disagree with the checkpoint.
+`ISMIP7_FRICTION`, `ISMIP7_APPARENT_MB` or `ISMIP7_SMB_ELEVATION_FEEDBACK`
+disagree with the checkpoint.
+
+**SMB-elevation feedback.** Every driver adds `dacabfdz(t) (s - s_ref)` to the
+SMB each step (`forcing.SMBElevationFeedback`), the form and the gradient the
+SMB focus group's Atmospheric forcing README (September 2026) recommends for
+Antarctica. Both surfaces are the flotation surface `max(b + h, (1 - rho_I/rho_W) h)`:
+of the thickness at the start of the step, and of `H_init`, the thickness of
+the chain's initial state, which every checkpoint carries. A projection or
+control branched from a historical therefore measures its surface change from
+the historical's initial state, and the change is exactly zero at a cold
+start, where the `balance` apparent-MB reference folds the first step's SMB
+into `a_ref`. The feedback enters `accum`, so the transport, the `smb_gtyr`
+budget column and the submitted `acabf` all carry it. The gradient each core
+reads:
+
+| cores | gradient |
+|---|---|
+| 1 to 8 | the core's own ESM and scenario, same product and version as its `acabf-anomaly` |
+| 9, 10 | the ESM's `ctrl`, the same in every year |
+| 11 | the OCX product's, at v2 or newer in both `ISMIP7_OCX_FORCING` modes (the v1 was spatially shifted, discussion #45) |
+
+`ISMIP7_SMB_ELEVATION_FEEDBACK=0` turns it off. With it on, a run refuses to
+start on a gradient that is absent, short or below its version floor, and the
+preflight reports the same cores BLOCKED. Every forward checkpoint records the
+mode in its `smb_elevation_feedback` attribute (absent reads as off), and a
+restart refuses a checkpoint from the other mode unless it is an adapted t=0
+state: a chain carries the feedback from its cold start or not at all, so a
+projection with the feedback on needs a historical run with it on. Its size at
+32 km, CESM2-WACCM core 1 from an 1850 start then core 7, against the same
+chain without it: -3.6 Gt/yr of SMB at 2015, -613 Gt/yr at 2300, and 17 mm SLE
+more VAF at 2300 (`runlog/core07-32km-ssp585-cesm2waccm-i116on.json`). Most of
+the surface change it multiplied by 2015 was that chain's 165 years of drift,
+so a 2003 start begins its projections with less of it.
 
 **Is the run on track?**
 
@@ -868,6 +907,7 @@ redeclare those literals.
 | `ISMIP7_FRACTURE` | `mask` applies the ISMIP7 collapse forcing to every floating cell it flags, booked as calving; `mask_front` only to the flagged cells open water has reached, so no hole opens behind a standing front (the two end-members of discussion #30). Masks exist for the SSPs only, so the control, historicals and OCX abort on either. Needs DG0. Every run prints its mode once (`Ice-shelf collapse forcing: ISMIP7_FRACTURE=...`, `none` included). Under a mask mode the timeseries columns `collapse_flagged_cells`, `collapse_removed_cells` and `collapse_held_cells` count the flagged floating cells, the ones the mode has emptied and the ones it leaves standing (always 0 under `mask`), all ranks summed; the budget lines, a closing log line and the core report repeat them | `none` |
 | `ISMIP7_OCX_FORCING` | what core 11 runs on. `protocol` is the ISMIP7 OCX product (RACMO2.3p2-ERA SDBN1 `acabf`, expert-judgment ocean `tf`/`so`), and the run refuses to start without it. `stopgap` is RACMO2.4p1 actual-year SMB with the constant OI ocean climatology, what the core ran on before the product was readable here. K is fitted to the climatology, so read `check_melt_bound.py --ocx` first (discussion #48) | `protocol` |
 | `ISMIP7_OCX_OCEAN` | which expert-judgment OCX ocean scenario to read: `main` (the core one), `cold`, `warm` or `vary`. A member other than `main` writes to `ocx_<member>` | `main` |
+| `ISMIP7_SMB_ELEVATION_FEEDBACK` | the SMB-elevation feedback, `dacabfdz` times the surface change since the chain's initial state, added to the SMB every step (section 6). `1` or unset turns it on; `0` or an empty value turns it off, and the value set is closed. With it on a run refuses to start without the gradient it reads, and a resume refuses a checkpoint written in the other mode | `1` |
 | `ISMIP7_OUTPUT` | `1` records the ISMIP7 yearly fields and scalars (`<exp>_<lc>_ismip7_annual_<year>.h5`, `<exp>_<lc>_ismip7_scalars.csv`), regridded afterwards by `write_ismip7_output.py`. The value set is closed, so a typo is rejected at startup. `projection.sbatch` and `run_core_matrix.sh` default it to `1`, and `=0` or an empty value turns it off there. A chained projection must export it on every link; a link that cold-starts mid-year logs the gap and begins at the next 1 January. Resuming continues a series, and a cold start into a populated series is refused | unset (`1` under the core-experiment runners) |
 | `ISMIP7_BNDIDS` | boundary-id JSON override | per-mesh sidecar, else `mesh/boundary_ids.json` |
 | `ISMIP7_GEOMETRY_SPACE` | `dg0` (one thickness for terminus force and mass flux) or `cg1` (legacy, A/B only). Selects the MAP. See `../GEOMETRY_DISCRETIZATION.md` | `dg0` |

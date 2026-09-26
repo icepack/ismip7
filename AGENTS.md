@@ -123,6 +123,17 @@ without reading the linked rationale and stating why.
   the block structure without changing the residual; `ISMIP7SCPC` fixes the
   retained-first indexing. Deleting the term or replacing the `Constant` with
   literal zero makes UFL simplify it away and SCPC fails during setup.
+- **The SMB-elevation feedback rebuilds both surfaces from thickness.**
+  `forcing.SMBElevationFeedback` takes the surface change as
+  `max(b + h, (1 - rho_I/rho_W) h)` minus the same formula of `H_init`, and
+  never reads the stored `surface` or a saved reference field. `H_init` and
+  `b` already travel with every checkpoint, branch and adaptation, and one
+  formula on both sides makes the change exactly zero at a cold start, where
+  the `balance` apparent-MB reference folds the first step's SMB into `a_ref`.
+  A cold start's `surface` can come from the MAP file and differ from the
+  formula. Relatedly, the control's callback rewrites `accum` from its fixed
+  climatology every step, where it used to assign it once: adding the
+  feedback onto `accum` itself would compound it step after step.
 
 One line that looks fine and is always a bug:
 

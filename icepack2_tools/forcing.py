@@ -370,6 +370,16 @@ OCX_ATMOSPHERE_SOURCE = "RACMO2.3p2-ERA"
 OCX_OCEAN_VARIANTS = ("main", "cold", "warm", "vary")
 OCX_OCEAN_SOURCE = "expert-judgment"
 
+# The oldest version of an atmosphere variable a run may read, per (ESM or
+# source, scenario, variable). The reader opens the pinned version and falls
+# back to the highest one on disk where the pin is absent, so a tree holding
+# only the OCX ``dacabfdz`` v1, the spatially shifted file of discussion #45,
+# would be read without a word. ``ISMIP7Atmosphere.version_problem`` states it
+# and the SMB-elevation feedback refuses it.
+ATMOSPHERE_MIN_VERSION = {
+    (OCX_ATMOSPHERE_SOURCE, OCX, "dacabfdz"): "v2",
+}
+
 
 def _scenario_dir(root, esm, scenario):
     r"""``<root>/<esm>/<scenario>``, or ``<root>/OCX/<source>`` for OCX."""
@@ -778,6 +788,72 @@ class ISMIP7Atmosphere:
         product = os.path.basename(os.path.dirname(os.path.dirname(vdir)))
         return self._years_on_disk(vdir, variable, product, version)
 
+    def coverage_problem(self, first, last, variable):
+        r"""What keeps ``variable`` from serving every year ``first`` to
+        ``last``, in a few words, or None when it serves them all.
+
+        The rule is ``_load_year``'s: the single year after the series is
+        bridged and any other missing year raises there. A variable with no
+        files at all reads as zeros instead, which no run may take for data,
+        so here it is a problem like any other."""
+        years = self.available_years(variable)
+        if not years:
+            return f"{variable} for {self.esm} {self.scenario}: no files"
+        have = set(years)
+        missing = [y for y in range(first, last + 1)
+                   if y not in have and y != years[-1] + 1]
+        if not missing:
+            return None
+        return (f"{variable} for {self.esm} {self.scenario} covers "
+                f"{years[0]}-{years[-1]}, {len(missing)} of {first}-{last} "
+                f"missing ({missing[0]}..{missing[-1]})")
+
+    def version_problem(self, variable):
+        r"""What is wrong with the version of ``variable`` on disk, or None:
+        older than ``ATMOSPHERE_MIN_VERSION`` allows for this tree. An absent
+        variable is ``coverage_problem``'s to report."""
+        floor = ATMOSPHERE_MIN_VERSION.get((self.esm, self.scenario, variable))
+        vdir = self._var_dir(variable)
+        if floor is None or vdir is None or not os.path.isdir(vdir):
+            return None
+        have = os.path.basename(vdir)
+        key = version_key(have)
+        if key is not None and key >= version_key(floor):
+            return None
+        return (f"{variable} for {self.esm} {self.scenario} is {have} on disk "
+                f"and a run needs {floor} or newer (ATMOSPHERE_MIN_VERSION in "
+                f"icepack2_tools/forcing.py)")
+
+    def mirror_prefix(self, variable):
+        r"""The ``download_mirror.py`` prefix that fetches ``variable`` into
+        this tree: the mirror's ``data/`` layout is the local one."""
+        vdir = self._var_dir(variable)
+        if vdir is None:
+            return f"data/<tree>/{variable}/"
+        rel = os.path.relpath(os.path.dirname(vdir), self.data_root)
+        return f"data/{rel.replace(os.sep, '/')}/"
+
+    def require_years(self, first, last, variables=("acabf-anomaly",)):
+        r"""Refuse a run that needs years ``first`` to ``last`` of
+        ``variables`` from a tree that does not hold them at an accepted
+        version, and return the ``(first, last)`` span every variable covers.
+
+        The atmosphere twin of ``ISMIP7Ocean.require_years``: a driver calls
+        it before its model setup, because a variable with no files reads as
+        zeros and a run on an absent tree would report success."""
+        spans = []
+        for var in variables:
+            problem = (self.coverage_problem(first, last, var)
+                       or self.version_problem(var))
+            if problem:
+                raise FileNotFoundError(
+                    f"{problem}. Fetch it with `python "
+                    f"antarctica/scripts/download_mirror.py "
+                    f"{self.mirror_prefix(var)}`.")
+            years = self.available_years(var)
+            spans.append((years[0], years[-1]))
+        return max(s[0] for s in spans), min(s[1] for s in spans)
+
     def get_field(self, variable, year, mesh_x, mesh_y):
         r"""Get a forcing field interpolated to mesh coordinates.
 
@@ -814,19 +890,20 @@ class ISMIP7Atmosphere:
         return smb_kgm2s_to_myr(raw)
 
     def get_smb_gradient(self, year, mesh_x, mesh_y):
-        r"""Get SMB elevation gradient (dacabfdz) for ice-elevation feedback.
+        r"""Get the SMB elevation gradient ``dacabfdz`` in the file's units,
+        kg m-2 s-1 per m, for the SMB-elevation feedback
+        (``SMBElevationFeedback``, which converts it to m/yr of ice per m).
 
-        Nothing calls this: the model has no SMB-height feedback, and the
-        submission README says so. Before anything does, three things from the
-        forum. The protocol prefers the RUNOFF gradient ``dmrrodz``, since
-        ``dacabfdz`` is dominated in places by precipitation patterns that
-        have nothing to do with elevation; either is accepted if the README
-        names it (discussion #36). Runoff is counted positive for mass LOSS,
-        so the SMB correction is MINUS ``dmrrodz`` times the elevation change
-        (#35), which a group found out from its results. And the AIS OCX
-        ``dacabfdz`` was spatially shifted until it was replaced in place
-        around 8 September 2026 (#45), so a copy fetched before then is wrong
-        under the right name: ``download_mirror.py`` will say REPLACED.
+        For Antarctica the SMB focus group's Atmospheric forcing README
+        (September 2026) recommends this SMB gradient, because the CMIP runoff
+        fields are of uncertain quality; its preference for the runoff
+        gradient ``dmrrodz`` is for Greenland, and the organisers accept
+        either if the README names it (discussion #36). Runoff counts positive
+        for mass LOSS, so a ``dmrrodz`` feedback would enter the SMB with a
+        minus sign (#35). The AIS OCX ``dacabfdz`` was spatially shifted until
+        its v2 (#45): ``ATMOSPHERE_MIN_VERSION`` refuses the v1, and a copy
+        replaced in place since it was fetched shows as REPLACED in
+        ``download_mirror.py``.
         """
         return self.get_field("dacabfdz", year, mesh_x, mesh_y)
 
@@ -1751,9 +1828,186 @@ def reject_collapse_mask(what):
         )
 
 
+# The SMB-elevation feedback (icepack/ismip7 issue 116). core_report.py lifts
+# the marker line each driver prints at startup; the per-year lines below
+# carry a different prefix so they stay out of the report header.
+SMB_GRADIENT = "dacabfdz"
+SMB_FEEDBACK_OFF = "off"
+SMB_FEEDBACK_MARKER = "SMB-elevation feedback:"
+# Root attribute of every forward checkpoint: SMB_GRADIENT or SMB_FEEDBACK_OFF.
+SMB_FEEDBACK_ATTR = "smb_elevation_feedback"
+
+
+def flotation_surface(b, h, rho_ratio):
+    r"""``max(b + h, (1 - rho_ratio) h)``, the surface every geometry in the
+    forward is built with (simulation.py), on plain arrays."""
+    return np.maximum(b + h, (1.0 - rho_ratio) * h)
+
+
+class SMBElevationFeedback:
+    r"""``dacabfdz(t) * (s - s_ref)``, added to the SMB every step.
+
+    The form is the SMB focus group's (Atmospheric forcing README, September
+    2026), SMB = SMB_ref + SMB_anom(t) + dSMB/dz(t) (h - h_ref), with the SMB
+    gradient it recommends for Antarctica (``ISMIP7Atmosphere.
+    get_smb_gradient``). ``atm`` is the reader whose tree holds the gradient:
+    the run's own ESM and scenario, the ESM's ``ctrl`` for the control, the
+    OCX product for core 11.
+
+    Both surfaces are the flotation surface of a thickness,
+    ``s = max(b + h, (1 - rho_i/rho_w) h)``: of the current one and of
+    ``H_init``, the thickness of the chain's initial state. ``H_init`` travels
+    with every checkpoint and ``b`` never changes, so a projection or control
+    branched from a historical measures its surface change from the
+    historical's initial state, the model's own initial surface the focus
+    group asks for, and no reference field needs saving. One formula on both
+    sides makes the change exactly zero at a cold start, where the ``balance``
+    apparent-MB reference folds the first step's SMB into ``a_ref``; the
+    stored ``surface`` can come from the MAP file and differ from the formula
+    there. Under the legacy CG1 geometry ``H_init`` predates the one-time lift,
+    whose small surface change ``balance`` absorbs at t=0.
+
+    The geometry is the one at the start of the step, since the callback runs
+    once per step before the subcycle ladder: the explicit coupling the melt
+    has. The change is unbounded, as in the focus group's formula. NaN in the
+    gradient reads as zero. The feedback is part of ``accum``, so the forward
+    applies it only where it applies any forcing (``front.unforced_cells``:
+    never on open ocean or on cells a front rule holds ice-free); ice-free
+    land keeps it, and there the positivity limiter books any sink as clamp.
+    """
+
+    def __init__(self, atm, log=None):
+        self.atm = atm
+        self.log = log
+        self._year = None
+        self._gradient = None
+
+    def check(self, first, last):
+        r"""Refuse, before the model setup, a tree that cannot serve the
+        gradient for every year ``first`` to ``last`` at an accepted
+        version."""
+        try:
+            self.atm.require_years(first, last, (SMB_GRADIENT,))
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"The SMB-elevation feedback reads {SMB_GRADIENT}: {e} "
+                f"Set ISMIP7_SMB_ELEVATION_FEEDBACK=0 to run without the "
+                f"feedback.") from None
+
+    def describe(self):
+        r"""The gradient this feedback reads, for the startup banner."""
+        rows = self.atm.provenance((SMB_GRADIENT,))
+        where = (f"{rows[0]['product']} {rows[0]['version']}" if rows
+                 else "nothing on disk")
+        return (f"{SMB_GRADIENT} from {self.atm.esm} {self.atm.scenario} "
+                f"{where}, surface change from the chain's initial state "
+                f"(H_init)")
+
+    def provenance(self):
+        r"""The ``Forcing provenance:`` line of the gradient."""
+        return describe_forcing_provenance(
+            self.atm, variables={"atmosphere": (SMB_GRADIENT,)})
+
+    @staticmethod
+    def surface_change(ctx):
+        r"""``s - s_ref`` on the geometry dofs, rank-local."""
+        b = ctx["b"].dat.data_ro
+        r = float(ctx["rho_ratio"])
+        return (flotation_surface(b, ctx["h"].dat.data_ro, r)
+                - flotation_surface(b, ctx["H_init"].dat.data_ro, r))
+
+    def correction(self, ctx, yr):
+        r"""The feedback in m/yr of ice on the geometry dofs for forcing year
+        ``yr``. The gradient is sampled once per year; the surface change is
+        taken from ``ctx`` on every call."""
+        yr = int(yr)
+        fresh = yr != self._year
+        if fresh:
+            mesh_x, mesh_y = forcing_coords(ctx)
+            self._gradient = smb_kgm2s_to_myr(
+                self.atm.get_smb_gradient(yr, mesh_x, mesh_y))
+            self._year = yr
+        ds = self.surface_change(ctx)
+        corr = self._gradient * ds
+        if fresh and self.log is not None:
+            self._announce(ctx, yr, corr, ds)
+        return corr
+
+    def _announce(self, ctx, yr, corr, ds):
+        r"""One line per forcing year: the net feedback, the surface change
+        and the gradient on this mesh. Collective: every rank enters the
+        callback, so every rank reduces."""
+        from firedrake import Function, assemble, dx
+        from .mpi_stats import global_range
+        comm = ctx["mesh"].comm
+        field = Function(ctx["accum"].function_space())
+        field.dat.data[:] = corr
+        net = float(assemble(field * dx)) * _RHO_ICE / 1e12
+        ds_lo, ds_hi = global_range(ds, comm)
+        g_lo, g_hi = global_range(self._gradient, comm)
+        self.log(f"  {SMB_GRADIENT} feedback {yr}: net {net:+.2f} Gt/yr, "
+                 f"surface change {ds_lo:+.1f}..{ds_hi:+.1f} m, gradient "
+                 f"{g_lo:+.3e}..{g_hi:+.3e} m/yr per m")
+
+
+def build_smb_feedback(atm, first, last, log=None):
+    r"""The run's SMB-elevation feedback on ``atm``'s gradient, checked to
+    cover ``first`` to ``last``, or None under
+    ``ISMIP7_SMB_ELEVATION_FEEDBACK=0``. A driver calls this before its model
+    setup."""
+    from .runconfig import smb_elevation_feedback
+    if not smb_elevation_feedback():
+        return None
+    feedback = SMBElevationFeedback(atm, log=log)
+    feedback.check(first, last)
+    return feedback
+
+
+def feedback_mode(feedback):
+    r"""What a checkpoint records for this run: ``SMB_GRADIENT`` or
+    ``SMB_FEEDBACK_OFF``."""
+    return SMB_FEEDBACK_OFF if feedback is None else SMB_GRADIENT
+
+
+def smb_feedback_banner(feedback):
+    r"""The startup line core_report.py lifts into the run's record."""
+    if feedback is None:
+        return (f"{SMB_FEEDBACK_MARKER} {SMB_FEEDBACK_OFF} "
+                f"(ISMIP7_SMB_ELEVATION_FEEDBACK=0)")
+    return f"{SMB_FEEDBACK_MARKER} {feedback.describe()}"
+
+
+def smb_feedback_restart_error(recorded, requested, adapted_initial=False):
+    r"""Why a restart may not continue with the feedback mode ``requested``,
+    or None.
+
+    ``recorded`` is the checkpoint's ``SMB_FEEDBACK_ATTR``, None where it has
+    none, which reads as off: no checkpoint written before the feedback
+    existed carries it. A chain carries the feedback from its cold start or
+    not at all. Switching it on at a branch would apply the whole surface
+    change since the chain's initial state in one step, and switching it off
+    would drop it. An adapted t=0 state (``adapt_mesh.py --rebuild-aref``) is
+    a new initial state and may start in either mode, and ``requested`` None
+    is a caller that applies no forcing (the timing lanes, the tools)."""
+    if requested is None or adapted_initial:
+        return None
+    have = SMB_FEEDBACK_OFF if recorded is None else str(recorded)
+    if have == requested:
+        return None
+    flag = "0" if have == SMB_FEEDBACK_OFF else "1"
+    origin = (" (it has no such attribute, as every checkpoint written "
+              "before the feedback existed)" if recorded is None else "")
+    return (f"it was written with the SMB-elevation feedback {have!r}{origin} "
+            f"and this run resolves {requested!r}. A chain carries the "
+            f"feedback from its cold start or not at all: rerun the chain from "
+            f"its cold start in this mode, or set "
+            f"ISMIP7_SMB_ELEVATION_FEEDBACK={flag} to continue it as it ran.")
+
+
 def make_forcing_callback(atm=None, ocean=None, fracture=None,
                           K=_K_DEFAULT, K_per_basin_npz=None,
-                          smb_anomaly=True, smb_baseline=None):
+                          smb_anomaly=True, smb_baseline=None,
+                          smb_feedback=None):
     r"""Build a forcing callback for use with simulation.run_simulation().
 
     Ocean melt uses the ISMIP7 Burgard quadratic_mixed_slope formula
@@ -1772,7 +2026,13 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
     either pass `smb_baseline` (a per-node array added to the anomaly
     every step — e.g. RACMO climatology minus the anomaly's mean over
     the control reference window) or set smb_anomaly=False to force
-    with the full field.
+    with the full field. With no `atm`, `smb_baseline` alone is the SMB,
+    written every step: the control's fixed climatology.
+
+    `smb_feedback` (an `SMBElevationFeedback`) is added to whichever SMB
+    the callback writes. The SMB is rewritten from its base every step, so
+    the feedback never compounds on the previous step's; a feedback with no
+    SMB to add to is refused here.
 
     With ISMIP7_DELTAT_PER_BASIN_NPZ set, that file's TF offset and its one
     K replace both, and `K_per_basin_npz` is not read.
@@ -1784,6 +2044,10 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
     """
     if fracture is None:
         reject_collapse_mask("this run's forcing callback")
+    if smb_feedback is not None and atm is None and smb_baseline is None:
+        raise ValueError(
+            "an SMB-elevation feedback needs an SMB to add to: pass `atm` or "
+            "`smb_baseline` with it")
     from .runconfig import deltat_per_basin_npz
     K_field_cache = {"arr": None}
     dT_npz = deltat_per_basin_npz()
@@ -1799,6 +2063,13 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
             smb = atm.get_smb(yr, mesh_x, mesh_y, anomaly=smb_anomaly)
             if smb_baseline is not None:
                 smb = smb + smb_baseline
+        elif smb_baseline is not None:
+            smb = smb_baseline
+        else:
+            smb = None
+        if smb is not None:
+            if smb_feedback is not None:
+                smb = smb + smb_feedback.correction(ctx, yr)
             ctx["accum"].dat.data[:] = smb
 
         if ocean is not None and "ocean_melt" in ctx:

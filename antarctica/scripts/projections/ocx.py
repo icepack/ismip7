@@ -21,6 +21,12 @@ model against the observed record, and independent of CMIP by design
     Ocean: constant OI-climatology TF/so at draft with the calibrated
            per-basin K (the same forcing the CTRL uses).
 
+Both add the SMB-elevation feedback on the OCX product's own gradient,
+RACMO2.3p2-ERA SDBN1 ``dacabfdz``, at v2 or newer: the v1 was spatially
+shifted (discussion #45). The stopgap therefore needs that one OCX
+variable too, unless ISMIP7_SMB_ELEVATION_FEEDBACK=0 turns the feedback off
+(forcing.SMBElevationFeedback).
+
 OPEN, discussion #48 (17 September 2026): the OCX ``main`` thermal forcing
 differs strongly from the Zhou climatology around Mertz, halving that
 region's melt against a calibration made on the climatology, and may have
@@ -58,6 +64,7 @@ from icepack2_tools.forcing import (
     make_climatology_ocean_callback, load_racmo_smb_climatology,
     load_K_per_basin, forcing_coords, _K_DEFAULT, reject_collapse_mask, forcing_year,
     describe_forcing_provenance, describe_observational_forcing,
+    build_smb_feedback, feedback_mode, smb_feedback_banner,
 )
 
 T_START = float(os.environ.get("ISMIP7_T_START", "2003"))
@@ -124,11 +131,17 @@ def main():
             else "Auto-resume: no prior checkpoint"
         )
     dT_npz = deltat_per_basin_npz()
+    # The SMB-elevation feedback reads the OCX gradient in either mode.
+    feedback = build_smb_feedback(
+        readers[0] if readers is not None
+        else ISMIP7Atmosphere(esm=OCX_ATMOSPHERE_SOURCE, scenario=OCX),
+        int(math.floor(T_START + 1e-9)), forcing_year(T_END), log=PETSc.Sys.Print)
     # 2003 start (issue #117): the 2015 geometry with the Smith mean thinning
     # undone on grounded ice; a restart carries its own geometry.
     ctx = setup_model(
         restart_from=restart,
-        backdate_years=0.0 if restart else geometry_backdate_years(T_START))
+        backdate_years=0.0 if restart else geometry_backdate_years(T_START),
+        smb_feedback=feedback_mode(feedback))
     # Sample forcing at the geometry dofs, not the mesh vertices: under
     # DG0 geometry those are cell centroids (see forcing.forcing_coords).
     mesh_x, mesh_y = forcing_coords(ctx)
@@ -159,6 +172,7 @@ def main():
         PETSc.Sys.Print(f"  Ocean melt: ISMIP7 OCX '{ocean.variant}' tf/so + {melt_what}")
         callback = make_forcing_callback(
             atm=atm, ocean=ocean, K_per_basin_npz=K_npz, smb_anomaly=False,
+            smb_feedback=feedback,
         )
         provenance = describe_forcing_provenance(
             atm, ocean, variables={"atmosphere": ("acabf",)})
@@ -180,10 +194,18 @@ def main():
                 ).dat.data_ro.copy()
                 while len(racmo_cache) > 3:
                     racmo_cache.pop(next(iter(racmo_cache)))
-            ctx_["accum"].dat.data[:] = racmo_cache[yr]
+            smb = racmo_cache[yr]
+            if feedback is not None:
+                # the OCX gradient covers the whole run, so its year is the
+                # step's own, not the one RACMO holds at its end
+                smb = smb + feedback.correction(ctx_, forcing_year(t_yr))
+            ctx_["accum"].dat.data[:] = smb
             oi_melt(ctx_, t_yr)
 
     for line in provenance:
+        PETSc.Sys.Print(f"  {line}")
+    PETSc.Sys.Print(f"  {smb_feedback_banner(feedback)}")
+    for line in feedback.provenance() if feedback is not None else ():
         PETSc.Sys.Print(f"  {line}")
 
     PETSc.Sys.Print("\nCore Experiment 11: OCX (observationally constrained)")

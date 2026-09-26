@@ -1,0 +1,33 @@
+{
+  "id": "core07-32km-ssp585-cesm2waccm-i116off",
+  "task": "test",
+  "institution": "IU",
+  "title": "Core 7 at 32 km without the SMB-elevation feedback, branched from the i116off historical",
+  "status": "done",
+  "exp_id": "C007",
+  "esm": "CESM2-WACCM",
+  "scenario": "ssp585",
+  "period": "2015 to 2301, reached 2301.0",
+  "friction": "budd",
+  "mesh": "antarctica_320000_32000, DG0 geometry",
+  "initial_state": "hist_cesm2_waccm_i116off_32000_final.h5, sha256 ed68c4d6a8c73fc5ae889ddaad297c459a90f77f7a8dcdd0847d7436c4fceca4",
+  "branch_from": "core01-32km-hist-cesm2waccm-i116off at 2015.0, from the log's restart lines",
+  "forcing": "CESM2-WACCM ssp585, atmosphere SDBN1-8000m v2, SMB-elevation feedback off (ISMIP7_SMB_ELEVATION_FEEDBACK=0), ocean v3",
+  "melt": "per-basin K from K_issue11_mesh2500.npz, local slope",
+  "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
+  "apparent_mb": "balance",
+  "dt": 0.1,
+  "site": "IU Quartz",
+  "resources": "8 ranks, 32 GiB",
+  "jobs": [
+    "10647797",
+    "10648392"
+  ],
+  "code": "525e14d",
+  "started": "2026-09-26",
+  "finished": "2026-09-26",
+  "cost": "2 links, 143 min, 109 min, for 286 model years",
+  "results": "antarctica/results/ssp585_cesm2_waccm_i116off_32000_*",
+  "audit": "OFF TRACK against the present-day envelopes, as an ssp585 run at 2300 is, with dM/dt FAIL at -2638.3 Gt/yr; resid 0.0000 on all 2860 rows, no rescue, subcycle or stall event",
+  "notes": "run for issue #116 from a scratch clone of claude/dacabfdz-gradient-version-565c93 at 525e14d, with results and logs in the shared checkout. 2860 of 2860 steps converged on their first direct diagnostic solve, with 6.3 Newton iterations on average and 19 at the most (step 663, t = 2226.3). VAF changes by +44 mm SLE over 2015 to 2301; the peak ice speed on the mesh is 328466 m/yr at t = 2256.5, at (-177105, -506755) m. The same-code partner of the i116on core 7, with ISMIP7_SMB_ELEVATION_FEEDBACK=0, branched from the i116off historical, recorded smb_elevation_feedback = off; the comparison is in core07-32km-ssp585-cesm2waccm-i116on. Run without ISMIP7_OUTPUT. Final state sha256 bfac7b47f148cc4e21e2ae441eeae295d2358b86ec970078fadbc57d605697fd. Full record: antarctica/reports/core07_ssp585_cesm2_waccm_32km_i116off.md."
+}

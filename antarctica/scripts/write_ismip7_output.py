@@ -47,7 +47,8 @@ Model-to-SI conversions use icepack's year, 365.25 days (31557600 s), which
 is the model's own time unit; the time axis in the files is the standard
 calendar regardless.
 
-``acabf`` is written as the forcing surface mass balance, always. The
+``acabf`` is written as the surface mass balance the transport applied, the
+forcing SMB with the SMB-elevation feedback, always. The
 apparent-mass-balance reference stays where the forward put it, as
 ``acabf_correction`` in the annual file: it is not a request variable, and
 folded into the SMB it would sit two orders of magnitude outside the
