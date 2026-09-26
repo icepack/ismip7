@@ -31,7 +31,7 @@ from firedrake.petsc import PETSc
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(_ROOT))
 from icepack2_tools.obs_dhdt import load_dhdt_obs
-from icepack2_tools.runconfig import lc as _lc
+from icepack2_tools.runconfig import deltat_per_basin_npz, k_per_basin_npz
 from icepack2_tools.forcing import (
     load_racmo_smb_climatology, load_K_per_basin,
     make_climatology_ocean_callback,
@@ -70,21 +70,19 @@ def one_step_dhdt(path):
 
     melt = Function(Q_g, name="ocean_melt_ref")
     if os.environ.get("ISMIP7_DHDT_MELT", "1") != "0":
-        # Resolution comes from icepack2_tools.runconfig, the same owner the
-        # inversion reads: a mismatch here picks a per-basin K calibrated at
-        # another resolution, which perturbs the melt source and hence the
-        # model tendency being scored.
-        _k_lc = os.path.join(_ROOT, "results",
-                             f"calibrated_K_per_basin_{_lc()}.npz")
-        _k_2500 = os.path.join(_ROOT, "results",
-                               "calibrated_K_per_basin_2500.npz")
-        k_npz = os.environ.get("ISMIP7_K_PER_BASIN_NPZ",
-                               _k_lc if os.path.exists(_k_lc) else _k_2500)
+        # The melt calibration the forward and the inversion read, from
+        # icepack2_tools.runconfig: per-basin deltaT at one K, the tracked
+        # file unless another is named, else a legacy per-basin K named with
+        # ISMIP7_K_PER_BASIN_NPZ. Another calibration would perturb the melt
+        # source and hence the model tendency being scored.
+        k_npz = None if deltat_per_basin_npz() is not None else k_per_basin_npz()
         W2 = VectorFunctionSpace(mesh, "DG", 0)
         xy = Function(W2).interpolate(
             fd.SpatialCoordinate(mesh)).dat.data_ro.reshape(-1, 2)
-        K = load_K_per_basin(k_npz, xy[:, 0].copy(), xy[:, 1].copy(), fill=0.0)
-        K = K * float(os.environ.get("ISMIP7_K_SCALE", "1.0"))
+        K = None
+        if k_npz is not None:
+            K = load_K_per_basin(k_npz, xy[:, 0].copy(), xy[:, 1].copy(), fill=0.0)
+            K = K * float(os.environ.get("ISMIP7_K_SCALE", "1.0"))
         ctx = {"mesh": mesh, "Q": Q, "V": V, "Q_g": Q_g,
                "geom_xy": (xy[:, 0].copy(), xy[:, 1].copy()),
                "h": H, "b": b, "s": s, "ocean_melt": melt}

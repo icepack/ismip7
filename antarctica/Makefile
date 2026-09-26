@@ -148,7 +148,8 @@ MATRIX_TAG_NAMED := $(filter-out file,$(foreach v,TIMING_TAG TIMING_SOLVER MATRI
 # One released MAP through its checks (scripts/manage_map_check.py). The
 # 22 September 2 km snapshots are the defaults; MAP_CHECK_FRICTION picks the
 # law and with it the file. The target is the production mesh; on Quartz name
-# MAP_CHECK_TARGET_MESH and MAP_CHECK_K_NPZ explicitly from a scratch clone.
+# MAP_CHECK_TARGET_MESH explicitly from a scratch clone. The controls melt with
+# the tracked calibration; MAP_CHECK_K_NPZ names a legacy per-basin K instead.
 MAP_CHECK_FRICTION ?= regularized_coulomb
 MAP_CHECK_RELEASE ?= maps-2km-snap-2026-09-22
 MAP_CHECK_SNAP ?= snap20260922_0948

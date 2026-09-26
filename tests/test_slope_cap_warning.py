@@ -3,8 +3,10 @@ r"""A K fitted against a capped draft slope announces itself once per run.
 calibrate_melt.py records the cap it applied and load_K_per_basin compares
 it with the forward's own slope, which applies none. Measured on the 2500 m
 mesh, the uncapped cell slope integrates 3.7 times the capped melt at K = 1,
-so the warning names that and the two consistent choices (issue #26). It is
-printed once, from rank 0, and not at all for a file fitted without a cap.
+so the warning names that and the two consistent choices. It is printed
+once, from rank 0, and not at all for a file fitted without a cap. It applies
+to a legacy per-basin K named with ISMIP7_K_PER_BASIN_NPZ; an offsets file
+fitted under another convention is refused instead (test_deltat_per_basin).
 """
 
 import os

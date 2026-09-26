@@ -1537,6 +1537,11 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         "phi_eff": phi_eff,
         "rho_ratio": rho_ratio,
         "h_clamp": h_clamp,
+        # The floor a cold start put under the initial thickness (0 on a
+        # restart, which reads its geometry). A floor turns ice-free cells
+        # into floating ice the melt calibration never fitted, so the melt
+        # contract refuses it (forcing.check_melt_contract).
+        "thickness_floor": 0.0 if is_restart else h_clamp_init,
         "calving_ids": calving_ids,
         "u_obs": u_obs,
         "friction": friction,

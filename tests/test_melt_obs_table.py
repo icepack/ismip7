@@ -213,27 +213,27 @@ def test_naming_the_old_table_is_a_choice_and_is_not_flagged(tmp_path,
     assert "[!]" not in said
 
 
-def test_the_default_output_is_the_file_the_runs_read(calibrate):
-    r"""Unset, ISMIP7_K_OUT changes nothing: the calibration lands on the first
-    path the forward and the inversion search."""
-    from icepack2_tools.runconfig import k_per_basin_candidates
+def test_the_default_output_is_the_mesh_s_file_under_results(calibrate):
+    r"""Unset, ISMIP7_K_OUT leaves the calibration at the legacy path. No run
+    searches for it: a forward reads a per-basin K only when
+    ISMIP7_K_PER_BASIN_NPZ names it, and melts with the tracked calibration
+    otherwise."""
+    from icepack2_tools.runconfig import k_per_basin_npz
 
     cm = calibrate()
     results = os.path.join(_ROOT, "antarctica", "results")
 
-    assert cm._k_out() == k_per_basin_candidates(results, cm.LC)[0]
+    assert cm._k_out() == os.path.join(results,
+                                       f"calibrated_K_per_basin_{cm.LC}.npz")
+    assert k_per_basin_npz() is None
 
 
-def test_the_output_can_be_named_away_from_the_searched_path(tmp_path,
-                                                             calibrate):
-    from icepack2_tools.runconfig import k_per_basin_candidates
-
+def test_the_output_can_be_named_away_from_the_default_path(tmp_path,
+                                                            calibrate):
     want = str(tmp_path / "check" / "K_2000.npz")
     cm = calibrate(ISMIP7_K_OUT=want)
-    results = os.path.join(_ROOT, "antarctica", "results")
 
     assert cm._k_out() == want
-    assert want not in k_per_basin_candidates(results, cm.LC)
 
 
 def test_a_bare_output_name_resolves_under_results(calibrate):

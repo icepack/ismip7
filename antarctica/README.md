@@ -46,7 +46,7 @@ own venv and call it by absolute path.
 | Ocean OI climatology and IMBIE basin numbers | 3 GB | `scripts/download_forcing.py --ocean --calibration` | | x | | |
 | Whole AIS tree (all ESMs, scenarios, `ctrl`, OCX, calibration) | 313 GB | same | | | | |
 | Meshes and MAP checkpoints | 15 MB, 80 MB | sections 3 and 4, or from a colleague | | x | x | |
-| Per-basin melt calibration `results/calibrated_K_per_basin_<lc>.npz` | 2 to 5 MB | `scripts/calibrate_melt.py` (section 5), or from a colleague | | x | | |
+| Melt calibration `calibration/deltaT_per_basin_1000_K6.500e-05.npz` | 8 kB | tracked in git (section 5) | | x | | |
 
 Source Cooperative carries the data-freeze copy and needs no account.
 
@@ -79,13 +79,9 @@ with `download_forcing.py --scenarios --esm MRI-ESM2-0 --scenario ssp585`.
 
 **Forward run from someone else's MAP.** Firedrake, icepack2, icepack,
 BedMachine, MEaSUReS, RACMO, one scenario of forcing, their `.msh` and
-`inversion_*.h5`, the OI climatology, the IMBIE basin numbers, and
-`results/calibrated_K_per_basin_<lc>.npz`. That npz comes from
-`calibrate_melt.py` or a colleague; the 2500 m one is mesh independent and
-serves as the fallback for any `lc`. With `ISMIP7_DELTAT_PER_BASIN_NPZ` set no
-driver reads it, and `preflight.py` accepts either. `control/run.py` and
-`projections/ocx.py` abort without it; the ssp drivers warn and substitute a scalar `K`, which
-completes with the wrong melt.
+`inversion_*.h5`, the OI climatology and the IMBIE basin numbers. The melt
+calibration is tracked (`calibration/`, section 5), so a fresh clone melts
+with it and nothing is calibrated or copied.
 
 **Inversion.** Add `tlm_adjoint`, and the MIPkit for the dH/dt term.
 
@@ -244,7 +240,7 @@ ISMIP7/AIS/
   <ESM>/<scenario>/ocean/<tf|thetao|so>/<version>/
   <ESM>/<scenario>/fracture/[v*/]                     # collapse and lake masks
   meltMIP/OI_Climatology_ismip8km_60m_<tf|so|thetao>_extrap.nc
-  parameterisations/ocean/imbie2/                     # basin numbers for per-basin K
+  parameterisations/ocean/imbie2/                     # basin numbers the melt offsets are stamped through
   parameterisations/{ocean,fracture}/
 ```
 
@@ -393,7 +389,84 @@ python -c "import h5py,sys; print(dict(h5py.File(sys.argv[1])['/'].attrs))" MAP.
 
 ---
 
-## 5. Calibrate ocean melt (`calibrate_melt.py`)
+## 5. Ocean melt calibration
+
+### The calibration every run reads
+
+A run melts with one K and a thermal-forcing offset per IMBIE basin, the
+protocol's recommendation, from a tracked file,
+`calibration/deltaT_per_basin_1000_K6.500e-05.npz`:
+
+| | |
+|---|---|
+| K | 6.5e-5, the K50 of the rule-based selection below on the 1000 m / 10 km production mesh (run record `calibration-melt-toolbox-1km-rule`, IU's build), chosen by the group on 25 September 2026 (issue 26) |
+| offsets | 16 IMBIE2 basins, -0.68 K to +1.20 K (Amundsen), each basin at its July 2026 total, 1067.4 Gt/yr together, fitted at that K on Rice's build of the mesh, the submission mesh (issue 20; `calibration-melt-refit-1km-rice-k50`) |
+| fitted under | `ISMIP7_MELT_SLOPE=ant`, `ISMIP7_SIN_ALPHA_ANT=5.115e-3`, `ISMIP7_GEOMETRY_SPACE=dg0`, `ISMIP7_RASTER_SAMPLE=vertex` and the 30_sep OI climatology, on `antarctica_10000_1000_buffered20000`, Rice's build (1,869,252 vertices) |
+| sidecar | `deltaT_per_basin_1000_K6.500e-05.source.json`: the file's sha256, the settings above, the mesh build and its vertex count, the input hashes, the jobs and the commits |
+
+Every clone carries it, so a new machine runs with it and nothing is
+calibrated or copied. The offsets are stamped onto any mesh through the
+IMBIE2 8 km basin grid under `ISMIP7_DATA_ROOT`.
+
+The forward applies the melt the file was fitted to:
+
+- it melts the cells the fit summed over, floating and holding ice
+  (`forcing.melt_receiving`);
+- an offsets file whose recorded slope law, slope constant or geometry
+  space differs from the run's stops the run, and so does geometry sampled
+  with another `raster_sample` than the file's, or a cold start that floors
+  the initial thickness (`ISMIP7_H_CLAMP_INIT` above 0, the legacy friction
+  law's default);
+- the tracked file has to match the sha256 its sidecar records;
+- `ISMIP7_K_SCALE` other than 1 is refused with an offsets file, and the
+  removed `ISMIP7_K_MELT` is refused when exported;
+- every run logs a `Forcing provenance:` line naming the file, its sha256
+  and K, and the mesh it was fitted on beside the run's, and
+  `core_report.py` carries that line into the report.
+
+On another mesh the forward runs with these offsets and says so in that
+line, so a coarse probe needs nothing more. `preflight.py` refuses a core on
+a mesh other than the calibration's until `ISMIP7_DELTAT_PER_BASIN_NPZ` names
+a file: offsets refitted on that mesh at the same K, or the tracked file to
+run with its offsets as they are. It also refuses another build of the same
+mesh name, told apart by the vertex count in the `.msh` header against the
+sidecar's: IU's build of the production mesh on Quartz has 1,869,088
+vertices. A refit is a job (`calibrate_deltaT.script`, which also reports
+whether the thermal forcing rule admits the K there); `ISMIP7_INV_H5` names a
+checkpoint on the mesh or the `.msh` itself:
+
+```bash
+scripts/batch_runners/submit.sh script scripts/batch_runners/calibrate_deltaT.script \
+    --cd antarctica --queue debug --tasks 1 --mem 32G --time 00:40:00 \
+    ISMIP7_LC=1000 ISMIP7_INV_H5=<mesh.msh> DELTAT_K=6.5e-5 DELTAT_OUT=<absolute dir>
+```
+
+`check_melt_bound.py` melts the reference geometry with the forward's own
+callback and sets each basin against the total its offsets were fitted to,
+and exits 1 when a basin is off by more than `--match-tol` (default 0.1
+percent):
+
+```bash
+ISMIP7_INV_H5=<mesh.h5 or mesh.msh> python antarctica/scripts/check_melt_bound.py
+```
+
+On Rice's build of the production mesh (run record
+`calibration-melt-refit-1km-rice-k50`, Quartz job 10649438) the forward melts
+1067.389 Gt/yr against the 1067.386 its offsets were fitted to, every basin
+within 0.006 Gt/yr, and no cell passes the `libmassbffl` bound (maximum 41.7
+m/yr). Its earlier melt set also covered 257 836 ice-free open-ocean cells,
+where it booked 156.2 Gt/yr of melt and 23.1 Gt/yr of refreezing, and 6 805
+cells of bare land, where the climatology melts nothing. The two builds need
+their own fits: the offsets differ by at most 0.0008 K, and the fit on IU's
+build missed basins 1 and 7 on Rice's by 0.18 and 0.17 percent (job 10649416).
+At 32 km (job 10644430) the offsets put the basins at 0.33 to 1.74 times their
+totals and the whole at 1069.5 Gt/yr, which is why a production core runs on
+the calibration's mesh.
+
+`ISMIP7_K_PER_BASIN_NPZ` names a legacy per-basin K file (next subsection)
+in place of the offsets; no run searches for one.
+
+### The legacy per-basin K (`calibrate_melt.py`)
 
 Solves for the Burgard quadratic-mixed-slope coefficient K, global and per
 IMBIE2 basin, against integrated observed shelf melt. The target is the July
@@ -435,12 +508,8 @@ calibration the earlier K files came from, with the slope capped at 5e-3;
 convention it was fitted under, and a run under another is told once at
 startup.
 
-The control requires this npz. Projections take it (`K_per_basin_npz=`) or a
-scalar `ISMIP7_K_MELT`.
-
-The default output is the file every forward and inversion in the checkout
-reads at that `lc`, and the 2500 m file is also their fallback at every other
-`lc`. For a calibration made as a check, `ISMIP7_K_OUT` writes it elsewhere and
+A run reads this file only when `ISMIP7_K_PER_BASIN_NPZ` names it, and
+`ISMIP7_K_SCALE` multiplies it there. `ISMIP7_K_OUT` writes it elsewhere, and
 `check_melt_bound.py --npz` reads it from there:
 
 ```bash
@@ -459,8 +528,8 @@ observed total (`optimise_deltaT` in the toolbox notebook). That offset, not
 a per-basin K, is the protocol's per-basin knob.
 
 ```bash
-ISMIP7_LC=2000 python antarctica/scripts/calibrate_deltaT.py          # K05 K50 K95
-ISMIP7_LC=2000 python antarctica/scripts/calibrate_deltaT.py --K 8.5e-5
+ISMIP7_LC=2000 python antarctica/scripts/calibrate_deltaT.py          # the notebook's K05 K50 K95
+ISMIP7_LC=2000 python antarctica/scripts/calibrate_deltaT.py --K 6.5e-5
 ```
 
 runs the fit on the forward's own melt path (the same DG0 geometry, OI
@@ -470,16 +539,17 @@ solving `M_b(deltaT) = M_obs(b)` per basin by a bracketed root in plus or
 minus 3 K (`melt_selection.DT_WINDOW`; the toolbox searches plus or minus
 2 K and the protocol sets no window), and writes
 `antarctica/results/deltaT_per_basin_<lc>_K<K>.npz` (basin ids, offsets, K,
-residual, dM/dT, the slope and geometry conventions). A run applies it with
+residual, dM/dT, the slope and geometry conventions). A run applies it in
+place of the tracked calibration with
 
 ```bash
-ISMIP7_DELTAT_PER_BASIN_NPZ=antarctica/results/deltaT_per_basin_2000_K8.500e-05.npz
+ISMIP7_DELTAT_PER_BASIN_NPZ=antarctica/results/deltaT_per_basin_2000_K6.500e-05.npz
 ```
 
-which makes every ocean callback (control, projections, OCX) add the offset
-to TF and melt with the file's one K; no driver then reads or requires the
-per-basin K file. A driver refuses to start when the file is missing or
-`ISMIP7_K_SCALE` is not 1, since the offsets were fitted at the file's K.
+and every ocean callback (control, projections, OCX) adds the offset to TF
+and melts with the file's one K. A driver refuses to start when the file is
+missing or `ISMIP7_K_SCALE` is not 1, since the offsets were fitted at the
+file's K.
 The fit reduces every basin total across ranks, so `mpiexec -n N` writes the
 same offsets as a serial run.
 Measured on the 2 km MAP mesh against the July table (24 September 2026, run
@@ -561,8 +631,8 @@ at each selected K, which `ISMIP7_DELTAT_PER_BASIN_NPZ` applies at that
 file's K. On a cluster: `scripts/batch_runners/select_melt_parameters.script`.
 
 Measured on 24 September 2026 against the July table (run records
-`calibration-melt-toolbox-8km`, `-2km` and `-1km`), evidence for the
-percentile choice (issue #26):
+`calibration-melt-toolbox-8km`, `-2km` and `-1km`), the evidence the
+percentile was chosen from (issue 26):
 
 | grid | offsets | K05 | K50 | K95 |
 |---|---|---|---|---|
@@ -838,7 +908,7 @@ projection), run in that run's own shell so it captures the environment.
 | `ISMIP7_DHDT_SIGMA` | assumed dH/dt uncertainty (m/yr), hand set since the MIPkit ships no uncertainty field | `0.1` |
 | `ISMIP7_DHDT_DT` | timestep of the prognostic step (yr) | `1.0` |
 | `ISMIP7_DHDT_VAR` | `dhdt_smith` (firn corrected, 2003 to 2019) or `dhdt_cpom` (uncorrected, so not interchangeable) | `dhdt_smith` |
-| `ISMIP7_DHDT_MELT` | `0` drops ocean melt from the prognostic source. Per-basin K comes from `ISMIP7_K_PER_BASIN_NPZ`, else the `<lc>` npz, else the 2500 m file; with none it warns and uses SMB only, melt being zero on grounded ice | `1` |
+| `ISMIP7_DHDT_MELT` | `0` drops ocean melt from the prognostic source, which otherwise melts with the forward's calibration (section 5); melt is zero on grounded ice | `1` |
 | `ISMIP7_DHDT_CLIM_START` / `_END` | RACMO climatology window for that source | `2003` / `2019` |
 | `ISMIP7_DHDT_REACH` | pixel-to-cell reach as a multiple of `sqrt(area)`, rejecting pixels outside the mesh that nearest-centroid assignment would snap onto boundary cells | `0.75` |
 | `ISMIP7_DHDT_NET_SIGMA` | sigma (Gt/yr) on the integrated grounded dH/dt; `0` disables the net term. Active only with `ISMIP7_DHDT_WEIGHT > 0` | `0` |
@@ -904,13 +974,15 @@ redeclare those literals.
 | `ISMIP7_TRANSPORT_KSP_RTOL` / `ISMIP7_TRANSPORT_KSP_MAXIT` | GMRES relative tolerance / iteration limit for the persistent DG0 transport solver (`ismip7_transport_` PETSc prefix) | `1e-10` / `500` |
 | `ISMIP7_MASS_RESIDUAL_TOL_GT` | fail-loud absolute tolerance for both the discrete transport identity and the complete step mass budget | `5e-5` Gt |
 | `ISMIP7_RESCUE_ENABLED` | permit a failed direct transient diagnostic solve to enter the continuation/trust-region/subcycle rescue ladder; set to `0` for strict timestep qualification | `1` |
-| `ISMIP7_K_MELT` / `ISMIP7_K_PER_BASIN_NPZ` | scalar K (projections), the ISMIP7 toolbox K50 of July 2026 (K05 4.75e-5, K95 1.375e-4), per-basin K file (control) | `8.5e-5` / `results/calibrated_K_per_basin_<lc>.npz` |
-| `ISMIP7_DELTAT_PER_BASIN_NPZ` | per-basin TF offset at one toolbox K from `calibrate_deltaT.py`; when set, every ocean callback melts with that file's K and the K file is not read. Refused with `ISMIP7_K_SCALE` other than 1 | unset |
+| `ISMIP7_DELTAT_PER_BASIN_NPZ` | the melt calibration, one K and a TF offset per basin (`select_melt_parameters.py`, `calibrate_deltaT.py`); every ocean callback melts with its K. Refused with `ISMIP7_K_SCALE` other than 1, and when fitted under another slope or geometry than the run's (section 5) | `calibration/deltaT_per_basin_1000_K6.500e-05.npz` |
+| `ISMIP7_K_PER_BASIN_NPZ` | a legacy per-basin K file from `calibrate_melt.py`, read in place of the offsets; refused together with `ISMIP7_DELTAT_PER_BASIN_NPZ` | unset |
+| `ISMIP7_K_SCALE` | multiplies a legacy per-basin K; refused with an offsets file | `1` |
+| `ISMIP7_K_MELT` | removed with the tracked calibration, and refused when exported | |
 | `ISMIP7_MELT_OBS_CSV` | per-basin melt observation table read by `scripts/calibrate_melt.py`; columns are located by header name, so either published table serves | `Melt_Paolo_Davison_Adusumilli_imbie2.csv` under `<DATA_ROOT>/meltobs/`, else under `<DATA_ROOT>/parameterisations/ocean/meltobs/`, else the older Paolo and Adusumilli table with a `[!]` line |
 | `ISMIP7_MELT_SLOPE` | the draft slope the quadratic melt law sees, in the forward and in `scripts/calibrate_melt.py` and `scripts/calibrate_deltaT.py`: `ant` is one constant `sin(alpha)` on every shelf, the protocol's reference ("mean Antarctic slope, no slope dependency"); `local` is this mesh's draft slope. A K or deltaT file records the convention it was fitted under and a run under the other is told once | `ant` |
 | `ISMIP7_SIN_ALPHA_ANT` | the constant under `ant`. The toolbox's K percentiles were sampled with 5.1117e-3, which its own gamma_T conversion gives and the notebook's slope recipe on the 8 km BedMap3 v3 topography reproduces; the default rounds it up by 0.065 percent | `5.115e-3` |
 | `ISMIP7_SIN_ALPHA_CAP` | `local` slope only: cap on `sin(alpha)` in `scripts/calibrate_melt.py`; the forward applies none | none under `dg0`, `5e-3` under `cg1` |
-| `ISMIP7_K_OUT` | output path for `scripts/calibrate_melt.py`, overriding the generated name. Use it for a calibration made as a check, so it cannot replace the K that every forward and inversion in the checkout reads. A bare filename resolves under `results/` | `results/calibrated_K_per_basin_<lc>.npz` |
+| `ISMIP7_K_OUT` | output path for `scripts/calibrate_melt.py`, overriding the generated name. A bare filename resolves under `results/` | `results/calibrated_K_per_basin_<lc>.npz` |
 | `ISMIP7_ESM` | ESM for the control | `CESM2-WACCM` |
 | `ISMIP7_CLIM_SCENARIO` / `_START` / `_END` | reference-climate pool: the scenario pooled with `historical`, and the window, shared by the control's SMB climatology and the projections' aSMB re-reference through `icepack2_tools/climatology.py`. A partial pool warns | `ssp126` / `2000` / `2029` |
 | `ISMIP7_H_CLAMP` | thickness floor (m) | `0` |

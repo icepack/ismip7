@@ -1,18 +1,23 @@
 r"""The roots a second checkout does not carry.
 
 A cluster can hold more than one checkout of this repository. The code moves
-with the invocation; the forcing tree, the meshes, the MAPs, the observational
-rasters and the calibration npz files do not - they are gitignored, so a fresh
-clone has none of them. These check the Python half of that split (site_env.sh
-and tests/test_site_core.py cover the shell half): each root follows its own
-variable, and otherwise resolves into the invoking checkout, so a site holding a
-single checkout is provably unaffected.
+with the invocation; the forcing tree, the meshes, the MAPs and the
+observational rasters do not - they are gitignored, so a fresh clone has none
+of them. The melt calibration is the exception: it is tracked
+(antarctica/calibration), so every clone melts with it. These check the
+Python half of that split (site_env.sh and tests/test_site_core.py cover the
+shell half): each root follows its own variable, and otherwise resolves into
+the invoking checkout, so a site holding a single checkout is provably
+unaffected.
 """
 import os
 
 import pytest
 
-from icepack2_tools.runconfig import k_per_basin_candidates, obs_data_root
+from icepack2_tools.runconfig import (
+    MELT_CALIBRATION_DEFAULT, deltat_per_basin_npz, k_per_basin_npz,
+    obs_data_root,
+)
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ANT = os.path.join(REPO, "antarctica")
@@ -21,6 +26,7 @@ ANT = os.path.join(REPO, "antarctica")
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     for key in ("ISMIP7_OBS_DATA_ROOT", "ISMIP7_K_PER_BASIN_NPZ",
+                "ISMIP7_DELTAT_PER_BASIN_NPZ", "ISMIP7_K_SCALE",
                 "ISMIP7_DATA_ROOT", "ISMIP7_OBS_KIT"):
         monkeypatch.delenv(key, raising=False)
 
@@ -34,33 +40,26 @@ def test_the_obs_root_follows_its_variable(monkeypatch):
     assert obs_data_root() == "/projects/shared/antarctica/data"
 
 
-def test_only_this_checkout_is_searched():
-    assert k_per_basin_candidates("/here/results", 2000) == [
-        "/here/results/calibrated_K_per_basin_2000.npz",
-        "/here/results/calibrated_K_per_basin_2500.npz",
-    ]
+def test_the_melt_calibration_is_in_this_checkout():
+    """A fresh clone melts with the tracked calibration: no results/ directory
+    is searched, so a machine holding an old per-basin K file melts the same."""
+    assert MELT_CALIBRATION_DEFAULT == os.path.join(
+        ANT, "calibration", "deltaT_per_basin_1000_K6.500e-05.npz")
+    assert deltat_per_basin_npz() == MELT_CALIBRATION_DEFAULT
+    assert k_per_basin_npz() is None
 
 
-def test_a_name_is_not_searched_twice(monkeypatch):
-    """At lc=2500 the mesh name and the fallback name coincide, and that may not
-    produce a duplicate: the list is what a caller reports when nothing is
-    found."""
-    results = os.path.join(ANT, "results")
-    two_names = k_per_basin_candidates(results, 2000)
-    assert two_names == [
-        os.path.join(results, "calibrated_K_per_basin_2000.npz"),
-        os.path.join(results, "calibrated_K_per_basin_2500.npz"),
-    ]
-    assert k_per_basin_candidates(results, 2500) == [
-        os.path.join(results, "calibrated_K_per_basin_2500.npz")
-    ]
-
-
-def test_an_explicit_npz_is_the_only_candidate(monkeypatch):
-    """The override names one file; falling back past it would load a
-    calibration the operator did not ask for."""
-    monkeypatch.setenv("ISMIP7_K_PER_BASIN_NPZ", "/tmp/mine.npz")
-    assert k_per_basin_candidates("/here/results", 2000) == ["/tmp/mine.npz"]
+def test_a_per_basin_K_is_read_only_when_named(tmp_path, monkeypatch):
+    """The override names one file and replaces the tracked calibration; a name
+    that does not exist is refused rather than skipped."""
+    k_file = tmp_path / "mine.npz"
+    k_file.write_bytes(b"")
+    monkeypatch.setenv("ISMIP7_K_PER_BASIN_NPZ", str(k_file))
+    assert k_per_basin_npz() == str(k_file)
+    assert deltat_per_basin_npz() is None
+    monkeypatch.setenv("ISMIP7_K_PER_BASIN_NPZ", str(tmp_path / "absent.npz"))
+    with pytest.raises(FileNotFoundError, match="absent.npz"):
+        k_per_basin_npz()
 
 
 def test_the_inversion_driver_reads_the_obs_root(monkeypatch):
