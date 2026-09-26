@@ -20,7 +20,10 @@ offsets file its melt is summed per IMBIE2 basin and set against the totals
 the offsets were fitted to (the file's ``M_obs``), and the check exits 1 when
 any basin is off by more than ``--match-tol``. That is the measurement issue
 30 asked for: a calibration fitted through the forward's melt path, and the
-forward's melt on the same cells. The table also gives what the forward
+forward's melt on the same cells. On a mesh other than the one the offsets
+were fitted on, the table measures how far they carry over: at 32 km the
+tracked offsets put the basins at 0.33 to 1.74 times their totals (job
+10644430). The table also gives what the forward
 booked on ice-free floating cells before it melted only cells holding ice
 (``forcing.melt_receiving``).
 
@@ -168,7 +171,9 @@ from icepack2_tools.forcing import (quadratic_mixed_slope,            # noqa: E4
 from icepack2_tools.geometry import sample_to_geometry                # noqa: E402
 from icepack2_tools.mpi_stats import global_size                      # noqa: E402
 from icepack2_tools.runconfig import (deltat_per_basin_npz,           # noqa: E402
-                                      k_per_basin_npz, raster_sample)
+                                      k_per_basin_npz,
+                                      melt_calibration_contract,
+                                      raster_sample)
 # The same year and density the writer converts with, so the bound compared
 # here is the one the checker applies.
 from icepack2_tools.ismip7_output import RHO_I, SECONDS_PER_YEAR      # noqa: E402
@@ -328,13 +333,14 @@ def match_calibration(g, npz_path, tol):
         PETSc.Sys.Print(f"  {bid:5d}   {want:12.3f}   {got:13.3f}   {ratio:7.4f}"
                         + ("   <-- OFF" if off else ""))
     inside = np.isin(basin, bids)
+    refreezing = max(-float(free[free < 0].sum()), 0.0)
     PETSc.Sys.Print(
         f"  total   {fitted.sum():12.3f}   {float(gt[inside].sum()):13.3f}\n"
         f"  outside the fitted basins: {float(gt[~inside].sum()):.3f} Gt/yr\n"
         f"  ice-free floating cells, the set the forward melted before it "
         f"melted only cells holding ice: {int(g['ice_free'].sum())} cells, "
         f"melt {float(free[free > 0].sum()):.1f} Gt/yr, refreezing "
-        f"{float(-free[free < 0].sum()):.1f} Gt/yr, none of it booked now")
+        f"{refreezing:.1f} Gt/yr, none of it booked now")
     return bad
 
 
@@ -504,10 +510,15 @@ def main():
         bad = match_calibration(forward, npz_path, a.match_tol)
         if bad:
             status = 1
+            fitted_on = (melt_calibration_contract(npz_path) or {}).get(
+                "mesh", "the mesh the offsets were fitted on")
             PETSc.Sys.Print(
-                f"\n  The forward's melt is off the totals its offsets were "
-                f"fitted to in basins {bad}: the forward does not apply the "
-                f"melt its calibration was fitted to.")
+                f"\n  The forward's melt on this mesh is off the totals its "
+                f"offsets were fitted to in basins {bad}. On {fitted_on} that "
+                f"means the forward does not apply the melt its calibration "
+                f"was fitted to. On another mesh it measures how far the "
+                f"offsets carry over, and refitting them on this mesh "
+                f"(calibrate_deltaT.py --K {float(d['K']):.3e}) removes it.")
     if a.ocx is not None:
         status = max(status, compare_with_ocx(a, forward))
     return status
