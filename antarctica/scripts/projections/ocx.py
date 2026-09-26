@@ -174,7 +174,8 @@ def main():
             ctx_["accum"].dat.data[:] = racmo_cache[yr]
             oi_melt(ctx_, t_yr)
 
-    for line in provenance + describe_melt_calibration(ctx.get("mesh_basename")):
+    for line in provenance + describe_melt_calibration(dT_npz, K_npz,
+                                                       ctx.get("mesh_basename")):
         PETSc.Sys.Print(f"  {line}")
 
     PETSc.Sys.Print("\nCore Experiment 11: OCX (observationally constrained)")

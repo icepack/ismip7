@@ -314,6 +314,12 @@ def test_the_melt_bound_job_ends_with_the_check_s_own_status(sandbox):
                             ISMIP7_DELTAT_PER_BASIN_NPZ=str(k_npz))
     assert proc.returncode == 0, proc.stderr
     assert [ln for ln in seen if ln.startswith("ARGV")][-1] == f"ARGV --npz {k_npz}"
+    # with neither, the check runs on its defaults; site_core.sh's set -u must
+    # not trip over the empty argument list (bash before 4.4 did)
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
+                            ISMIP7_INV_H5=str(state), ISMIP7_OCX_OCEAN="none")
+    assert proc.returncode == 0, proc.stderr
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1].rstrip() == "ARGV"
 
     # a missing mesh source or calibration, or two calibrations, stops the
     # job before the check starts

@@ -7,8 +7,9 @@
 # MELTSEL_GEOMETRY=notebook8km runs the same aggregation on the notebook's own
 # 8 km grid against the toolbox's own term functions, and the job exits 1
 # when that check fails. Serial. Everything is written under MELTSEL_OUT; the
-# job compares the default K and deltaT files under results/ before and
-# after, and exits 4 if they changed.
+# job compares the tracked melt calibration under calibration/, which every
+# run reads, and the K and deltaT files under results/ before and after, and
+# exits 4 if any changed.
 #
 # From antarctica/, the check first, then one mesh (issue #26 evidence):
 #
@@ -75,15 +76,16 @@ echo "    commit  $(git rev-parse HEAD 2>/dev/null || echo unknown)"
 env | grep -E '^(ISMIP7_|MELTSEL_|OMP_NUM_THREADS=)' | sort | sed 's/^/    /'
 
 defaults() {
-    ls -l results/calibrated_K_per_basin_*.npz results/deltaT_per_basin_*.npz 2>/dev/null
-    { sha256sum results/calibrated_K_per_basin_*.npz results/deltaT_per_basin_*.npz \
-        || shasum -a 256 results/calibrated_K_per_basin_*.npz results/deltaT_per_basin_*.npz; } 2>/dev/null
+    local files=(calibration/*.npz calibration/*.source.json
+                 results/calibrated_K_per_basin_*.npz results/deltaT_per_basin_*.npz)
+    ls -l "${files[@]}" 2>/dev/null
+    { sha256sum "${files[@]}" || shasum -a 256 "${files[@]}"; } 2>/dev/null
 }
 before="$(defaults)"
 python -u scripts/select_melt_parameters.py "${args[@]}"
 status=$?
 if [ "$(defaults)" != "${before}" ]; then
-    echo "a default K or deltaT file under results/ changed during the job" >&2
+    echo "the tracked calibration or a K or deltaT file under results/ changed during the job" >&2
     status=4
 fi
 echo "select_melt_parameters exit status: ${status}"

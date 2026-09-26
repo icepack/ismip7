@@ -203,16 +203,16 @@ def run_core_experiment(*, core, title, name, esm, scenario,
         # mirror caught up; refuse it rather than run on it
         fracture.check_min_version()
 
-    # What this run opens, for the committed report: a collapse mask only
-    # counts when the run reads it.
-    for line in (describe_forcing_provenance(
-            atm, ocean, fracture if fracture_mode() != "none" else None)
-            + describe_melt_calibration(ctx.get("mesh_basename"))):
-        PETSc.Sys.Print(f"  {line}")
-
     # The melt calibration: the tracked one or a named offsets file, else a
     # legacy per-basin K named with ISMIP7_K_PER_BASIN_NPZ.
     K_npz = None if dT_npz is not None else k_per_basin_npz()
+    # What this run opens, for the committed report: a collapse mask only
+    # counts when the run reads it, and the melt calibration by its sha256.
+    for line in (describe_forcing_provenance(
+            atm, ocean, fracture if fracture_mode() != "none" else None)
+            + describe_melt_calibration(dT_npz, K_npz, ctx.get("mesh_basename"))):
+        PETSc.Sys.Print(f"  {line}")
+
     if dT_npz is not None:
         PETSc.Sys.Print(f"  Ocean melt: per-basin deltaT at one K from {dT_npz}")
     else:

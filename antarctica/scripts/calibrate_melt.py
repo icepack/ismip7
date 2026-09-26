@@ -278,17 +278,16 @@ def calibration_geometry(mesh):
     }
 
 
-def forward_geometry(mesh):
-    r"""The melt inputs on DG0 cells, as the forward melts them: bed and
-    thickness sampled onto the cells (``ISMIP7_RASTER_SAMPLE``), the surface
-    from flotation as simulation.py builds it, the cell slope of
-    ``forcing.compute_sin_alpha``, the forcing at each cell centroid and its
-    own draft, the forward's melt set and cell areas.
+def forward_cells(mesh):
+    r"""The forward's cold-start geometry on the DG0 cells of ``mesh``, as
+    ``simulation.setup_model`` builds it for the budd and regularized_coulomb
+    laws (no thickness floor): bed and thickness sampled onto the cells
+    (``ISMIP7_RASTER_SAMPLE``) and the surface from flotation. The one
+    builder the calibrations and ``check_melt_bound.py`` share, so the cells
+    a fit sums over and the cells a check melts are the same.
 
-    The melt set is ``forcing.melt_receiving``, ``haf <= 0`` on cells with
-    ``h > 0``, the one the forward's callbacks melt. An ice-free ocean cell
-    also has ``haf <= 0``; the observations cover real shelves only, so it is
-    left out of the fit, and the forward leaves it out of the melt."""
+    Returns ``Q``, ``Q_g`` and ``V``, the Functions ``b``, ``h`` and ``s``,
+    and the centroids ``x`` and ``y``."""
     Q = FunctionSpace(mesh, "CG", 1)
     Q_g = FunctionSpace(mesh, "DG", 0)
     bm = _bedmachine_path()
@@ -301,7 +300,23 @@ def forward_geometry(mesh):
         fd.max_value(b_dg + h_dg, (1.0 - RHO_RATIO) * h_dg))
     xy = Function(VectorFunctionSpace(mesh, "DG", 0)).interpolate(
         fd.SpatialCoordinate(mesh)).dat.data_ro
-    b_np, h_np, s_np = b_dg.dat.data_ro, h_dg.dat.data_ro, s_dg.dat.data_ro
+    return {"Q": Q, "Q_g": Q_g, "V": VectorFunctionSpace(mesh, "CG", 1),
+            "b": b_dg, "h": h_dg, "s": s_dg,
+            "x": xy[:, 0].copy(), "y": xy[:, 1].copy()}
+
+
+def forward_geometry(mesh):
+    r"""The melt inputs on DG0 cells, as the forward melts them: the cells of
+    `forward_cells`, the cell slope of ``forcing.compute_sin_alpha``, the
+    forcing at each cell centroid and its own draft, the forward's melt set
+    and cell areas.
+
+    The melt set is ``forcing.melt_receiving``, ``haf <= 0`` on cells with
+    ``h > 0``, the one the forward's callbacks melt. An ice-free cell also has
+    ``haf <= 0``; the observations cover real shelves only, so it is left out
+    of the fit, and the forward leaves it out of the melt."""
+    c = forward_cells(mesh)
+    b_np, h_np, s_np = c["b"].dat.data_ro, c["h"].dat.data_ro, c["s"].dat.data_ro
     afloat = is_floating(s_np, b_np)
     floating = melt_receiving(s_np, b_np, h_np)
     comm = mesh.comm
@@ -313,13 +328,13 @@ def forward_geometry(mesh):
                     f"{global_count(afloat & ~(h_np > 0), comm)} ice-free "
                     f"haf <= 0 cells left out")
     return {
-        "x": xy[:, 0],
-        "y": xy[:, 1],
+        "x": c["x"],
+        "y": c["y"],
         "draft": np.minimum(s_np - h_np, 0.0),
-        "sin_a": compute_sin_alpha({"Q": Q, "V": VectorFunctionSpace(mesh, "CG", 1),
-                                    "Q_g": Q_g, "h": h_dg, "s": s_dg}),
+        "sin_a": compute_sin_alpha({"Q": c["Q"], "V": c["V"], "Q_g": c["Q_g"],
+                                    "h": c["h"], "s": c["s"]}),
         "floating": floating,
-        "area": assemble(fd.TestFunction(Q_g) * dx).dat.data_ro,
+        "area": assemble(fd.TestFunction(c["Q_g"]) * dx).dat.data_ro,
         "dofs": "cells",
     }
 

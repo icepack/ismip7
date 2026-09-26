@@ -60,7 +60,9 @@ if [ -n "${npz}" ]; then
 fi
 echo "    commit  $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
-python -u scripts/check_melt_bound.py "${args[@]}"
+# site_core.sh sets -u, under which bash before 4.4 calls an empty array
+# unbound; this form expands to nothing there.
+python -u scripts/check_melt_bound.py ${args[@]+"${args[@]}"}
 status=$?
 echo "check_melt_bound exit status: ${status}"
 exit "${status}"

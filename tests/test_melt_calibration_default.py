@@ -149,14 +149,37 @@ def test_a_run_sampled_otherwise_is_refused():
         check_melt_contract(NPZ, {"raster_sample": "cell_mean"})
 
 
-def test_the_provenance_line_names_the_file_its_hash_and_both_meshes(clean):
-    same, = describe_melt_calibration(PRODUCTION_MESH + ".msh")
-    other, = describe_melt_calibration("antarctica_320000_32000.msh")
+def test_a_floored_cold_start_is_refused():
+    r"""A floor under the initial thickness (ISMIP7_H_CLAMP_INIT, 10 m under
+    the legacy friction law) makes every ice-free cell hold floating ice,
+    which the calibration never fitted over; a restart floors nothing."""
+    ctx = {"raster_sample": "vertex", "thickness_floor": 0.0}
+    assert check_melt_contract(NPZ, ctx) == PRODUCTION_MESH
+    with pytest.raises(ValueError, match="ISMIP7_H_CLAMP_INIT=0"):
+        check_melt_contract(NPZ, dict(ctx, thickness_floor=10.0))
+
+
+def test_the_provenance_line_names_the_file_its_hash_and_both_meshes(clean, tmp_path):
+    same, = describe_melt_calibration(NPZ, mesh_basename=PRODUCTION_MESH + ".msh")
+    other, = describe_melt_calibration(NPZ, mesh_basename="antarctica_320000_32000.msh")
     assert same.startswith("Forcing provenance: ocean melt calibration ")
     assert file_sha256(NPZ) in same and "K 6.500e-05 (K50)" in same
+    assert "(the tracked default)" in same
     assert f"fitted on {PRODUCTION_MESH}; this run's mesh is {PRODUCTION_MESH}" in same
     assert "differs" not in same
     assert "this run's mesh is antarctica_320000_32000, so its integrated melt" in other
+    # a copy elsewhere is described as named, by the file it is
+    copy = tmp_path / os.path.basename(NPZ)
+    shutil.copy(NPZ, copy)
+    named, = describe_melt_calibration(str(copy))
+    assert "(named with ISMIP7_DELTAT_PER_BASIN_NPZ)" in named
+    assert "a mesh its file does not record" in named
+    # the legacy path names the per-basin K file and its hash
+    k_file = tmp_path / "calibrated_K_per_basin_2500.npz"
+    np.savez(k_file, basin_ids=np.array([9]), K_basin=np.array([1.0e-4]))
+    legacy, = describe_melt_calibration(None, str(k_file))
+    assert file_sha256(str(k_file)) in legacy
+    assert "legacy per-basin K named with ISMIP7_K_PER_BASIN_NPZ" in legacy
 
 
 def test_melt_falls_on_floating_cells_that_hold_ice():
@@ -219,3 +242,44 @@ def test_preflight_keeps_a_production_core_on_the_calibration_s_mesh(
     miss, = preflight.melt_calibration_missing(f"/m/{PRODUCTION_MESH}.msh")
     assert "IMBIE2 basin grid" in miss
     sys.modules.pop("preflight", None)
+
+
+def test_a_named_legacy_K_melts_through_the_forward_s_callback(clean, monkeypatch, tmp_path):
+    r"""ISMIP7_K_PER_BASIN_NPZ keeps the legacy per-basin K reachable: the
+    resolver steps aside, the callback melts with the stamped K times
+    ISMIP7_K_SCALE, and a basin the file does not carry gets no melt."""
+    fd = pytest.importorskip("firedrake")
+    import icepack2_tools.forcing as forcing
+    monkeypatch.setattr(forcing, "imbie2_basin_path",
+                        lambda recorded=None: _basins(tmp_path))
+    k_file = tmp_path / "calibrated_K_per_basin_2500.npz"
+    np.savez(k_file, basin_ids=np.array([9]), K_basin=np.array([1.0e-4]),
+             melt_slope="ant", sin_alpha_ant=5.115e-3, geometry_space="dg0")
+    monkeypatch.setenv("ISMIP7_K_PER_BASIN_NPZ", str(k_file))
+    monkeypatch.setenv("ISMIP7_K_SCALE", "1.26")
+    assert deltat_per_basin_npz() is None
+
+    class Ocean:
+        def get_thermal_forcing(self, yr, x, y, draft=None):
+            return np.full(len(x), 1.5)
+
+        def get_salinity(self, yr, x, y, draft=None):
+            return np.full(len(x), 34.5)
+
+    mesh = fd.RectangleMesh(4, 1, 3.0, 2.0)
+    Q_g = fd.FunctionSpace(mesh, "DG", 0)
+    xy = fd.Function(fd.VectorFunctionSpace(mesh, "DG", 0)).interpolate(
+        fd.SpatialCoordinate(mesh)).dat.data_ro
+    ctx = {"mesh": mesh, "Q": fd.FunctionSpace(mesh, "CG", 1),
+           "V": fd.VectorFunctionSpace(mesh, "CG", 1), "Q_g": Q_g,
+           "geom_xy": (xy[:, 0].copy(), xy[:, 1].copy()),
+           "h": fd.Function(Q_g).assign(100.0),
+           "b": fd.Function(Q_g).assign(-1000.0),
+           "s": fd.Function(Q_g).assign(10.0),
+           "ocean_melt": fd.Function(Q_g)}
+    forcing.make_forcing_callback(ocean=Ocean(), K_per_basin_npz=str(k_file))(ctx, 2016.0)
+    x = ctx["geom_xy"][0]
+    in_9 = x < 1.5
+    want = forcing.quadratic_mixed_slope(1.5, 34.5, 5.115e-3, K=1.0e-4 * 1.26)
+    melt = ctx["ocean_melt"].dat.data_ro
+    assert np.allclose(melt[in_9], want) and np.all(melt[~in_9] == 0.0)

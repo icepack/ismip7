@@ -1479,7 +1479,7 @@ def _deltaT_for_run(cache, npz, mesh_x, mesh_y, ctx=None):
 
 
 def check_melt_contract(npz_path, ctx):
-    r"""Refuse a run whose geometry sampling differs from the one its melt
+    r"""Refuse a run whose initial geometry differs from the kind its melt
     calibration was fitted on, and return the mesh the calibration was fitted
     on (None for a file with no sidecar).
 
@@ -1487,10 +1487,16 @@ def check_melt_contract(npz_path, ctx):
     calibration's cells; ``setup_model`` records the one this run's geometry
     came from (``ctx["raster_sample"]``, read back from the MAP). Another
     sampling moves the draft and the floating set the offsets were fitted on.
-    A context without the entry, such as the inversion's reference geometry,
-    is not checked. The mesh is only reported: the offsets are per basin and
-    stamp onto any mesh, so a coarse probe runs with them, and preflight.py
-    keeps a production core on the calibration's mesh."""
+    The calibration's cells also carry BedMachine's thickness unfloored, so
+    an ice-free cell holds none and takes no melt (`melt_receiving`); a cold
+    start that floors the initial thickness (``ctx["thickness_floor"]``,
+    ISMIP7_H_CLAMP_INIT, 10 m under the legacy friction law) turns those
+    cells into floating ice the offsets were never fitted over, and is
+    refused. A context without these entries, such as the inversion's
+    reference geometry, is not checked. The mesh is only reported: the
+    offsets are per basin and stamp onto any mesh, so a coarse probe runs
+    with them, and preflight.py keeps a production core on the calibration's
+    mesh."""
     from .runconfig import melt_calibration_contract
     contract = melt_calibration_contract(npz_path)
     if contract is None:
@@ -1505,32 +1511,45 @@ def check_melt_contract(npz_path, ctx):
             f"the melt its calibration was fitted to: refit the offsets on "
             f"this sampling (calibrate_deltaT.py) and name the file with "
             f"ISMIP7_DELTAT_PER_BASIN_NPZ.")
+    floor = float(ctx.get("thickness_floor") or 0.0)
+    if floor > 0.0:
+        raise ValueError(
+            f"This cold start floors the initial thickness at {floor:g} m "
+            f"(ISMIP7_H_CLAMP_INIT), which makes every ice-free cell hold "
+            f"floating ice, and {os.path.basename(npz_path)} was fitted over "
+            f"cells holding BedMachine's own thickness. Run with "
+            f"ISMIP7_H_CLAMP_INIT=0, the default of the budd and "
+            f"regularized_coulomb laws.")
     return contract.get("mesh")
 
 
-def describe_melt_calibration(mesh_basename=None):
-    r"""Marker lines naming the melt calibration this run reads: the file,
+def describe_melt_calibration(dT_npz, K_npz=None, mesh_basename=None):
+    r"""Marker lines naming the melt calibration a run melts with: the file,
     its sha256 and K, and the mesh it was fitted on beside this run's.
-    ``core_report.py`` lifts them into the run's record, which is how every
-    submitted run can be shown to have read the same calibration."""
-    from .runconfig import (deltat_per_basin_npz, file_sha256,
-                            k_per_basin_npz, melt_calibration_contract)
-    npz = deltat_per_basin_npz()
-    if npz is None:
-        k_npz = k_per_basin_npz()
+
+    ``dT_npz`` is the offsets file ``runconfig.deltat_per_basin_npz``
+    resolved, or None on the legacy path, where ``K_npz`` is the per-basin K
+    file. They are the paths the caller melts with, so the file the line
+    names is the file the run melted with. ``core_report.py`` lifts the line
+    into the run's record, which is how every submitted run can be shown to
+    have read the same calibration."""
+    from .runconfig import (MELT_CALIBRATION_DEFAULT, file_sha256,
+                            melt_calibration_contract)
+    if dT_npz is None:
         return [f"{FORCING_PROVENANCE_MARKER} ocean melt calibration "
-                f"{os.path.basename(k_npz)} sha256 {file_sha256(k_npz)}: a "
+                f"{os.path.basename(K_npz)} sha256 {file_sha256(K_npz)}: a "
                 f"legacy per-basin K named with ISMIP7_K_PER_BASIN_NPZ, not "
                 f"the tracked calibration"]
-    with np.load(npz) as data:
+    with np.load(dT_npz) as data:
         K = float(data["K"])
         selected = str(data["selected_as"]) if "selected_as" in data else ""
-    contract = melt_calibration_contract(npz) or {}
+    contract = melt_calibration_contract(dT_npz) or {}
     fitted_on = contract.get("mesh", "a mesh its file does not record")
-    named = ("named with ISMIP7_DELTAT_PER_BASIN_NPZ"
-             if os.environ.get("ISMIP7_DELTAT_PER_BASIN_NPZ") else "the tracked default")
+    named = ("the tracked default"
+             if os.path.abspath(dT_npz) == os.path.abspath(MELT_CALIBRATION_DEFAULT)
+             else "named with ISMIP7_DELTAT_PER_BASIN_NPZ")
     line = (f"{FORCING_PROVENANCE_MARKER} ocean melt calibration "
-            f"{os.path.basename(npz)} sha256 {file_sha256(npz)} ({named}): "
+            f"{os.path.basename(dT_npz)} sha256 {file_sha256(dT_npz)} ({named}): "
             f"K {K:.3e}{f' ({selected})' if selected else ''} with a "
             f"thermal-forcing offset per basin, fitted on {fitted_on}")
     if mesh_basename:
@@ -1630,7 +1649,8 @@ def height_above_flotation(s, b, rho_water=_RHO_SW_FLOTATION, rho_ice=_RHO_ICE):
 
 def is_floating(s, b):
     r"""The flotation test: ``height_above_flotation(s, b) <= 0``. An ice-free
-    ocean cell passes it too; the melt law acts on :func:`melt_receiving`."""
+    cell passes it too, open ocean at draft 0 and bare land at exactly 0; the
+    melt law acts on :func:`melt_receiving`."""
     return height_above_flotation(s, b) <= 0.0
 
 
@@ -1639,10 +1659,11 @@ def melt_receiving(s, b, h):
 
     This is the set the calibrations fit on (calibrate_melt.forward_geometry,
     select_melt_parameters.py), so the forward melts exactly the cells whose
-    melt its calibration was fitted to. An ice-free ocean cell also floats by
-    the flotation test, at draft 0. Melting it booked melt that the transport
-    limiter then withheld, and a negative thermal forcing there made a source
-    that grows ice on open water wherever no front mask clears the cell."""
+    melt its calibration was fitted to. An ice-free cell also passes the
+    flotation test, open ocean at draft 0 and bare land at a height above
+    flotation of exactly 0. Melting it booked melt that the transport limiter
+    then withheld, and a negative thermal forcing there made a source that
+    grows ice wherever no front mask clears the cell."""
     return is_floating(s, b) & (np.asarray(h, dtype=float) > 0.0)
 
 

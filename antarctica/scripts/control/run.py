@@ -298,7 +298,8 @@ def main():
         melt_desc = "Synthetic ocean melt stopgap (ISMIP7_SYNTHETIC_MELT)"
     else:
         for line in (describe_forcing_provenance(ocean)
-                     + describe_melt_calibration(ctx.get("mesh_basename"))):
+                     + describe_melt_calibration(dT_npz, K_npz,
+                                                 ctx.get("mesh_basename"))):
             PETSc.Sys.Print(f"  {line}")
         # The projections' callback (experiment.py) with no atmosphere, so the
         # SMB assigned above stays: the offsets file's TF shift at its one K,
