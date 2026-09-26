@@ -48,6 +48,8 @@ print(f"driver: solver={diagnostic_solver_mode()} dt={os.environ.get('ISMIP7_DT'
 # srun takes SLURM_EXPORT_ENV as its own --export, so a list there would
 # reach the real driver's environment through the launcher.
 print(f"driver: srun export list={os.environ.get('SLURM_EXPORT_ENV', 'none')}")
+# the MPI-IO component the launcher selects (site_core.sh, ismip7_mpirun)
+print(f"driver: mpi io={os.environ.get('OMPI_MCA_io', 'unset')}")
 
 start = os.environ.get("FAKE_START_YEAR", "")
 if start:
@@ -376,3 +378,78 @@ def test_a_named_solver_and_step_win(sandbox):
         ISMIP7_DIAGNOSTIC_LINEAR_SOLVER="full_mumps", ISMIP7_DT="0.1")
     assert rc == 0, log
     assert "driver: solver=full_mumps dt=0.1" in log
+
+
+# ── follow-on experiments (ISMIP7_CHAIN_THEN) ───────────────────────────────
+def _submits(calls):
+    r"""One text block per recorded sbatch call: its ARGV line and ENV lines."""
+    return ["ARGV: " + block for block in calls.split("ARGV: ")[1:]]
+
+
+def test_a_finished_run_queues_its_follow_ons(sandbox):
+    r"""The historical reached 2015, so the control and the projection that
+    branch from its endpoint are queued, each behind this job, each a fresh
+    chain that queues nothing further and runs its own driver's period."""
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="2015", FAKE_START_YEAR="1990", ISMIP7_T_END="2015",
+        ISMIP7_T_START="1990", ISMIP7_EXPERIMENT="hist_mri_esm2",
+        ISMIP7_CHAIN_THEN="control ssp585_mri_esm2")
+    assert rc == 0, log
+    submits = _submits(calls)
+    assert len(submits) == 2, calls
+    for sub, exp in zip(submits, ("control", "ssp585_mri_esm2")):
+        assert f"ENV: ISMIP7_EXPERIMENT={exp}\n" in sub
+        assert "ISMIP7_CHAIN_THEN" not in sub
+        # each follow-on's driver owns its period
+        assert "ISMIP7_T_START" not in sub
+        assert "ISMIP7_T_END" not in sub
+        assert f"--dependency=afterok:{JOB_ID}" in sub
+        assert "-J ismip7_fwd" in sub
+
+
+def test_a_run_short_of_its_end_carries_its_follow_ons_on(sandbox):
+    r"""Stopped by the wall clock at 1950: the historical resubmits itself,
+    still carrying the follow-ons, and queues neither of them yet."""
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="1950", FAKE_START_YEAR="1900", ISMIP7_T_END="2015",
+        ISMIP7_EXPERIMENT="hist_mri_esm2", ISMIP7_CHAIN_THEN="control")
+    assert rc == 0, log
+    submits = _submits(calls)
+    assert len(submits) == 1, calls
+    assert "ENV: ISMIP7_EXPERIMENT=hist_mri_esm2\n" in submits[0]
+    assert "ENV: ISMIP7_CHAIN_THEN=control\n" in submits[0]
+
+
+def test_a_stalled_run_queues_no_follow_on(sandbox):
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="1950", FAKE_STALLED="1", ISMIP7_T_END="2015",
+        ISMIP7_EXPERIMENT="hist_mri_esm2", ISMIP7_CHAIN_THEN="control")
+    assert rc == 1, log
+    assert calls == ""
+
+
+def test_an_unknown_follow_on_is_refused_before_the_run(sandbox):
+    rc, log, calls = run_job(
+        sandbox, ISMIP7_EXPERIMENT="hist_mri_esm2", ISMIP7_CHAIN_THEN="control contrl")
+    assert rc == 2
+    assert "unknown experiment 'contrl' in ISMIP7_CHAIN_THEN" in log
+    assert "driver:" not in log
+    assert calls == ""
+
+
+def test_the_launcher_selects_romio_for_the_ranks(sandbox):
+    r"""Open MPI's default ompio writes a parallel HDF5 file to NFS twenty
+    times slower than romio321 (site_core.sh has the numbers), so the launcher
+    hands every rank OMPI_MCA_io=romio321 unless a site says otherwise."""
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000")
+    assert rc == 0, log
+    assert "driver: mpi io=romio321" in log
+    # an empty ISMIP7_MPI_IO leaves the MPI's own default in place
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000",
+                             ISMIP7_MPI_IO="")
+    assert rc == 0, log
+    assert "driver: mpi io=unset" in log
+    # and a named component is passed through as given
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000",
+                             ISMIP7_MPI_IO="ompio")
+    assert "driver: mpi io=ompio" in log

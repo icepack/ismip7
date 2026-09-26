@@ -32,8 +32,15 @@ the offsets are the same under any mpiexec -n. Run with the same ISMIP7_* melt k
 
 The mesh comes from the MAP calibrate_melt.py names (ISMIP7_INV_H5 to name
 another). Point a run at the result with ISMIP7_DELTAT_PER_BASIN_NPZ.
+
+A run that names nothing melts with the tracked calibration,
+antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz: K50 of the
+rule-based selection (select_melt_parameters.py) with its offsets, fitted on
+the 1000 m / 10 km production mesh (issue 26). Refitting the offsets for
+another mesh keeps that K: --K 6.5e-5.
 """
 import argparse
+import json
 import os
 import sys
 
@@ -51,7 +58,9 @@ from icepack2_tools.forcing import (  # noqa: E402
 )
 # The fit lives in the library, so the selection over the whole K grid
 # (select_melt_parameters.py) runs this same code; re-exported here.
-from icepack2_tools.melt_selection import DT_WINDOW, fit_deltaT  # noqa: E402,F401
+from icepack2_tools.melt_selection import (  # noqa: E402,F401
+    DT_WINDOW, N_BASINS, Plausibility, TFRule, fit_deltaT,
+)
 from icepack2_tools.runconfig import geometry_space  # noqa: E402
 from icepack2_tools.mpi_stats import (  # noqa: E402
     global_count, global_range,
@@ -91,10 +100,35 @@ def main():
     PETSc.Sys.Print(f"  Slope: {cm.MELT_SLOPE}; floating cells "
                     f"{global_count(floating, comm)}; TF {tf_lo:.2f}..{tf_hi:.2f} K")
 
+    # The thermal forcing rule the selection admits a K by
+    # (melt_selection.TFRule, select_melt_parameters.py), read at each K with
+    # that K's offsets. Its statistics are this rank's cells, so a parallel
+    # run leaves the verdict out.
+    rule = TFRule()
+    plaus = (Plausibility(tf[floating], area[floating], basin[floating])
+             if comm.size == 1 else None)
+
     os.makedirs(args.out, exist_ok=True)
     for K in args.K:
         dT, M0, resid, sens, flagged = fit_deltaT(
             tf, sal, sin_a, K, floating, area, basin, bids, M_obs, comm)
+        verdict = {}
+        if plaus is not None:
+            by_basin = np.full(N_BASINS, np.nan)
+            by_basin[bids] = dT
+            stats = plaus.at(by_basin, rule)
+            unrooted = np.zeros(N_BASINS)
+            unrooted[[b for b, _ in flagged if 0 <= b < N_BASINS]] = 1.0
+            stats["unrooted"] = unrooted
+            admits, tests = rule.admits(
+                {n: np.asarray(v)[None] for n, v in stats.items()})
+            failed = [t for t, passed in tests.items() if not passed[0]]
+            PETSc.Sys.Print(f"  thermal forcing rule {rule.as_dict()}: "
+                            + ("admits" if admits[0] else "refuses")
+                            + f" K = {K:.3e}"
+                            + (f", failing {', '.join(failed)}" if failed else ""))
+            verdict = {"tf_rule": json.dumps(rule.as_dict()),
+                       "rule_admits": bool(admits[0])}
         M1 = M_obs + resid
         PETSc.Sys.Print(f"\n  K = {K:.3e}: total {M0.sum():.0f} Gt/yr at dT=0, "
                         f"{M1.sum():.0f} with deltaT_b (obs {M_obs.sum():.0f})")
@@ -116,7 +150,8 @@ def main():
                      sin_alpha_cap=(cm.SIN_ALPHA_CAP if melt_slope() == "local"
                                     else float("inf")),
                      geometry_space=geometry_space(), obs_csv=cm.OBS_CSV,
-                     imbie2_nc=cm.IMBIE2_NC, inversion=cm.INV_H5)
+                     imbie2_nc=cm.IMBIE2_NC, inversion=cm.INV_H5,
+                     dt_window=np.array(DT_WINDOW, dtype=float), **verdict)
         PETSc.Sys.Print(f"  wrote {fn}")
 
 

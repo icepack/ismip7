@@ -3,7 +3,7 @@ r"""Data preflight for the ISMIP7 core experiments.
 
 Answers "which experiments can run on this machine right now?" in a few
 seconds, checking every input each core needs: mesh, MAP inversion,
-boundary ids, per-basin K, RACMO, the OI climatology (core 11's stopgap),
+boundary ids, the melt calibration, RACMO, the OI climatology (core 11's stopgap),
 and the (ESM, scenario) atmosphere/ocean trees over the run period, the
 control's `ctrl` ocean among them. Honors the same
 environment knobs as the runs (ISMIP7_LC, ISMIP7_FRICTION,
@@ -23,7 +23,7 @@ sys.path.insert(0, _SCRIPTS)
 
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere, ISMIP7Ocean, OCX, OCX_ATMOSPHERE_SOURCE,
-    _oi_climatology_path, _find_ismip7_data,
+    _oi_climatology_path, _find_ismip7_data, imbie2_basin_path,
 )
 from icepack2_tools.boundary import sidecar_path
 from icepack2_tools.naming import map_basename
@@ -33,13 +33,13 @@ from icepack2_tools.runconfig import (
     calving_law as _calving_law, calving_sigma_max as _calving_sigma_max,
     friction as _friction, geometry_space as _geometry_space, lc as _lc,
     lc_coarse as _lc_coarse, ocx_forcing as _ocx_forcing, ocx_ocean as _ocx_ocean,
-    mesh_override,
+    mesh_override, deltat_per_basin_npz, k_per_basin_npz,
+    melt_calibration_contract,
 )
 DATA_DIR = obs_data_root()
 from mesh_naming import get_buffer_m, mesh_filename
 
 MESH_DIR = os.path.join(_ANT, "mesh")
-RESULTS_DIR = os.path.join(_ANT, "results")
 
 lc = _lc()
 lc_coarse = _lc_coarse()
@@ -143,6 +143,73 @@ def ocean_cover(esm, scenario):
     return ISMIP7Ocean(esm=esm, scenario=scenario).coverage("tf")
 
 
+def msh_vertex_count(path):
+    r"""The vertex count a gmsh ``.msh`` header gives, or None: the line after
+    ``$Nodes`` holds it in version 2 files and as its second number in
+    version 4."""
+    try:
+        with open(path, errors="replace") as f:
+            for line in f:
+                if line.startswith("$Nodes"):
+                    parts = next(f).split()
+                    return int(parts[1] if len(parts) >= 4 else parts[0])
+    except (OSError, ValueError, StopIteration, IndexError):
+        return None
+    return None
+
+
+def melt_calibration_missing(mesh_fn):
+    r"""What stops a core from melting with its calibration.
+
+    The resolver's own refusals come first: the file missing, a sidecar hash
+    that does not match, a scaled K. Then the IMBIE2 basin grid the offsets
+    are stamped through. Then the mesh: the tracked offsets were fitted on
+    one mesh, the forward stamps them onto any mesh so a coarse probe runs,
+    and this gate keeps a production core on the calibration's mesh. Naming
+    a file with ISMIP7_DELTAT_PER_BASIN_NPZ (a refit on this mesh, or the
+    tracked file itself) clears the mesh check. A legacy per-basin K named
+    with ISMIP7_K_PER_BASIN_NPZ is checked for existence only."""
+    import numpy as np
+    try:
+        npz = deltat_per_basin_npz()
+        if npz is None:
+            k_per_basin_npz()
+            return []
+    except (FileNotFoundError, ValueError) as e:
+        return [f"melt calibration: {e}"]
+    miss = []
+    with np.load(npz) as data:
+        recorded = str(data["imbie2_nc"]) if "imbie2_nc" in data else None
+        K = float(data["K"])
+    basins = imbie2_basin_path(recorded)
+    if not os.path.exists(basins):
+        miss.append(f"IMBIE2 basin grid ({basins}), which the melt "
+                    f"calibration's offsets are stamped through")
+    contract = melt_calibration_contract(npz)
+    stem = os.path.splitext(os.path.basename(mesh_fn))[0]
+    remedy = (f"Refit the offsets on this mesh (calibrate_deltaT.py --K {K:.3e}) "
+              f"and name the file with ISMIP7_DELTAT_PER_BASIN_NPZ, or name the "
+              f"tracked file there to run with its offsets")
+    if contract and not os.environ.get("ISMIP7_DELTAT_PER_BASIN_NPZ"):
+        if contract.get("mesh") != stem:
+            miss.append(
+                f"melt calibration: {os.path.basename(npz)} was fitted on "
+                f"{contract.get('mesh')} and this core runs on {stem}. {remedy}")
+        else:
+            # Two builds of one mesh name differ cell by cell (IU's and
+            # Rice's of the production mesh), and only the vertex count in
+            # the header tells them apart.
+            want = contract.get("vertices")
+            have = msh_vertex_count(mesh_fn) if want else None
+            if want and have is not None and have != int(want):
+                miss.append(
+                    f"melt calibration: {os.path.basename(npz)} was fitted on "
+                    f"{contract.get('mesh_build', 'a build')} of {stem} "
+                    f"({int(want)} vertices), and {mesh_fn} has {have}: "
+                    f"another build of the same mesh. {remedy}")
+    return miss
+
+
 def shared_missing(warn=None):
     r"""Missing shared inputs. Non-fatal caveats are appended to ``warn``."""
     miss = []
@@ -186,9 +253,7 @@ def shared_missing(warn=None):
             f"{os.path.basename(bnd)} (untracked — restore or regenerate "
             f"with make_boundary_ids.py)"
         )
-    if not (glob.glob(os.path.join(RESULTS_DIR, f"calibrated_K_per_basin_{lc}.npz"))
-            or glob.glob(os.path.join(RESULTS_DIR, "calibrated_K_per_basin_2500.npz"))):
-        miss.append("per-basin K npz")
+    miss += melt_calibration_missing(mesh_fn)
     for d, pat, what in [
         (os.path.join(DATA_DIR, "bedmachine"), "*.nc", "BedMachine"),
         (os.path.join(DATA_DIR, "velocity"), "*.nc", "MEaSUREs velocity"),
@@ -222,7 +287,8 @@ def main():
     if base_missing:
         print(f"  SHARED inputs missing: {', '.join(base_missing)}")
     else:
-        print("  Shared inputs (mesh, MAP, bndids, K, BedMachine, velocity): OK")
+        print("  Shared inputs (mesh, MAP, bndids, melt calibration, BedMachine, "
+              "velocity): OK")
     for w in warn:
         print(f"  WARNING: {w}")
     print(f"  RACMO baseline: {'OK' if racmo_ok() else 'MISSING (acabf fallback)'}")

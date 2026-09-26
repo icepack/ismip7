@@ -34,7 +34,9 @@ _MELT_FACTOR = (_RHO_SW * _C_PO) / (_RHO_I * _L_I)
 # K50 of the ISMIP7 toolbox's standard sampling (parameter_selection_quadratic
 # _example.ipynb, July 2026 update: K05 4.75e-5, K50 8.5e-5, K95 1.375e-4),
 # sampled with the constant slope SIN_ALPHA_ANT_DEFAULT below. The earlier
-# 1.15e-4 was the pre-update value.
+# 1.15e-4 was the pre-update value. It is the notebook's reference value and
+# the default argument of the melt law; a run takes its K from the melt
+# calibration file (runconfig.deltat_per_basin_npz), 6.5e-5 in the tracked one.
 _K_DEFAULT = 8.5e-5
 _K_PERCENTILES = (4.75e-5, 8.5e-5, 1.375e-4)
 
@@ -1310,13 +1312,13 @@ def _warn_slope_cap(npz_path, cap):
             f"(GEOMETRY_DISCRETIZATION.md), the uncapped cell slope integrates "
             f"3.7 times the capped melt at K = 1, so this forward applies about "
             f"four times the total the K was fitted to. Capping the forward's "
-            f"slope the same way (issue #26) or refitting with "
-            f"ISMIP7_SIN_ALPHA_CAP=inf are the two consistent choices.",
+            f"slope the same way or refitting with ISMIP7_SIN_ALPHA_CAP=inf "
+            f"are the two consistent choices.",
             flush=True,
         )
 
 
-def _check_melt_provenance(npz_path, data, refit, knob):
+def _check_melt_provenance(npz_path, data, refit, knob, strict=False):
     r"""Compare a melt calibration's recorded slope convention, slope cap and
     geometry with this run's, and say once per kind what differs.
 
@@ -1325,31 +1327,79 @@ def _check_melt_provenance(npz_path, data, refit, knob):
     knob and was fitted on the local slope. Under ant the constant is part of
     the convention, so a fit with another constant does not transfer either.
     Under local, the calibration records the cap it applied (none under dg0
-    by default, 5e-3 under cg1) and compute_sin_alpha applies none (issue
-    #26, GEOMETRY_DISCRETIZATION.md). A fit is likewise only valid for the
+    by default, 5e-3 under cg1) and compute_sin_alpha applies none
+    (GEOMETRY_DISCRETIZATION.md). A fit is likewise only valid for the
     geometry it was fitted on: the calibration records the space it melted
     (cell by cell under dg0, on nodes under cg1), and a file without the entry
     predates the tag and was fitted on nodes. With the same slope cap the two
     fits agree within about 10 percent per basin, 22 percent in basin 7
     (GEOMETRY_DISCRETIZATION.md); the mismatch is still reported so a file's
-    provenance is never silent."""
+    provenance is never silent.
+
+    ``strict`` is for a thermal-forcing offsets file, the tracked calibration
+    or one named with ISMIP7_DELTAT_PER_BASIN_NPZ: the forward has to apply
+    the melt that file was fitted to, so any difference is refused. A legacy
+    per-basin K file keeps the warnings."""
     from .runconfig import geometry_space
+    differences = []
+
+    def differs(sentence, warn, *args):
+        differences.append(sentence)
+        if not strict:
+            warn(npz_path, *args)
+
     fitted_slope = str(data["melt_slope"]) if "melt_slope" in data else "local"
     if fitted_slope != melt_slope():
-        _warn_melt_slope(npz_path, fitted_slope, melt_slope(), refit, knob)
+        differs(f"ISMIP7_MELT_SLOPE {fitted_slope} against this run's "
+                f"{melt_slope()}",
+                _warn_melt_slope, fitted_slope, melt_slope(), refit, knob)
     elif fitted_slope == "ant" and "sin_alpha_ant" in data:
         fitted_sin = float(data["sin_alpha_ant"])
         if np.isfinite(fitted_sin) and abs(fitted_sin / sin_alpha_ant() - 1.0) > 0.01:
-            _warn_melt_slope(npz_path, f"ant with sin(alpha) = {fitted_sin:g}",
-                             f"ant with sin(alpha) = {sin_alpha_ant():g}",
-                             refit, knob)
+            differs(f"sin(alpha) {fitted_sin:g} against this run's "
+                    f"{sin_alpha_ant():g}",
+                    _warn_melt_slope, f"ant with sin(alpha) = {fitted_sin:g}",
+                    f"ant with sin(alpha) = {sin_alpha_ant():g}", refit, knob)
     if fitted_slope == "local" and melt_slope() == "local" and "sin_alpha_cap" in data:
         cap = float(data["sin_alpha_cap"])
         if np.isfinite(cap) and cap > 0.0:
-            _warn_slope_cap(npz_path, cap)
+            differs(f"the draft slope capped at {cap:g}, where this forward "
+                    f"applies no cap", _warn_slope_cap, cap)
     fitted_on = str(data["geometry_space"]) if "geometry_space" in data else "cg1"
     if fitted_on != geometry_space():
-        _warn_geometry_space(npz_path, fitted_on, geometry_space(), refit, knob)
+        differs(f"{fitted_on} geometry against this run's {geometry_space()}",
+                _warn_geometry_space, fitted_on, geometry_space(), refit, knob)
+    if strict and differences:
+        raise ValueError(
+            f"{os.path.basename(npz_path)} was fitted under settings this run "
+            f"does not use: {'; '.join(differences)}. The forward has to "
+            f"apply the melt its calibration was fitted to. Run under the "
+            f"file's settings, or refit with {refit} under this run's and "
+            f"name the file with {knob}.")
+
+
+def imbie2_basin_path(recorded=None):
+    r"""The IMBIE2 8 km basin grid a per-basin calibration is stamped
+    through: ``recorded`` (the path a calibration file names) where it exists
+    on this machine, else the v2 calibration-era file under the data root,
+    then the v3 release (an identical basinNumber field, verified July 2026).
+    Returns the first candidate that exists, or the v2 path when none does,
+    so a caller reports the file it looked for."""
+    root = os.environ.get(
+        "ISMIP7_DATA_ROOT",
+        os.path.join(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))), "ISMIP7", "AIS"),
+    )
+    candidates = [
+        os.path.join(root, "parameterisations", "ocean", "imbie2",
+                     "basin_numbers_ismip8km_v2.nc"),
+        os.path.join(root, "obs", "ocean", "IMBIE-basins", "v3",
+                     "IMBIE-basins_AIS_obs_ocean_v3.nc"),
+    ]
+    if recorded:
+        candidates.insert(0, recorded)
+    return next((p for p in candidates if os.path.exists(p)),
+                candidates[1 if recorded else 0])
 
 
 def _basin_on_mesh(mesh_x, mesh_y, imbie2=None):
@@ -1357,25 +1407,12 @@ def _basin_on_mesh(mesh_x, mesh_y, imbie2=None):
 
     The 8 km basin grid is re-read here so a per-basin calibration can be
     stamped onto ANY mesh, not only the one it was fitted on. ``imbie2``
-    names the file; otherwise the v2 calibration-era file under the data
-    root, then the v3 release (an identical basinNumber field, verified July
-    2026)."""
+    names the file; otherwise :func:`imbie2_basin_path` finds it."""
     import xarray as xr
     from scipy.interpolate import RegularGridInterpolator
 
     if imbie2 is None:
-        root = os.environ.get(
-            "ISMIP7_DATA_ROOT",
-            os.path.join(os.path.dirname(
-                os.path.dirname(os.path.abspath(__file__))), "ISMIP7", "AIS"),
-        )
-        candidates = [
-            os.path.join(root, "parameterisations", "ocean", "imbie2",
-                         "basin_numbers_ismip8km_v2.nc"),
-            os.path.join(root, "obs", "ocean", "IMBIE-basins", "v3",
-                         "IMBIE-basins_AIS_obs_ocean_v3.nc"),
-        ]
-        imbie2 = next((p for p in candidates if os.path.exists(p)), candidates[0])
+        imbie2 = imbie2_basin_path()
     ds = xr.open_dataset(imbie2)
     xa = ds["x"].values; ya = ds["y"].values
     bn = ds["basinNumber"].values
@@ -1407,16 +1444,18 @@ def load_deltaT_per_basin(npz_path, mesh_x, mesh_y, fill=0.0, imbie2=None):
     unadjusted TF. This is intended, since the toolbox applies its one K
     everywhere, so a run's integrated melt exceeds the fitted basins' total
     by what those dofs carry; the ocean callbacks report that amount when the
-    offsets load. The slope convention, slope cap and geometry are checked as
-    for a K file, since the fit depends on all three."""
+    offsets load. The slope convention, slope cap and geometry are checked,
+    and a difference from this run is refused, since the fit depends on all
+    three and the forward has to apply the melt the file was fitted to."""
     data = np.load(npz_path)
     bids = np.asarray(data["basin_ids"]).astype(int)
     dT = np.asarray(data["deltaT_basin"]).astype(float)
     K = float(data["K"])
     _check_melt_provenance(npz_path, data, "calibrate_deltaT.py",
-                           "ISMIP7_DELTAT_PER_BASIN_NPZ")
-    if imbie2 is None and "imbie2_nc" in data and os.path.exists(str(data["imbie2_nc"])):
-        imbie2 = str(data["imbie2_nc"])
+                           "ISMIP7_DELTAT_PER_BASIN_NPZ", strict=True)
+    if imbie2 is None:
+        imbie2 = imbie2_basin_path(
+            str(data["imbie2_nc"]) if "imbie2_nc" in data else None)
     basin_node = _basin_on_mesh(mesh_x, mesh_y, imbie2)
     field = np.full(len(mesh_x), fill, dtype=float)
     for bid, d in zip(bids, dT):
@@ -1425,15 +1464,103 @@ def load_deltaT_per_basin(npz_path, mesh_x, mesh_y, fill=0.0, imbie2=None):
     return field, K
 
 
-def _deltaT_for_run(cache, npz, mesh_x, mesh_y):
+def _deltaT_for_run(cache, npz, mesh_x, mesh_y, ctx=None):
     r"""``(deltaT_field, K)`` for the offsets file ``npz``, loaded once per
     callback. Dofs outside the fitted basins get a zero offset and are
-    remembered for `_announce_deltaT`."""
+    remembered for `_announce_deltaT`. With the run's ``ctx`` the file's
+    contract is checked first (`check_melt_contract`)."""
     if "dT" not in cache:
+        if ctx is not None:
+            check_melt_contract(npz, ctx)
         field, K = load_deltaT_per_basin(npz, mesh_x, mesh_y, fill=np.nan)
         cache["fitted"] = np.isfinite(field)
         cache["dT"], cache["K"] = np.nan_to_num(field, nan=0.0), K
     return cache["dT"], cache["K"]
+
+
+def check_melt_contract(npz_path, ctx):
+    r"""Refuse a run whose initial geometry differs from the kind its melt
+    calibration was fitted on, and return the mesh the calibration was fitted
+    on (None for a file with no sidecar).
+
+    The sidecar records the raster sampling that put BedMachine on the
+    calibration's cells; ``setup_model`` records the one this run's geometry
+    came from (``ctx["raster_sample"]``, read back from the MAP). Another
+    sampling moves the draft and the floating set the offsets were fitted on.
+    The calibration's cells also carry BedMachine's thickness unfloored, so
+    an ice-free cell holds none and takes no melt (`melt_receiving`); a cold
+    start that floors the initial thickness (``ctx["thickness_floor"]``,
+    ISMIP7_H_CLAMP_INIT, 10 m under the legacy friction law) turns those
+    cells into floating ice the offsets were never fitted over, and is
+    refused. A context without these entries, such as the inversion's
+    reference geometry, is not checked. The mesh is only reported: the
+    offsets are per basin and stamp onto any mesh, so a coarse probe runs
+    with them, and preflight.py keeps a production core on the calibration's
+    mesh."""
+    from .runconfig import melt_calibration_contract
+    contract = melt_calibration_contract(npz_path)
+    if contract is None:
+        return None
+    fitted = contract.get("raster_sample")
+    running = ctx.get("raster_sample")
+    if fitted and running and fitted != running:
+        raise ValueError(
+            f"{os.path.basename(npz_path)} was fitted on geometry sampled "
+            f"from BedMachine with raster_sample={fitted}, and this run's "
+            f"geometry was sampled with {running}. The forward has to apply "
+            f"the melt its calibration was fitted to: refit the offsets on "
+            f"this sampling (calibrate_deltaT.py) and name the file with "
+            f"ISMIP7_DELTAT_PER_BASIN_NPZ.")
+    floor = float(ctx.get("thickness_floor") or 0.0)
+    if floor > 0.0:
+        raise ValueError(
+            f"This cold start floors the initial thickness at {floor:g} m "
+            f"(ISMIP7_H_CLAMP_INIT), which makes every ice-free cell hold "
+            f"floating ice, and {os.path.basename(npz_path)} was fitted over "
+            f"cells holding BedMachine's own thickness. Run with "
+            f"ISMIP7_H_CLAMP_INIT=0, the default of the budd and "
+            f"regularized_coulomb laws.")
+    return contract.get("mesh")
+
+
+def describe_melt_calibration(dT_npz, K_npz=None, mesh_basename=None):
+    r"""Marker lines naming the melt calibration a run melts with: the file,
+    its sha256 and K, and the mesh it was fitted on beside this run's.
+
+    ``dT_npz`` is the offsets file ``runconfig.deltat_per_basin_npz``
+    resolved, or None on the legacy path, where ``K_npz`` is the per-basin K
+    file. They are the paths the caller melts with, so the file the line
+    names is the file the run melted with. ``core_report.py`` lifts the line
+    into the run's record, which is how every submitted run can be shown to
+    have read the same calibration."""
+    from .runconfig import (MELT_CALIBRATION_DEFAULT, file_sha256,
+                            melt_calibration_contract)
+    if dT_npz is None:
+        return [f"{FORCING_PROVENANCE_MARKER} ocean melt calibration "
+                f"{os.path.basename(K_npz)} sha256 {file_sha256(K_npz)}: a "
+                f"legacy per-basin K named with ISMIP7_K_PER_BASIN_NPZ, not "
+                f"the tracked calibration"]
+    contract = melt_calibration_contract(dT_npz) or {}
+    with np.load(dT_npz) as data:
+        K = float(data["K"])
+        selected = (str(data["selected_as"]) if "selected_as" in data
+                    else str(contract.get("selected_as", "")))
+    fitted_on = contract.get("mesh", "a mesh its file does not record")
+    build = (f" ({contract['mesh_build']})" if contract.get("mesh_build") else "")
+    named = ("the tracked default"
+             if os.path.abspath(dT_npz) == os.path.abspath(MELT_CALIBRATION_DEFAULT)
+             else "named with ISMIP7_DELTAT_PER_BASIN_NPZ")
+    line = (f"{FORCING_PROVENANCE_MARKER} ocean melt calibration "
+            f"{os.path.basename(dT_npz)} sha256 {file_sha256(dT_npz)} ({named}): "
+            f"K {K:.3e}{f' ({selected})' if selected else ''} with a "
+            f"thermal-forcing offset per basin, fitted on {fitted_on}{build}")
+    if mesh_basename:
+        stem = os.path.splitext(os.path.basename(mesh_basename))[0]
+        same = stem == fitted_on
+        line += (f"; this run's mesh is {stem}"
+                 + ("" if same else ", so its integrated melt differs from "
+                                    "the fitted basin totals"))
+    return [line]
 
 
 def _announce_deltaT(cache, npz, ctx):
@@ -1458,9 +1585,9 @@ def _announce_deltaT(cache, npz, ctx):
         f"  Per-basin deltaT from {npz}: K={cache['K']:.3e} everywhere, "
         f"deltaT {lo:+.2f}..{hi:+.2f} K on "
         f"{global_count(fitted, comm)}/{global_size(fitted, comm)} dofs in "
-        f"fitted basins (the per-basin K file is not read). Melt "
-        f"{total:.1f} Gt/yr, of which {outside:.1f} outside the fitted basins "
-        f"at the unadjusted TF.")
+        f"fitted basins. Melt {total:.1f} Gt/yr on floating cells holding "
+        f"ice, of which {outside:.1f} outside the fitted basins at the "
+        f"unadjusted TF.")
 
 
 def load_K_per_basin(npz_path, mesh_x, mesh_y, fill=0.0):
@@ -1523,8 +1650,23 @@ def height_above_flotation(s, b, rho_water=_RHO_SW_FLOTATION, rho_ice=_RHO_ICE):
 
 
 def is_floating(s, b):
-    r"""The melt-receiving set: ``height_above_flotation(s, b) <= 0``."""
+    r"""The flotation test: ``height_above_flotation(s, b) <= 0``. An ice-free
+    cell passes it too, open ocean at draft 0 and bare land at exactly 0; the
+    melt law acts on :func:`melt_receiving`."""
     return height_above_flotation(s, b) <= 0.0
+
+
+def melt_receiving(s, b, h):
+    r"""The cells the melt law acts on: floating and holding ice (``h > 0``).
+
+    This is the set the calibrations fit on (calibrate_melt.forward_geometry,
+    select_melt_parameters.py), so the forward melts exactly the cells whose
+    melt its calibration was fitted to. An ice-free cell also passes the
+    flotation test, open ocean at draft 0 and bare land at a height above
+    flotation of exactly 0. Melting it booked melt that the transport limiter
+    then withheld, and a negative thermal forcing there made a source that
+    grows ice wherever no front mask clears the cell."""
+    return is_floating(s, b) & (np.asarray(h, dtype=float) > 0.0)
 
 
 # The slope the quadratic law sees. The ISMIP7 reference example is "quadratic
@@ -1558,12 +1700,6 @@ def melt_slope():
 def sin_alpha_ant():
     r"""``ISMIP7_SIN_ALPHA_ANT``: the constant ``sin(alpha)`` under ``ant``."""
     return float(os.environ.get("ISMIP7_SIN_ALPHA_ANT", SIN_ALPHA_ANT_DEFAULT))
-
-
-def k_melt():
-    r"""``ISMIP7_K_MELT``: the scalar K a run melts with when no per-basin
-    calibration is found."""
-    return float(os.environ.get("ISMIP7_K_MELT", _K_DEFAULT))
 
 
 def compute_sin_alpha(ctx):
@@ -1609,8 +1745,8 @@ def compute_sin_alpha(ctx):
 def _oi_climatology_path(root, var, version):
     r"""Path of one OI-climatology variable for a given release.
 
-    `30_sep` is the 2025-09-30 release under meltMIP/ (the one the
-    per-basin K was calibrated against — the default for that reason);
+    `30_sep` is the 2025-09-30 release under meltMIP/ (the one the melt
+    calibration was fitted against, and the default for that reason);
     `06_nov` is the 2026 re-release (1972-2024) mirrored from the
     reorganized GHub share under obs/ocean/climatology/.
     """
@@ -1638,8 +1774,9 @@ def build_oi_climatology_interpolators(data_root=None, version=None):
     forced runs (the OCX stopgap) and the inversion's melt. The control reads
     its ESM's ``ctrl`` ocean through :class:`ISMIP7Ocean` instead
     (icepack/ismip7#107). ISMIP7_OI_VERSION selects the
-    release (default 30_sep, matching the per-basin K calibration;
-    switching to 06_nov without recalibrating K shifts the melt)."""
+    release (default 30_sep, the one the melt calibration was fitted
+    against; on Quartz its files are byte-identical to 06_nov's tf v3 and
+    so v4)."""
     import xarray as xr
     from scipy.interpolate import RegularGridInterpolator
 
@@ -1684,20 +1821,23 @@ def build_oi_climatology_interpolators(data_root=None, version=None):
     return interps
 
 
-def make_climatology_ocean_callback(K_field, data_root=None):
+def make_climatology_ocean_callback(K_field=None, data_root=None):
     r"""Ocean-melt callback with CONSTANT OI-climatology TF/so and evolving
     geometry: the observationally constrained ocean forcing of the OCX
-    stopgap. K_field is a scalar or per-node array (calibrated per-basin K).
+    stopgap, and the climatology every melt calibration is fitted against.
 
-    The per-basin K comes from antarctica/scripts/calibrate_melt.py, which
-    follows ISMIP7_GEOMETRY_SPACE like the forward. The K file records the
-    geometry_space it was fitted on, and `load_K_per_basin` warns when a run
-    melts on the other. With ISMIP7_DELTAT_PER_BASIN_NPZ set the run melts
-    with that file's one K and its per-basin TF offset instead
-    (`load_deltaT_per_basin`)."""
+    The run melts with its melt calibration (runconfig.deltat_per_basin_npz):
+    the file's one K and its per-basin TF offset (`load_deltaT_per_basin`),
+    the tracked calibration unless another is named. ``K_field``, a scalar or
+    per-dof array, is read only on the legacy per-basin K path
+    (ISMIP7_K_PER_BASIN_NPZ, `load_K_per_basin`)."""
     from .runconfig import deltat_per_basin_npz
     interps = build_oi_climatology_interpolators(data_root)
     dT_npz = deltat_per_basin_npz()
+    if dT_npz is None and K_field is None:
+        raise ValueError(
+            "ISMIP7_K_PER_BASIN_NPZ selects the legacy per-basin K path, and "
+            "the caller passed no K for it (load_K_per_basin).")
     dT_cache = {}
 
     def callback(ctx, t_yr):
@@ -1718,12 +1858,11 @@ def make_climatology_ocean_callback(K_field, data_root=None):
         # The protocol's per-basin adjustment: a TF offset at one K.
         K_use = K_field
         if dT_npz is not None:
-            dT, K_use = _deltaT_for_run(dT_cache, dT_npz, mesh_x, mesh_y)
+            dT, K_use = _deltaT_for_run(dT_cache, dT_npz, mesh_x, mesh_y, ctx)
             tf = tf + dT
         melt = quadratic_mixed_slope(tf, sal, sin_a, K=K_use)
 
-        floating = is_floating(s, b)
-        ctx["ocean_melt"].dat.data[:] = np.where(floating, melt, 0.0)
+        ctx["ocean_melt"].dat.data[:] = np.where(melt_receiving(s, b, h), melt, 0.0)
         if dT_npz is not None:
             _announce_deltaT(dT_cache, dT_npz, ctx)
 
@@ -1774,13 +1913,15 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
     the control reference window) or set smb_anomaly=False to force
     with the full field.
 
-    With ISMIP7_DELTAT_PER_BASIN_NPZ set, that file's TF offset and its one
-    K replace both, and `K_per_basin_npz` is not read.
+    The run's melt calibration (runconfig.deltat_per_basin_npz), the
+    tracked one unless another is named, supplies a TF offset per basin and
+    its one K, which replace both. `K` and `K_per_basin_npz` are read only
+    on the legacy per-basin K path (ISMIP7_K_PER_BASIN_NPZ).
 
-    ISMIP7_K_SCALE multiplies whichever K is in effect (the per-basin K
-    calibrated against the older Paolo/Adusumilli table integrates 689 vs
-    865 Gt/yr observed on the 2500 m mesh, so 1.26 matched that table's
-    total; the factor belongs to that calibration).
+    ISMIP7_K_SCALE multiplies the legacy per-basin K (calibrated against the
+    older Paolo/Adusumilli table it integrates 689 vs 865 Gt/yr observed on
+    the 2500 m mesh, so 1.26 matched that table's total; the factor belongs
+    to that calibration). With an offsets file it is refused.
     """
     if fracture is None:
         reject_collapse_mask("this run's forcing callback")
@@ -1815,7 +1956,7 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
             # Resolve K: the protocol's per-basin adjustment (a TF offset at
             # one K) first, then a per-basin npz, then the scalar.
             if dT_npz is not None:
-                dT, K_use = _deltaT_for_run(dT_cache, dT_npz, mesh_x, mesh_y)
+                dT, K_use = _deltaT_for_run(dT_cache, dT_npz, mesh_x, mesh_y, ctx)
                 tf = tf + dT
             elif K_per_basin_npz is not None:
                 if K_field_cache["arr"] is None:
@@ -1828,9 +1969,9 @@ def make_forcing_callback(atm=None, ocean=None, fracture=None,
 
             melt = quadratic_mixed_slope(tf, sal, sin_alpha, K=K_use * K_scale)
 
-            # Only apply melt where ice is floating (haf <= 0)
-            floating = is_floating(s, b)
-            ctx["ocean_melt"].dat.data[:] = np.where(floating, melt, 0.0)
+            # Melt only floating cells holding ice, the set the calibration
+            # was fitted on
+            ctx["ocean_melt"].dat.data[:] = np.where(melt_receiving(s, b, h), melt, 0.0)
             if dT_npz is not None:
                 _announce_deltaT(dT_cache, dT_npz, ctx)
 

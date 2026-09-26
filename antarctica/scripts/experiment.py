@@ -37,17 +37,19 @@ sys.path.insert(0, _PROJECT)
 sys.path.insert(0, _SCRIPTS)
 
 from simulation import (setup_model, run_simulation, latest_checkpoint,
-                        auto_resume, RESULTS_DIR, PETSc, lc)
+                        historical_endpoint,
+                        auto_resume, PETSc)
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere, ISMIP7Ocean, ISMIP7Fracture,
     make_forcing_callback, load_racmo_smb_climatology, forcing_coords,
-    describe_forcing_provenance, forcing_year, k_melt,
+    describe_forcing_provenance, describe_melt_calibration, forcing_year,
 )
 from icepack2_tools.climatology import (
     clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
 )
 from icepack2_tools.runconfig import (
-    FRACTURE_MASK_MODES, fracture as fracture_mode, k_per_basin_candidates,
+    geometry_backdate_years,
+    FRACTURE_MASK_MODES, fracture as fracture_mode, k_per_basin_npz,
     deltat_per_basin_npz,
 )
 
@@ -57,16 +59,6 @@ from icepack2_tools.runconfig import (
 CLIM_START = clim_start()
 CLIM_END = clim_end()
 CLIM_SCENARIO = clim_scenario()
-
-
-def find_k_npz():
-    r"""Calibrated per-basin K npz: this mesh's calibration, else the 2500 m
-    one (16 basin scalars remapped through the IMBIE2 8 km grid,
-    mesh-independent), else None (scalar ISMIP7_K_MELT)."""
-    for c in k_per_basin_candidates(RESULTS_DIR, lc):
-        if c and os.path.exists(c):
-            return c
-    return None
 
 
 def smb_scheme(ctx, esm):
@@ -146,8 +138,7 @@ def run_core_experiment(*, core, title, name, esm, scenario,
             else "Auto-resume: no prior checkpoint"
         )
     if restart is None and restart_from_hist:
-        cand = os.path.join(RESULTS_DIR, f"hist_{esm_tag}{tag_sfx}_{lc}_final.h5")
-        restart = cand if os.path.exists(cand) else None
+        restart = historical_endpoint(esm_tag, tag_sfx, t_start)
     if restart and not os.path.exists(restart):
         raise FileNotFoundError(f"ISMIP7_RESTART not found: {restart}")
 
@@ -181,7 +172,11 @@ def run_core_experiment(*, core, title, name, esm, scenario,
         PETSc.Sys.Print("  Cold start from BedMachine/inversion initial state")
     dT_npz = deltat_per_basin_npz()
 
-    ctx = setup_model(restart_from=restart)
+    # A cold start before the 2015 geometry starts from it with the observed
+    # thinning undone (issue #117); a restart carries its own geometry.
+    ctx = setup_model(
+        restart_from=restart,
+        backdate_years=0.0 if restart else geometry_backdate_years(t_start))
 
     smb_anomaly, smb_baseline = False, None
     if atm is not None:
@@ -213,26 +208,23 @@ def run_core_experiment(*, core, title, name, esm, scenario,
         # mirror caught up; refuse it rather than run on it
         fracture.check_min_version()
 
+    # The melt calibration: the tracked one or a named offsets file, else a
+    # legacy per-basin K named with ISMIP7_K_PER_BASIN_NPZ.
+    K_npz = None if dT_npz is not None else k_per_basin_npz()
     # What this run opens, for the committed report: a collapse mask only
-    # counts when the run reads it.
-    for line in describe_forcing_provenance(
-            atm, ocean, fracture if fracture_mode() != "none" else None):
+    # counts when the run reads it, and the melt calibration by its sha256.
+    for line in (describe_forcing_provenance(
+            atm, ocean, fracture if fracture_mode() != "none" else None)
+            + describe_melt_calibration(dT_npz, K_npz, ctx.get("mesh_basename"))):
         PETSc.Sys.Print(f"  {line}")
 
-    K_npz = None if dT_npz is not None else find_k_npz()
-    K_melt = k_melt()
     if dT_npz is not None:
         PETSc.Sys.Print(f"  Ocean melt: per-basin deltaT at one K from {dT_npz}")
-    elif K_npz is not None:
-        PETSc.Sys.Print(f"  Ocean melt: calibrated per-basin K from {K_npz}")
     else:
-        PETSc.Sys.Print(
-            f"  WARNING: no per-basin K calibration; scalar K={K_melt:.2e}"
-        )
+        PETSc.Sys.Print(f"  Ocean melt: legacy per-basin K from {K_npz}")
 
     callback = make_forcing_callback(
-        atm=atm, ocean=ocean, fracture=fracture,
-        K=K_melt, K_per_basin_npz=K_npz,
+        atm=atm, ocean=ocean, fracture=fracture, K_per_basin_npz=K_npz,
         smb_anomaly=smb_anomaly, smb_baseline=smb_baseline,
     )
 

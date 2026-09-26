@@ -8,9 +8,10 @@ Ocean:      the ESM's own `ctrl` tree (tf + so, v3), the organisers'
             (forum threads 15 and 28, icepack/ismip7#107). It is read and
             melted as the projections read and melt theirs
             (`experiment.py`): the Burgard quadratic-mixed-slope melt,
-            recomputed each step from the evolving geometry, with the
-            per-basin K or deltaT fitted to the Zhou `30_sep` climatology
-            (see `antarctica/scripts/calibrate_melt.py`).
+            recomputed each step from the evolving geometry, with the melt
+            calibration: one K and a thermal-forcing offset per IMBIE basin,
+            fitted to the Zhou `30_sep` climatology (the tracked file,
+            `runconfig.MELT_CALIBRATION_DEFAULT`, unless another is named).
 
 Usage:
     mpiexec -n 12 python scripts/control/run.py
@@ -29,7 +30,8 @@ sys.path.insert(0, _PROJECT)
 
 from firedrake import assemble, dx, Constant
 from simulation import (setup_model, run_simulation, latest_checkpoint,
-                        auto_resume, RESULTS_DIR, PETSc, lc)
+                        historical_endpoint,
+                        auto_resume, PETSc, lc)
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere,
     ISMIP7Ocean,
@@ -42,10 +44,11 @@ from icepack2_tools.forcing import (
     quadratic_mixed_slope,
     forcing_coords,
     forcing_year,
-    is_floating,
+    melt_receiving,
+    describe_melt_calibration,
     _K_DEFAULT,
 )
-from icepack2_tools.runconfig import deltat_per_basin_npz
+from icepack2_tools.runconfig import deltat_per_basin_npz, k_per_basin_npz
 from icepack2_tools.climatology import (
     clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
 )
@@ -71,16 +74,6 @@ CLIM_SCENARIO = clim_scenario()
 
 # The organisers' per-ESM control ocean: ISMIP7/AIS/<ESM>/ctrl/ocean/{tf,so}/.
 CTRL_SCENARIO = "ctrl"
-# Per-basin K: prefer this mesh's calibration, else the 2500 m one (16
-# basin scalars remapped through the IMBIE2 8 km grid — mesh-independent).
-_K_LC_NPZ = os.path.join(_PROJECT, "antarctica", "results",
-                         f"calibrated_K_per_basin_{lc}.npz")
-_K_2500_NPZ = os.path.join(_PROJECT, "antarctica", "results",
-                           "calibrated_K_per_basin_2500.npz")
-K_NPZ = os.environ.get(
-    "ISMIP7_K_PER_BASIN_NPZ",
-    _K_LC_NPZ if os.path.exists(_K_LC_NPZ) else _K_2500_NPZ,
-)
 
 
 def area_weighted_mean(field, mesh):
@@ -152,7 +145,7 @@ def make_synthetic_ocean_callback(tf_max=1.5, depth_ref=1000.0, K=_K_DEFAULT):
         sal = np.full_like(tf, 34.5)
         sin_a = compute_sin_alpha(ctx)
         melt = quadratic_mixed_slope(tf, sal, sin_a, K=K)
-        ctx["ocean_melt"].dat.data[:] = np.where(is_floating(s, b), melt, 0.0)
+        ctx["ocean_melt"].dat.data[:] = np.where(melt_receiving(s, b, h), melt, 0.0)
 
     return callback
 
@@ -213,8 +206,8 @@ def main():
     # start (mis-matched control) only when the historical endpoint is absent.
     if restart_from is None:
         tag_sfx = f"_{args.tag}" if args.tag else ""
-        hist = os.path.join(RESULTS_DIR, f"hist_{esm_tag}{tag_sfx}_{lc}_final.h5")
-        if os.path.exists(hist):
+        hist = historical_endpoint(esm_tag, tag_sfx, T_START)
+        if hist is not None:
             restart_from = hist
             PETSc.Sys.Print(
                 f"  Branching CTRL from the historical endpoint (same initial "
@@ -223,7 +216,8 @@ def main():
             )
         else:
             PETSc.Sys.Print(
-                f"  WARNING: no historical endpoint {os.path.basename(hist)}; "
+                f"  WARNING: no historical endpoint "
+                f"hist_{esm_tag}{tag_sfx}_{lc}_final.h5; "
                 f"cold-starting from the inversion. The CTRL will start from a "
                 f"DIFFERENT geometry than the hist-branched projections, so "
                 f"projection-minus-CTRL will not cleanly isolate the forced "
@@ -231,7 +225,11 @@ def main():
             )
     if restart_from and not os.path.exists(restart_from):
         raise FileNotFoundError(f"CTRL restart not found: {restart_from}")
+    # The melt calibration: per-basin deltaT at one K, the tracked file
+    # unless another is named, else a legacy per-basin K named with
+    # ISMIP7_K_PER_BASIN_NPZ. Both are checked here, before the setup.
     dT_npz = deltat_per_basin_npz()
+    K_npz = None if dT_npz is not None else k_per_basin_npz()
     reject_collapse_mask("the control experiment")
 
     # The ocean is read year by year as in a projection, and a tree with no
@@ -243,12 +241,6 @@ def main():
         cover = ocean.require_years(int(T_START), forcing_year(T_END))
         PETSc.Sys.Print(f"  Ocean forcing: {ESM}/{CTRL_SCENARIO} tf, so cover "
                         f"{cover[0]}-{cover[1]}")
-        if dT_npz is None and not os.path.exists(K_NPZ):
-            raise FileNotFoundError(
-                f"Per-basin K calibration not found at {K_NPZ}. "
-                f"Run antarctica/scripts/calibrate_melt.py first "
-                f"(or set ISMIP7_SYNTHETIC_MELT=1 for the uncalibrated stopgap)."
-            )
 
     ctx = setup_model(restart_from=restart_from)
 
@@ -307,17 +299,16 @@ def main():
         callback = make_synthetic_ocean_callback(tf_max, depth_ref)
         melt_desc = "Synthetic ocean melt stopgap (ISMIP7_SYNTHETIC_MELT)"
     else:
-        for line in describe_forcing_provenance(ocean):
+        for line in (describe_forcing_provenance(ocean)
+                     + describe_melt_calibration(dT_npz, K_npz,
+                                                 ctx.get("mesh_basename"))):
             PETSc.Sys.Print(f"  {line}")
         # The projections' callback (experiment.py) with no atmosphere, so the
         # SMB assigned above stays: the offsets file's TF shift at its one K,
-        # else the per-basin K, either one times ISMIP7_K_SCALE.
-        callback = make_forcing_callback(
-            ocean=ocean, K=_K_DEFAULT,
-            K_per_basin_npz=None if dT_npz is not None else K_NPZ,
-        )
+        # else the legacy per-basin K times ISMIP7_K_SCALE.
+        callback = make_forcing_callback(ocean=ocean, K_per_basin_npz=K_npz)
         source = (f"per-basin deltaT from {dT_npz}" if dT_npz is not None
-                  else f"per-basin K from {K_NPZ}")
+                  else f"legacy per-basin K from {K_npz}")
         melt_desc = f"Constant {ESM} {CTRL_SCENARIO} ocean + {source}"
 
     PETSc.Sys.Print(f"\nControl experiment: {ESM}")

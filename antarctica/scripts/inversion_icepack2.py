@@ -95,7 +95,7 @@ from icepack2_tools.mpi_stats import (global_mean, global_range,
                                       global_max, global_size, global_count)
 from icepack2_tools.naming import map_basename
 from icepack2_tools.runconfig import (
-    k_per_basin_candidates,
+    deltat_per_basin_npz, k_per_basin_npz,
     obs_data_root,
     BUDD_SHELF_GATE,
     friction as _friction, geometry_space as _geometry_space,
@@ -1232,9 +1232,9 @@ def main():
     # stamps net_sigma_used, so a MAP can never claim a constraint it never saw.
     use_dhdt_net = False
     net_sigma_used = 0.0
-    # The per-basin K the dH/dt melt source actually used, stamped into
-    # the MAP: the fallback below is quiet by design, so the artifact has
-    # to carry the answer.
+    # The melt calibration the dH/dt melt source used, stamped into the MAP
+    # under the attribute's original name, dhdt_melt_k_npz, so the artifact
+    # carries the answer.
     k_npz_used = "none"
     if use_dhdt:
         if not geom_dg:
@@ -1255,7 +1255,7 @@ def main():
 
         # Ocean melt for the prognostic step, from the SAME parameterisation
         # and forcing the experiments use: OI-climatology TF/so at draft depth
-        # + per-basin calibrated K through the Burgard quadratic-mixed-slope
+        # + the melt calibration through the Burgard quadratic-mixed-slope
         # formula, via the shared make_climatology_ocean_callback -- not a
         # reimplementation. Evaluated ONCE at the frozen reference geometry
         # (the controls move; the reference geometry does not), so it is a
@@ -1268,46 +1268,31 @@ def main():
         if os.environ.get("ISMIP7_DHDT_MELT", "1") != "0":
             from icepack2_tools.forcing import (
                 load_K_per_basin, make_climatology_ocean_callback)
-            _k_cands = k_per_basin_candidates(
-                os.path.join(_ROOT, "results"), lc)
-            k_npz = next((c for c in _k_cands if os.path.exists(c)),
-                         _k_cands[-1])
-            if os.path.exists(k_npz):
-                k_npz_used = k_npz
-            if not os.path.exists(k_npz):
-                # Warn, do not abort: the melt source only touches shelf cells
-                # and the misfit is grounded-only, so an absent ocean
-                # calibration cannot change this objective. Making it a hard
-                # prerequisite would fail the whole inversion over an artifact
-                # the term provably does not use.
-                PETSc.Sys.Print(
-                    f"  [!] dH/dt melt source: per-basin K not found at "
-                    f"{k_npz}; falling back to an SMB-only source. The "
-                    f"grounded-only misfit is unaffected (melt is zero on "
-                    f"grounded ice and the DG0 upwind step never carries a "
-                    f"shelf value upstream); shelf cells of the single "
-                    f"prognostic step are no longer forcing-consistent with "
-                    f"the forward. Calibrate K, or set ISMIP7_DHDT_MELT=0 to "
-                    f"silence this."
-                )
-            else:
-                _W2 = VectorFunctionSpace(mesh, "DG", 0)
-                _xy = Function(_W2).interpolate(
-                    fd.SpatialCoordinate(mesh)).dat.data_ro.reshape(-1, 2)
-                geom_xy = (_xy[:, 0].copy(), _xy[:, 1].copy())
+            # The forward's melt calibration: per-basin deltaT at one K, the
+            # tracked file unless another is named, else a legacy per-basin
+            # K named with ISMIP7_K_PER_BASIN_NPZ. The tracked file is in
+            # every checkout, so the source always carries melt.
+            dT_npz = deltat_per_basin_npz()
+            k_npz = None if dT_npz is not None else k_per_basin_npz()
+            k_npz_used = dT_npz or k_npz
+            _W2 = VectorFunctionSpace(mesh, "DG", 0)
+            _xy = Function(_W2).interpolate(
+                fd.SpatialCoordinate(mesh)).dat.data_ro.reshape(-1, 2)
+            geom_xy = (_xy[:, 0].copy(), _xy[:, 1].copy())
+            K_field = None
+            if k_npz is not None:
                 K_field = load_K_per_basin(
                     k_npz, geom_xy[0], geom_xy[1], fill=0.0)
                 K_field = K_field * float(
                     os.environ.get("ISMIP7_K_SCALE", "1.0"))
-                _ctx = {"mesh": mesh, "Q": Q, "V": V, "Q_g": Q_g,
-                        "geom_xy": geom_xy, "h": H, "b": b, "s": s,
-                        "ocean_melt": melt_ref}
-                make_climatology_ocean_callback(K_field)(_ctx, 0.0)
-                _melt_gt = float(assemble(melt_ref * dx)) * 917.0 / 1e12
-                PETSc.Sys.Print(
-                    f"  dH/dt melt source: per-basin K "
-                    f"({os.path.basename(k_npz)}), integrated "
-                    f"{_melt_gt:.0f} Gt/yr at reference geometry")
+            _ctx = {"mesh": mesh, "Q": Q, "V": V, "Q_g": Q_g,
+                    "geom_xy": geom_xy, "h": H, "b": b, "s": s,
+                    "ocean_melt": melt_ref}
+            make_climatology_ocean_callback(K_field)(_ctx, 0.0)
+            _melt_gt = float(assemble(melt_ref * dx)) * 917.0 / 1e12
+            PETSc.Sys.Print(
+                f"  dH/dt melt source: {os.path.basename(k_npz_used)}, "
+                f"integrated {_melt_gt:.0f} Gt/yr at reference geometry")
         else:
             PETSc.Sys.Print("  dH/dt melt source: DISABLED (SMB-only)")
 

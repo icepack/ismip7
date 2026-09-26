@@ -1,8 +1,32 @@
 #!/usr/bin/env python
-r"""How far does the draft-slope cap move melt past the variable request's bound?
+r"""Does the forward apply the melt its calibration was fitted to, and how
+far past the variable request's bound does that melt reach?
 
-    python antarctica/scripts/check_melt_bound.py [--npz antarctica/results/calibrated_K_per_basin_2000.npz]
+    python antarctica/scripts/check_melt_bound.py [--npz <calibration.npz>]
+        [--match-tol 1e-3]
         [--ocx [main|cold|warm|vary]] [--ocx-years 2000,2015,2025] [--ocx-tol 0.25]
+
+Without ``--npz`` the calibration is the one a forward reads
+(``runconfig.deltat_per_basin_npz``): the tracked
+``antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz`` unless
+another is named. ``--npz`` takes an offsets file or a legacy per-basin K.
+
+The forward half is the forward's own melt at the reference geometry: bed and
+thickness sampled onto the DG0 cells, the surface from flotation,
+s = max(b + H, (1 - 917/1024) H), as ``simulation.setup_model`` builds them on
+a cold start and on a target mesh, melted by the forward's own
+``forcing.make_climatology_ocean_callback`` with the OI climatology. With an
+offsets file its melt is summed per IMBIE2 basin and set against the totals
+the offsets were fitted to (the file's ``M_obs``), and the check exits 1 when
+any basin is off by more than ``--match-tol``. That is the measurement issue
+30 asked for: a calibration fitted through the forward's melt path, and the
+forward's melt on the same cells. On a mesh other than the one the offsets
+were fitted on, the table measures how far they carry over: at 32 km the
+K50 offsets put the basins at 0.33 to 1.74 times their totals (job 10644430),
+and the fit on IU's build of the production mesh misses basins 1 and 7 on
+Rice's build by 0.18 and 0.17 percent (job 10649416). The table also gives what the forward booked on ice-free cells
+that pass the flotation test, open ocean and bare land apart, before it
+melted only cells holding ice (``forcing.melt_receiving``).
 
 The ISMIP7 variable request gives ``libmassbffl`` an AIS minimum of
 -0.008 kg m-2 s-1 with severity ``error``. In ice-equivalent thickness that is
@@ -11,34 +35,21 @@ grounding-zone cells. Two readings fit that: the parameterisation is too strong
 somewhere, or one hot cell sets the value of its whole 8 km pixel. The writer's
 flux means are whole-pixel means (issue #96), which weight a cell by its share
 of the pixel, so a hot cell smaller than its pixel reaches the grid diluted.
+Each row below reports the maximum, the 99th percentile, the area mean, the
+integrated total against the total the calibration was fitted to, and how
+much floating AREA sits past the bound.
 
-This looks at the first on the model side, before any regridding. At the
-reference geometry, with the calibrated per-basin K, it evaluates the melt four
-times, capped and uncapped for each of two halves, and for each row reports
-the maximum, the 99th percentile, the area mean, the integrated total against
-the ``obs_total_gtyr`` the K was fitted to, and how much floating AREA sits
-past the bound.
-
-The calibration half reproduces calibrate_melt on CG1 nodes: BedMachine
-interpolated with its raster ``surface`` and ``mask``, and grad(draft)
-projected onto CG1.
+With a legacy per-basin K file the check also rebuilds the calibration half,
+calibrate_melt's CG1 fit: BedMachine interpolated with its raster ``surface``
+and ``mask``, and grad(draft) projected onto CG1.
 
 * capped: sin_alpha capped at the npz's ``sin_alpha_cap`` when it is finite,
   otherwise at calibrate_melt's CG1 default 5e-3, the slope K was fitted
   against;
 * uncapped: the same slope with no cap.
 
-The forward half reproduces the forward on DG0 cells, the field the forward
-melts with under DG0 geometry: bed and thickness sampled onto the cells, the
-surface from flotation, s = max(b + H, (1 - 917/1024) H), as simulation.py
-builds it, ``forcing.compute_sin_alpha``'s cell slope, thermal forcing and
-salinity at each cell centroid and its own draft, and the forward callback's
-``haf <= 0`` floating test on cells holding ice (``h > 0``), the floating set
-``calibrate_melt.forward_geometry`` fits on.
-
-* uncapped: as the forward runs today;
-* capped: the cell slope capped at the same value, which is where a cap inside
-  ``forcing.compute_sin_alpha`` would act.
+and, under ``local``, the forward half with its cell slope capped at the same
+value, which is where a cap inside ``forcing.compute_sin_alpha`` would act.
 
 Both halves take their slope from ``ISMIP7_MELT_SLOPE`` as the forward and
 calibrate_melt do. The capped and uncapped rows above belong to ``local``.
@@ -75,11 +86,12 @@ shelf. A basin or block whose OCX melt is off the climatology's by more than
 ``--ocx-tol`` is flagged and the exit status is 1, so a chain can stop on it.
 
 Serial. Reuses calibrate_melt's loaders, so it needs the same inputs: a MAP for
-the mesh, the OI climatology, the IMBIE2 basins and BedMachine.
+the mesh (ISMIP7_INV_H5), the OI climatology, the IMBIE2 basins and BedMachine.
 
-The measured rows below predate the ``h > 0`` test and the seawater flotation
-test in the forward half (icepack/ismip7#66): they counted ice-free cells as
-floating and grounded the deep-draft shelf, and are to be re-measured.
+The measured rows below are the legacy per-basin K files that issue 26
+settled. They predate the ``h > 0`` test and the seawater flotation test in
+the forward half (icepack/ismip7#66): they counted ice-free cells as floating
+and grounded the deep-draft shelf.
 
 Measured on the adaptive 2 km mesh, September 2026, with
 calibrated_K_per_basin_2000.npz calibrated against the re-released observation
@@ -121,9 +133,9 @@ compared two different coefficient files and does not hold.
 
 Capping the forward's slope undershoots the target by 39% with the 2000 file,
 so neither convention on its own reconciles the halves, which also differ in
-floating area, mask and quadrature. Recalibrating K through the forward's own
-cell by cell melt path, under whichever slope convention is chosen, reconciles
-them by construction.
+floating area, mask and quadrature. Recalibrating through the forward's own
+cell by cell melt path reconciles them by construction, which is how the
+tracked calibration was fitted (issue 26).
 
 An earlier form of this script lifted the forward's slope onto CG1 nodes and
 melted it with CG1 forcing and the raster mask, so its forward rows,
@@ -139,21 +151,27 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(_ROOT)))
 sys.path.insert(0, _ROOT)
 
 import numpy as np                                                    # noqa: E402
-import rasterio                                                       # noqa: E402
 import firedrake as fd                                                # noqa: E402
-from firedrake import (FunctionSpace, VectorFunctionSpace,            # noqa: E402
-                       assemble, dx)
+from firedrake import assemble, dx                                    # noqa: E402
 from firedrake.petsc import PETSc                                     # noqa: E402
 
 import calibrate_melt as cm                                           # noqa: E402
 from icepack2_tools.forcing import (quadratic_mixed_slope,            # noqa: E402
                                     compute_sin_alpha, is_floating,
-                                    melt_slope, sin_alpha_ant,
-                                    ISMIP7Ocean, OCX, OCX_OCEAN_VARIANTS,
-                                    describe_forcing_provenance)
-from icepack2_tools.geometry import sample_to_geometry                # noqa: E402
+                                    melt_receiving, melt_slope,
+                                    sin_alpha_ant, ISMIP7Ocean, OCX,
+                                    OCX_OCEAN_VARIANTS,
+                                    describe_forcing_provenance,
+                                    describe_melt_calibration,
+                                    imbie2_basin_path, load_K_per_basin,
+                                    load_deltaT_per_basin,
+                                    make_climatology_ocean_callback,
+                                    _basin_on_mesh, _RHO_I)
 from icepack2_tools.mpi_stats import global_size                      # noqa: E402
-from icepack2_tools.runconfig import raster_sample                    # noqa: E402
+from icepack2_tools.runconfig import (deltat_per_basin_npz,           # noqa: E402
+                                      k_per_basin_npz,
+                                      melt_calibration_contract,
+                                      raster_sample)
 # The same year and density the writer converts with, so the bound compared
 # here is the one the checker applies.
 from icepack2_tools.ismip7_output import RHO_I, SECONDS_PER_YEAR      # noqa: E402
@@ -204,13 +222,139 @@ def off_by_more_than(reference, other, tol, floor_gt):
     return flagged
 
 
+def load_calibration(npz_arg):
+    r"""The melt calibration to check and its kind, ``"deltaT"`` or ``"K"``.
+
+    ``--npz`` names a file of either kind, told apart by its keys; without it
+    this is the calibration a forward reads (runconfig.deltat_per_basin_npz:
+    the tracked file unless another is named, else a legacy per-basin K named
+    with ISMIP7_K_PER_BASIN_NPZ). A named file is put in the variable a
+    forward reads it from, so the forward's own callback melts with it."""
+    if npz_arg:
+        with np.load(npz_arg, allow_pickle=True) as data:
+            knob = ("ISMIP7_DELTAT_PER_BASIN_NPZ" if "deltaT_basin" in data.files
+                    else "ISMIP7_K_PER_BASIN_NPZ")
+        for name in ("ISMIP7_DELTAT_PER_BASIN_NPZ", "ISMIP7_K_PER_BASIN_NPZ"):
+            os.environ.pop(name, None)
+        os.environ[knob] = npz_arg
+    path = deltat_per_basin_npz()
+    if path is not None:
+        return path, "deltaT"
+    return k_per_basin_npz(), "K"
+
+
+def forward_half(mesh, npz_path, kind):
+    r"""The forward's melt at the reference geometry, cell by cell.
+
+    The geometry is ``calibrate_melt.forward_cells``, the cells the
+    calibrations fit on, built as ``simulation.setup_model`` builds a cold
+    start and a target mesh: bed and thickness sampled onto the DG0 cells
+    (``ISMIP7_RASTER_SAMPLE``), the surface from flotation. The melt is the
+    forward's own, ``forcing.make_climatology_ocean_callback`` on that
+    geometry, so it is the field a forward writes into ``ctx["ocean_melt"]``
+    with the OI climatology the calibrations are fitted against.
+
+    ``melt_ice_free`` is what the callback booked on ice-free cells that pass
+    the flotation test before it melted only cells holding ice: the same
+    callback run with a millimetre of ice on those cells, whose draft stays at
+    the surface. ``bed`` tells their open ocean from their bare land."""
+    c = cm.forward_cells(mesh)
+    Q, Q_g, V, x, y = c["Q"], c["Q_g"], c["V"], c["x"], c["y"]
+    b_dg, h_dg, s_dg = c["b"], c["h"], c["s"]
+    K_field = load_K_per_basin(npz_path, x, y, fill=0.0) if kind == "K" else None
+    # One callback, called twice: it keeps its climatology and offsets.
+    callback = make_climatology_ocean_callback(K_field)
+
+    def melt_on(h, s):
+        ctx = {"mesh": mesh, "Q": Q, "V": V, "Q_g": Q_g, "geom_xy": (x, y),
+               "h": h, "b": b_dg, "s": s, "ocean_melt": fd.Function(Q_g),
+               "raster_sample": raster_sample()}
+        callback(ctx, 0.0)
+        return ctx["ocean_melt"].dat.data_ro.copy()
+
+    PETSc.Sys.Print("  the forward's callback on the reference geometry:")
+    melt = melt_on(h_dg, s_dg)
+    b_np, h_np, s_np = b_dg.dat.data_ro, h_dg.dat.data_ro, s_dg.dat.data_ro
+    ice_free = is_floating(s_np, b_np) & ~(h_np > 0)
+    h_trace = fd.Function(Q_g).assign(h_dg)
+    h_trace.dat.data[ice_free] = 1e-3
+    s_trace = fd.Function(Q_g).interpolate(
+        fd.max_value(b_dg + h_trace, (1.0 - RHO_RATIO) * h_trace))
+    melt_ice_free = np.where(ice_free, melt_on(h_trace, s_trace), 0.0)
+
+    draft = np.minimum(s_np - h_np, 0.0)
+    if kind == "deltaT":
+        dT, K = load_deltaT_per_basin(npz_path, x, y, fill=0.0)
+        K = np.full(len(x), K)
+    else:
+        dT, K = np.zeros(len(x)), K_field
+    return {"x": x, "y": y, "draft": draft, "bed": b_np.copy(),
+            "sin_a": compute_sin_alpha({"Q": Q, "V": V, "Q_g": Q_g,
+                                        "h": h_dg, "s": s_dg}),
+            "floating": melt_receiving(s_np, b_np, h_np),
+            "area": assemble(fd.TestFunction(Q_g) * dx).dat.data_ro,
+            "tf": cm._grid_interp(cm.CLIM_TF, "tf", x, y, draft=draft),
+            "sal": cm._grid_interp(cm.CLIM_SO, "so", x, y, draft=draft),
+            "K": K, "dT": dT, "melt": melt,
+            "ice_free": ice_free, "melt_ice_free": melt_ice_free}
+
+
+def match_calibration(g, npz_path, tol):
+    r"""The forward's melt per IMBIE2 basin against the totals the offsets
+    were fitted to (the file's ``M_obs``), stamped through the basins the
+    forward stamps the offsets through. Prints the table and returns the
+    basins off by more than ``tol``, a fraction."""
+    with np.load(npz_path) as data:
+        bids = np.asarray(data["basin_ids"]).astype(int)
+        fitted = np.asarray(data["M_obs"]).astype(float)
+        recorded = str(data["imbie2_nc"]) if "imbie2_nc" in data else None
+    basin = _basin_on_mesh(g["x"], g["y"], imbie2_basin_path(recorded))
+    gt = g["melt"] * g["area"] * _RHO_I / 1e12
+    free = g["melt_ice_free"] * g["area"] * _RHO_I / 1e12
+    PETSc.Sys.Print(
+        f"\n=== the forward's melt against its calibration, per IMBIE2 basin "
+        f"(tolerance {100 * tol:g} percent) ===\n"
+        f"  basin   fitted Gt/yr   forward Gt/yr    ratio")
+    bad = []
+    for bid, want in zip(bids, fitted):
+        got = float(gt[basin == bid].sum())
+        ratio = got / want if want > 0 else float("inf")
+        off = not abs(ratio - 1.0) <= tol
+        if off:
+            bad.append(int(bid))
+        PETSc.Sys.Print(f"  {bid:5d}   {want:12.3f}   {got:13.3f}   {ratio:7.4f}"
+                        + ("   <-- OFF" if off else ""))
+    inside = np.isin(basin, bids)
+    PETSc.Sys.Print(
+        f"  total   {fitted.sum():12.3f}   {float(gt[inside].sum()):13.3f}\n"
+        f"  outside the fitted basins: {float(gt[~inside].sum()):.3f} Gt/yr\n"
+        f"  ice-free cells that pass the flotation test, which the forward "
+        f"melted before it melted only cells holding ice, none of it booked "
+        f"now:")
+    for name, where in (("open ocean (bed below sea level)", g["bed"] < 0.0),
+                        ("bare land (bed at or above sea level)", g["bed"] >= 0.0)):
+        cells = g["ice_free"] & where
+        part = np.where(cells, free, 0.0)
+        refreezing = float(-part[part < 0].sum())
+        PETSc.Sys.Print(
+            f"    {name}: {int(cells.sum())} cells, melt "
+            f"{float(part[part > 0].sum()):.1f} Gt/yr, refreezing "
+            f"{refreezing if refreezing > 0.0 else 0.0:.1f} Gt/yr")
+    return bad
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--npz", default=None,
-                    help="calibrated_K_per_basin_<lc>.npz (default: the one "
-                         "beside this run's lc)")
+                    help="a melt calibration, offsets (calibrate_deltaT.py, "
+                         "select_melt_parameters.py) or a legacy per-basin K "
+                         "(calibrate_melt.py); default: the one a forward reads")
+    ap.add_argument("--match-tol", type=float, default=1e-3,
+                    help="flag a basin whose forward melt is off the total its "
+                         "offsets were fitted to by more than this fraction "
+                         "(default %(default)s); exit 1 if any is")
     ap.add_argument("--ocx", nargs="?", const="main", default=None,
                     choices=OCX_OCEAN_VARIANTS,
                     help="also melt the forward half with this OCX ocean and "
@@ -231,130 +375,111 @@ def main():
     PETSc.Sys.Print(f"=== melt against the request bound {bound} kg m-2 s-1 "
                     f"({bound_m_yr:.1f} m/yr ice) ===")
 
-    npz_path = a.npz or os.path.join(
-        os.path.dirname(os.path.dirname(_ROOT)), "antarctica", "results",
-        f"calibrated_K_per_basin_{cm.LC}.npz")
-    d = np.load(npz_path, allow_pickle=True)
-    PETSc.Sys.Print(f"  K from {os.path.basename(npz_path)}"
-                    + (f", calibrated against {d['obs_csv']}"
-                       if "obs_csv" in d else ""))
-    if "obs_total_gtyr" in d:
+    npz_path, kind = load_calibration(a.npz)
+    d = np.load(npz_path, allow_pickle=(kind == "K"))
+    for line in describe_melt_calibration(npz_path if kind == "deltaT" else None,
+                                          npz_path if kind == "K" else None):
+        PETSc.Sys.Print(f"  {line}")
+    if "obs_csv" in d:
+        PETSc.Sys.Print(f"  calibrated against {d['obs_csv']}")
+    if kind == "deltaT" and "M_obs" in d:
+        target = (f" (the offsets were fitted to "
+                  f"{float(np.sum(d['M_obs'])):.1f})")
+    elif "obs_total_gtyr" in d:
         target = f" (K was fitted to {float(d['obs_total_gtyr']):.0f})"
     else:
         target = ""
-        PETSc.Sys.Print(f"  {os.path.basename(npz_path)} records no "
-                        f"obs_total_gtyr, so the rows print no target")
+        PETSc.Sys.Print(f"  {os.path.basename(npz_path)} records no observed "
+                        f"total, so the rows print no target")
 
     mesh = cm._load_mesh()
-    Q = FunctionSpace(mesh, "CG", 1)
-    Q_g = FunctionSpace(mesh, "DG", 0)
+    if mesh.comm.size > 1:
+        raise SystemExit("check_melt_bound.py is serial: its tables sum the "
+                         "dofs of one process")
     # num_vertices()/num_cells() count this rank's plex, halo included; the
     # coordinate dofs and the owned cell set are reduced to global totals.
     PETSc.Sys.Print(f"  Mesh: {global_size(mesh.coordinates)} vertices, "
                     f"{mesh.comm.allreduce(mesh.cell_set.size)} cells")
 
-    def k_at(xs, ys):
-        r"""The per-basin K the forward stamps onto the mesh. K_field in the
-        npz was built on the calibration mesh; rebuild it here from K_basin
-        so this runs against any mesh."""
-        basin = np.round(
-            cm._grid_interp(cm.IMBIE2_NC, "basinNumber", xs, ys)).astype(int)
-        K = np.zeros(len(xs))
-        for bid, kb in zip(d["basin_ids"], d["K_basin"]):
-            if np.isfinite(kb):
-                K[basin == int(bid)] = kb
-        return K
-
-    def half(xs, ys, draft, sin_a, floating, area):
-        r"""One half's melt inputs, all aligned with its own dofs."""
-        return {"x": xs, "y": ys, "draft": draft, "sin_a": sin_a,
-                "floating": floating, "area": area,
-                "tf": cm._grid_interp(cm.CLIM_TF, "tf", xs, ys, draft=draft),
-                "sal": cm._grid_interp(cm.CLIM_SO, "so", xs, ys, draft=draft),
-                "K": k_at(xs, ys)}
-
-    # The calibration half, as calibrate_melt builds it: BedMachine
-    # interpolated onto CG1 nodes with its raster surface and mask, and the
-    # slope under this run's convention.
-    c = cm.calibration_geometry(mesh)
-    calibration = half(c["x"], c["y"], c["draft"], c["sin_a"], c["floating"],
-                       c["area"])
-
-    # The forward half, as the forward melts cell by cell under DG0 geometry:
-    # bed and thickness sampled onto the cells, the surface from flotation as
-    # simulation.py builds it, forcing.compute_sin_alpha's DG0 slope, forcing
-    # at each cell centroid and its own draft, and the callback's haf <= 0
-    # floating test on cells holding ice.
-    bm = cm._bedmachine_path()
-    b_dg = sample_to_geometry(rasterio.open(f"netcdf:{bm}:bed"), Q_g, Q,
-                              method=raster_sample())
-    h_dg = sample_to_geometry(rasterio.open(f"netcdf:{bm}:thickness"), Q_g, Q,
-                              method=raster_sample())
-    s_dg = fd.Function(Q_g).interpolate(
-        fd.max_value(b_dg + h_dg, (1.0 - RHO_RATIO) * h_dg))
-    xy_dg = fd.Function(VectorFunctionSpace(mesh, "DG", 0)).interpolate(
-        fd.SpatialCoordinate(mesh)).dat.data_ro
-    b_np, h_np, s_np = b_dg.dat.data_ro, h_dg.dat.data_ro, s_dg.dat.data_ro
-    afloat = is_floating(s_np, b_np)
-    forward = half(
-        xy_dg[:, 0], xy_dg[:, 1], np.minimum(s_np - h_np, 0.0),
-        compute_sin_alpha({"Q": Q, "V": VectorFunctionSpace(mesh, "CG", 1),
-                           "Q_g": Q_g, "h": h_dg, "s": s_dg}),
-        afloat & (h_np > 0),
-        assemble(fd.TestFunction(Q_g) * dx).dat.data_ro)
-
+    # The forward half: the forward's own melt, cell by cell under DG0.
+    forward = forward_half(mesh, npz_path, kind)
     running = melt_slope()
-    fitted_slope = str(d["melt_slope"]) if "melt_slope" in d else "local"
-    if fitted_slope != running:
-        PETSc.Sys.Print(f"  WARNING: {os.path.basename(npz_path)} was calibrated "
-                        f"under ISMIP7_MELT_SLOPE={fitted_slope} and this check "
-                        f"melts under {running}, so no row is the slope K was "
-                        f"fitted against")
-    if running == "ant":
-        fitted_sin = (float(d["sin_alpha_ant"])
-                      if fitted_slope == "ant" and "sin_alpha_ant" in d
-                      else float("nan"))
-        calibration_sin = fitted_sin if np.isfinite(fitted_sin) else sin_alpha_ant()
-        if abs(calibration_sin / sin_alpha_ant() - 1.0) > 0.01:
-            PETSc.Sys.Print(f"  WARNING: {os.path.basename(npz_path)} was calibrated "
-                            f"with sin(alpha) = {calibration_sin:g} and this check "
-                            f"melts the forward half with {sin_alpha_ant():g}; the "
-                            f"calibration half keeps the file's constant")
-        fitted = ", the slope K was fitted against" if fitted_slope == "ant" else ""
-        cases = [
-            (f"calibration half, the constant {calibration_sin:g} on CG1 nodes"
-             f"{fitted}", calibration,
-             np.full_like(calibration["sin_a"], calibration_sin), "nodes"),
-            (f"forward half, the constant {sin_alpha_ant():g} on DG0 cells, as "
-             f"the forward runs today", forward, forward["sin_a"], "cells"),
-        ]
-    else:
-        cap = float(d["sin_alpha_cap"]) if "sin_alpha_cap" in d else float("nan")
-        if not (np.isfinite(cap) and cap > 0):
-            cap = cm.default_slope_cap("cg1")
-        fitted_on = str(d["geometry_space"]) if "geometry_space" in d else "cg1"
-        cases = [
-            (f"calibration half, local, capped at {cap:.0e} on CG1 nodes"
-             + (", the slope K was fitted against"
-                if fitted_slope == "local" and fitted_on == "cg1" else ""),
-             calibration,
-             np.minimum(calibration["sin_a"], cap), "nodes"),
-            ("calibration half, local, uncapped", calibration,
-             calibration["sin_a"], "nodes"),
-            ("forward half, local, uncapped, as the forward runs today", forward,
-             forward["sin_a"], "cells"),
-            # A cap inside forcing.compute_sin_alpha would act on this DG0 slope,
-            # so the capped forward row caps it here.
-            (f"forward half, local, capped at {cap:.0e} on DG0 cells", forward,
-             np.minimum(forward["sin_a"], cap), "cells"),
-        ]
+    as_run = (f"forward half, the constant {sin_alpha_ant():g} on DG0 cells, "
+              f"as the forward runs" if running == "ant" else
+              "forward half, local, uncapped, as the forward runs")
+    cases = [(as_run, forward, forward["sin_a"], "cells", forward["melt"])]
 
-    for label, g, sin_a, dofs in cases:
+    if kind == "K":
+        # A legacy per-basin K was fitted on CG1 nodes: the calibration half
+        # rebuilds that fit, BedMachine interpolated onto CG1 nodes with its
+        # raster surface and mask, and the slope under this run's convention.
+        def k_at(xs, ys):
+            r"""The per-basin K the forward stamps onto the mesh, rebuilt from
+            K_basin so this runs against any mesh."""
+            basin = np.round(
+                cm._grid_interp(cm.IMBIE2_NC, "basinNumber", xs, ys)).astype(int)
+            K = np.zeros(len(xs))
+            for bid, kb in zip(d["basin_ids"], d["K_basin"]):
+                if np.isfinite(kb):
+                    K[basin == int(bid)] = kb
+            return K
+
+        c = cm.calibration_geometry(mesh)
+        calibration = {"x": c["x"], "y": c["y"], "draft": c["draft"],
+                       "sin_a": c["sin_a"], "floating": c["floating"],
+                       "area": c["area"], "K": k_at(c["x"], c["y"]),
+                       "tf": cm._grid_interp(cm.CLIM_TF, "tf", c["x"], c["y"],
+                                             draft=c["draft"]),
+                       "sal": cm._grid_interp(cm.CLIM_SO, "so", c["x"], c["y"],
+                                              draft=c["draft"])}
+        fitted_slope = str(d["melt_slope"]) if "melt_slope" in d else "local"
+        if fitted_slope != running:
+            PETSc.Sys.Print(f"  WARNING: {os.path.basename(npz_path)} was calibrated "
+                            f"under ISMIP7_MELT_SLOPE={fitted_slope} and this check "
+                            f"melts under {running}, so no row is the slope K was "
+                            f"fitted against")
+        if running == "ant":
+            fitted_sin = (float(d["sin_alpha_ant"])
+                          if fitted_slope == "ant" and "sin_alpha_ant" in d
+                          else float("nan"))
+            calibration_sin = fitted_sin if np.isfinite(fitted_sin) else sin_alpha_ant()
+            if abs(calibration_sin / sin_alpha_ant() - 1.0) > 0.01:
+                PETSc.Sys.Print(f"  WARNING: {os.path.basename(npz_path)} was "
+                                f"calibrated with sin(alpha) = {calibration_sin:g} "
+                                f"and this check melts the forward half with "
+                                f"{sin_alpha_ant():g}; the calibration half keeps "
+                                f"the file's constant")
+            fitted = ", the slope K was fitted against" if fitted_slope == "ant" else ""
+            cases.insert(0, (f"calibration half, the constant {calibration_sin:g} "
+                             f"on CG1 nodes{fitted}", calibration,
+                             np.full_like(calibration["sin_a"], calibration_sin),
+                             "nodes", None))
+        else:
+            cap = float(d["sin_alpha_cap"]) if "sin_alpha_cap" in d else float("nan")
+            if not (np.isfinite(cap) and cap > 0):
+                cap = cm.default_slope_cap("cg1")
+            fitted_on = str(d["geometry_space"]) if "geometry_space" in d else "cg1"
+            cases[:0] = [
+                (f"calibration half, local, capped at {cap:.0e} on CG1 nodes"
+                 + (", the slope K was fitted against"
+                    if fitted_slope == "local" and fitted_on == "cg1" else ""),
+                 calibration, np.minimum(calibration["sin_a"], cap), "nodes", None),
+                ("calibration half, local, uncapped", calibration,
+                 calibration["sin_a"], "nodes", None),
+            ]
+            # A cap inside forcing.compute_sin_alpha would act on this DG0
+            # slope, so the capped forward row caps it here.
+            cases.append((f"forward half, local, capped at {cap:.0e} on DG0 cells",
+                          forward, np.minimum(forward["sin_a"], cap), "cells", None))
+
+    for label, g, sin_a, dofs, melt in cases:
         floating, area = g["floating"], g["area"]
         afl = float(area[floating].sum())
-        melt = np.where(floating,
-                        quadratic_mixed_slope(g["tf"], g["sal"], sin_a, K=g["K"]),
-                        0.0)
+        if melt is None:
+            melt = np.where(floating,
+                            quadratic_mixed_slope(g["tf"] + g.get("dT", 0.0),
+                                                  g["sal"], sin_a, K=g["K"]),
+                            0.0)
         over = floating & (melt > bound_m_yr)
         a_over = float(area[over].sum())
         PETSc.Sys.Print(
@@ -389,9 +514,30 @@ def main():
             f"{np.median(area[over]) / 1e6:.2f} km^2, against "
             f"{ISMIP7_DX ** 2 / 1e6:.0f} km^2 for an 8 km pixel")
 
-    if a.ocx is None:
-        return 0
-    return compare_with_ocx(a, forward)
+    status = 0
+    if kind == "deltaT" and "M_obs" in d:
+        bad = match_calibration(forward, npz_path, a.match_tol)
+        if bad:
+            status = 1
+            contract = melt_calibration_contract(npz_path) or {}
+            fitted_on = contract.get("mesh", "the mesh the offsets were fitted on")
+            if contract.get("mesh_build"):
+                fitted_on += f" ({contract['mesh_build']})"
+            want = contract.get("vertices")
+            have = global_size(mesh.coordinates)
+            build = (f" This mesh has {have} vertices and the offsets were "
+                     f"fitted on {int(want)}, so it is another mesh or another "
+                     f"build of it." if want and int(want) != have else "")
+            PETSc.Sys.Print(
+                f"\n  The forward's melt on this mesh is off the totals its "
+                f"offsets were fitted to in basins {bad}.{build} On {fitted_on} "
+                f"that means the forward does not apply the melt its "
+                f"calibration was fitted to. On another mesh or build it "
+                f"measures how far the offsets carry over, and refitting them "
+                f"there (calibrate_deltaT.py --K {float(d['K']):.3e}) removes it.")
+    if a.ocx is not None:
+        status = max(status, compare_with_ocx(a, forward))
+    return status
 
 
 def compare_with_ocx(a, g):
@@ -404,7 +550,8 @@ def compare_with_ocx(a, g):
     block, centres = block_ids(g["x"], g["y"])
 
     def melt_with(tf, sal):
-        return np.where(floating, quadratic_mixed_slope(tf, sal, sin_a, K=g["K"]), 0.0)
+        return np.where(floating, quadratic_mixed_slope(tf + g.get("dT", 0.0), sal,
+                                                        sin_a, K=g["K"]), 0.0)
 
     reference = melt_with(g["tf"], g["sal"])
     PETSc.Sys.Print(
