@@ -7,7 +7,9 @@ of a flux is the mesh sum, since every flux is a whole-pixel mean. A tree
 written before the whole-pixel means (``whole_pixel=False``) holds acabf as a
 mean over the covered part of a pixel and libmassbffl over the floating part.
 On top of that the model books a known amount of melt where the grid holds no
-floating ice and keeps a known mass in cells thinner than lithk shows. The
+floating ice and keeps a known mass in cells thinner than lithk shows, and
+books front melt as lifmassbf in a pixel with no floating ice (issue #109),
+where no fill touches it. The
 tool's output comes from a transcription of its own expressions
 (ismip7_scalars 0.1.0, scalars.py and slc/), including A2020's step by step
 accumulation, and from the tool itself where it is installed.
@@ -36,6 +38,7 @@ TAG = "AIS_RICE_icepack2_m001_CESM2-WACCM_f001_ssp585_C007_2015-2017"
 FILL = netCDF4.default_fillvals["f4"]
 EXTRA_MELT = -2.5e5      # kg/s the model books off ice floating at year end
 THIN = 3.0e9             # m3 of ice in cells of 1 m or less
+FRONT_MELT = -4.0e-6     # kg m-2 s-1 of lifmassbf in a grounded pixel's empty cells
 FL_VARS = ("acabf", "libmassbfgr", "libmassbffl", "licalvf", "lifmassbf", "ligroundf", "dlithkdt")
 # the stand-in for af2_AIS_08000m_v1.nc
 AF2 = (1.02 + 0.01 * np.arange(NX)[None, :] + 0.002 * np.arange(NY)[:, None]).astype("f4")
@@ -103,10 +106,12 @@ def write_params(path, rhow=1024.0):
             ds.createVariable(k, "f8")[()] = v
 
 
-def model_fields(moving_bed=False):
+def model_fields(moving_bed=False, front_melt=True):
     r"""Three years of a small ice sheet: a grounded interior, a shelf with
     one half-floating pixel, one half-covered pixel at the domain edge, and a
-    column outside the domain (topg filled there)."""
+    column outside the domain (topg filled there). ``front_melt`` books
+    lifmassbf in one pixel with no floating ice, as the forward has since
+    issue #109; without it lifmassbf is zero, the booking before."""
     rng = np.random.default_rng(7)
     topg = np.full((NY, NX), 200.0)
     topg[:, 3:] = -600.0
@@ -134,7 +139,10 @@ def model_fields(moving_bed=False):
         f["libmassbffl"].append(np.where(sftflf > 0, -2e-5 * (1 + rng.random((NY, NX))), np.nan))
         f["libmassbfgr"].append(np.where(grounded, 0.0, np.nan))
         f["licalvf"].append(np.where(sftflf > 0, -1e-6 * rng.random((NY, NX)), 0.0))
-        f["lifmassbf"].append(np.zeros((NY, NX)))
+        lif = np.zeros((NY, NX))
+        if front_melt:
+            lif[3, 3] = FRONT_MELT * (1 + k)             # grounded pixel, sftflf 0
+        f["lifmassbf"].append(lif)
         lg = np.zeros((NY, NX)); lg[:, 4] = 3e-6; lg[0, 3] = -1e-6
         f["ligroundf"].append(lg)
         prev = f["lithk"][k - 1] if k else h
@@ -160,7 +168,7 @@ def native_scalars(f, cov, weight=1.0):
         out["tendlibmassbfgr"].append(0.0)
         out["tendlibmassbffl"].append(np.sum(z["libmassbffl"] * f["sftflf"][k] * w) * A + EXTRA_MELT)
         out["tendlicalvf"].append(np.sum(z["licalvf"] * w) * A)
-        out["tendlifmassbf"].append(0.0)
+        out["tendlifmassbf"].append(np.sum(z["lifmassbf"] * w) * A)
         out["tendligroundf"].append(np.sum(z["ligroundf"] * w) * A)
     return out
 
@@ -252,21 +260,26 @@ def tool_scalars(sub, datapath, params, refyear=2016):
 
 def build(tmp_path, *, rhow=1024.0, flip=False, moving_bed=False, shift_tool=False,
           perturb_sftgrf=False, csv_off=False, ground_near=False, whole_pixel=True,
-          native_af2=False, stamp=True, native_scale=1.0):
+          native_af2=False, stamp=True, native_scale=1.0, front_melt=True,
+          perturb_front=False):
     r"""A submission, its grids, params.nc, the tool's output and the
     writer's overlap cache; returns the argument list for compare_scalars.
     ``whole_pixel=False`` writes the tree the way the writer did before its
     flux means were whole-pixel means. ``native_af2`` gives the model's
     scalars the area factor, ``stamp=False`` leaves the writer's stamp of
-    their area off, and ``native_scale`` puts them that factor off."""
+    their area off, and ``native_scale`` puts them that factor off.
+    ``front_melt=False`` writes lifmassbf as zero, and ``perturb_front`` puts
+    the model's tendlifmassbf one percent off the grid's in one year."""
     sub = tmp_path / "tree" / "AIS" / "RICE" / "icepack2" / "CORE" / "C007"
     tool = tmp_path / "out" / "tool" / "nc" / "AIS" / "RICE" / "icepack2" / "CORE" / "C007"
     data = tmp_path / "grids"
     for d in (sub, tool, data):
         d.mkdir(parents=True)
-    f, cov = model_fields(moving_bed=moving_bed)
+    f, cov = model_fields(moving_bed=moving_bed, front_melt=front_melt)
     N = native_scalars(f, cov, weight=AF2 if native_af2 else 1.0)
     N = {s: [v * native_scale for v in vals] for s, vals in N.items()}
+    if perturb_front:
+        N["tendlifmassbf"][1] *= 1.01
     grid = {v: f[v].copy() for v in ("lithk", "topg", "sftgrf", "sftflf") + FL_VARS}
     if whole_pixel:
         # the same fluxes as whole-pixel means: fill stays fill (NaN * 0)
@@ -538,3 +551,30 @@ def test_the_tool_itself_agrees_with_the_replay(tmp_path):
     assert rc == 0
     args[args.index("--tool") + 1] = str(out / "nc" / "AIS" / "RICE" / "icepack2" / "CORE" / "C007")
     assert cs.main(args) == 0, (tmp_path / "cmp.md").read_text()
+
+
+def test_front_melt_in_a_pixel_with_no_floating_ice_sums_to_the_model(tmp_path):
+    r"""lifmassbf is a whole-pixel mean under ``forbidden`` (issue #109), so
+    its grid sum is the model's tendlifmassbf wherever the melt sits, and the
+    forbidden-policy gate holds it there; a tree from before, with lifmassbf
+    zero, passes the same gate."""
+    args, _, _ = build(tmp_path)
+    assert cs.main(args) == 0, (tmp_path / "cmp.md").read_text()
+    rows = rows_of(tmp_path)
+    for yr in YEARS:
+        r = rows[("tendlifmassbf", yr)]
+        assert r["N"] < 0.0
+        assert abs(r["d_resid"]) <= 1e-6 * abs(r["N"])
+    assert "tendlifmassbf: the front melt booked" in (tmp_path / "cmp.md").read_text()
+
+    old = tmp_path / "old"
+    old.mkdir()
+    args, _, _ = build(old, front_melt=False)
+    assert cs.main(args) == 0, (old / "cmp.md").read_text()
+    assert "tendlifmassbf: zero in every year" in (old / "cmp.md").read_text()
+
+
+def test_a_model_front_melt_off_the_grid_fails(tmp_path):
+    args, _, _ = build(tmp_path, perturb_front=True)
+    assert cs.main(args) == 1
+    assert "| FAIL |" in gate_line(tmp_path, "forbidden-policy sums against N")

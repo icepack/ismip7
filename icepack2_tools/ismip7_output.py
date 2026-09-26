@@ -62,8 +62,17 @@ Conventions (from the request and discussions #16, #19, #22):
 * ``libmassbffl`` is the ocean melt the transport applied on floating cells
   (negative = loss), less than the parameterization's melt wherever the
   limiter holds a cell at the floor;
-  ``libmassbfgr`` is zero (no grounded basal melt in the model);
-  ``lifmassbf`` is zero (no frontal melt distinct from the basal melt).
+  ``libmassbfgr`` is zero (no grounded basal melt in the model).
+* ``lifmassbf`` is the melt of ice that flowed into a marine cell holding no
+  ice at either end of the year (issue #109, option 3 of the 25 September
+  2026 meeting): grounded ice that goes afloat into an emptied shelf cell and
+  melts there. The request's ``no_floating_ice`` fill would blank that melt
+  from ``libmassbffl``; ``lifmassbf`` is never filled. ``year_end`` moves the
+  inflow's share of such a cell's melt out of ``libmassbffl``
+  (``split_front_melt``), and the share the frozen apparent-MB reference and
+  the SMB supplied stays behind, so the two fields sum to the melt the
+  transport applied. Each year file is stamped ``FRONT_MELT_ATTR``; the
+  writer refuses a series that mixes this booking with the earlier one.
 * ``licalvf`` is the ice removed at the front, negative = loss, booked in the
   cell it was removed from (whole-cell removal, sub-cell shed, retreat
   slivers), the same tallies as the ``calv`` budget column.
@@ -114,6 +123,53 @@ GRID_DERIVED = ("base",)
 #: what year_end writes, and what the writer reads back per year
 VARIABLES_BANKED = tuple(v for v in VARIABLES_2D if v not in GRID_DERIVED)
 
+#: the attribute on every year file naming how its melt is booked, and the
+#: value this module writes; a year file without it comes from a forward that
+#: wrote ``lifmassbf`` as zero and kept all the melt in ``libmassbffl``
+FRONT_MELT_ATTR = "front_melt"
+FRONT_MELT = "inflow_share_of_empty_marine_cells"
+
+
+def split_front_melt(libmassbffl, acabf, corr, dh, empty):
+    r"""A year's booked melt split into ``(libmassbffl, lifmassbf)`` (issue #109).
+
+    Every array is per cell: ``libmassbffl``, ``acabf`` and ``corr`` (the
+    apparent-MB reference) are the year's sums of what the transport applied,
+    ``dh`` is the change in thickness over the same span, all in metres of
+    ice, and ``empty`` marks the cells that take part, marine cells holding
+    no ice at either end of the year.
+
+    The thickness budget closes on the booked sources, so the inflow a cell
+    kept, net of what flowed on and of what the front removed as
+    ``licalvf``, is the remainder ``I = dh - acabf - corr - libmassbffl``.
+    The limiter nets the inflow, the SMB and the reference into one source,
+    which leaves nothing to tell their ice apart, so the melt ``M`` is shared
+    among what they supplied in proportion, the split ``leftout_melt.py``
+    (issue #105) measured with, and ``lifmassbf`` is the inflow's share:
+
+        lifmassbf = -M I+ / (I+ + acabf+ + corr+),    M = max(-libmassbffl, 0)
+
+    and zero where nothing was supplied or outside ``empty``. Refreezing, a
+    positive ``libmassbffl``, never moves. ``lifmassbf`` is the negated
+    product of non-negative factors, so it never exceeds zero, the bound the
+    request's range puts on it, and the two fields sum to ``libmassbffl``.
+    The inflow that the front removes in the advance it arrives in never
+    reaches the melt, and ``I`` leaves it out.
+
+    The closure is exact under DG0 geometry, where every other change of a
+    cell's thickness is booked and ``ISMIP7_H_CLAMP`` is 0; what escapes is
+    round-off and the melt of a cell that grounds inside a subcycled step.
+    Under CG1 geometry the forcing masks the melt per node while the booking
+    counts it per cell, so melt goes unbooked near the grounding line and
+    ``I`` comes out short there.
+    """
+    melt = np.maximum(-libmassbffl, 0.0)
+    kept = np.maximum(dh - acabf - corr - libmassbffl, 0.0)
+    supply = kept + np.maximum(acabf, 0.0) + np.maximum(corr, 0.0)
+    share = np.divide(kept, supply, out=np.zeros_like(supply), where=supply > 0.0)
+    lifmassbf = np.where(empty, -(melt * share), 0.0)
+    return libmassbffl - lifmassbf, lifmassbf
+
 
 class AnnualOutput:
     r"""Accumulates a year of a forward run and writes it at the year end.
@@ -153,6 +209,10 @@ class AnnualOutput:
     #: the per-cell year sums carried across a chained resume
     ACCUMULATORS = ("acabf", "acabf_correction", "libmassbffl", "licalvf",
                     "ligroundf")
+    #: a cell holds ice when it is thicker than this (m): the forward's
+    #: ``ice_cells`` for ``year_end``, and the same test on the thickness
+    #: the year began with, which ``split_front_melt`` needs
+    ICE_THICKNESS = 1.0
     #: dataset names of the in-progress year inside the run's checkpoint
     STATE_PREFIX = "ismip7_acc_"
     STATE_THICKNESS = "ismip7_year_start_thickness"
@@ -478,18 +538,28 @@ class AnnualOutput:
             fields[name] = ux
         for name in ("yvelmean", "yvelsurf", "yvelbase"):
             fields[name] = uy
-        for name in ("acabf", "acabf_correction", "libmassbffl", "licalvf", "ligroundf"):
+        for name in ("acabf", "acabf_correction", "licalvf", "ligroundf"):
             fields[name] = dg(self.year_acc[name] / T)                            # m/yr ice
         fields["libmassbfgr"] = dg(np.zeros_like(self.cell_area))
-        fields["lifmassbf"] = dg(np.zeros_like(self.cell_area))
         h0 = self.h_year_start if self.h_year_start is not None else h_dg.dat.data_ro
-        fields["dlithkdt"] = dg((h_dg.dat.data_ro - h0) / T)                        # m/yr
+        dh = h_dg.dat.data_ro - h0
+        fields["dlithkdt"] = dg(dh / T)                                              # m/yr
+        # front melt (issue #109): the inflow's share of the melt in marine
+        # cells holding no ice at either end of the year
+        empty = ((h0 <= self.ICE_THICKNESS) & ~ice_cells
+                 & (fields["topg"].dat.data_ro < 0.0))
+        melt, front = split_front_melt(
+            self.year_acc["libmassbffl"], self.year_acc["acabf"],
+            self.year_acc["acabf_correction"], dh, empty)
+        fields["libmassbffl"] = dg(melt / T)
+        fields["lifmassbf"] = dg(front / T)
         final_path = self.year_path(self.out_path, yr)
         tmp = final_path + ".tmp"
         with fd.CheckpointFile(tmp, "w") as chk:
             chk.save_mesh(self.mesh)
             for name, f in fields.items():
                 chk.save_function(f, name=name)
+            chk.set_attr("/", FRONT_MELT_ATTR, FRONT_MELT)                       # every rank
         self.comm.barrier()
         if self.comm.rank == 0:
             os.replace(tmp, final_path)
@@ -516,14 +586,20 @@ class AnnualOutput:
             "tendlibmassbfgr": 0.0,
             "tendlibmassbffl": integ(fields["libmassbffl"].dat.data_ro) * RHO_I / SECONDS_PER_YEAR,
             "tendlicalvf": integ(fields["licalvf"].dat.data_ro) * RHO_I / SECONDS_PER_YEAR,
-            "tendlifmassbf": 0.0,
+            "tendlifmassbf": integ(fields["lifmassbf"].dat.data_ro) * RHO_I / SECONDS_PER_YEAR,
             "tendligroundf": integ(fields["ligroundf"].dat.data_ro) * RHO_I / SECONDS_PER_YEAR,
         }
+        # the melt that stays in libmassbffl on those cells: the share the
+        # reference and the SMB supplied, which the fill drops wherever the
+        # pixel holds no floating ice
+        kept_gt = integ(fields["libmassbffl"].dat.data_ro * empty) * RHO_I / 1e12
         if self._csv is not None:
             self._csv.write(f"{yr}," + ",".join(f"{row[k]:.6e}" for k in SCALARS) + "\n"); self._csv.flush()
         self.log(f"  ISMIP7 output: year {yr} written ({len(fields)} fields; over true "
                  f"area, GL flux {row['tendligroundf'] * SECONDS_PER_YEAR / 1e12:+.0f} Gt/yr, "
-                 f"calving {row['tendlicalvf'] * SECONDS_PER_YEAR / 1e12:+.0f} Gt/yr)")
+                 f"calving {row['tendlicalvf'] * SECONDS_PER_YEAR / 1e12:+.0f} Gt/yr, "
+                 f"front melt {row['tendlifmassbf'] * SECONDS_PER_YEAR / 1e12:+.0f} Gt/yr with "
+                 f"{kept_gt:+.0f} Gt/yr more melt left in libmassbffl on the same cells)")
         self.year = yr + 1
         self.start_year(h_dg)
 

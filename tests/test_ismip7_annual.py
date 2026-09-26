@@ -17,7 +17,8 @@ import pytest
 
 fd = pytest.importorskip("firedrake")
 
-from icepack2_tools.ismip7_output import AnnualOutput, RHO_I  # noqa: E402
+from icepack2_tools.ismip7_output import (AnnualOutput, FRONT_MELT, FRONT_MELT_ATTR,  # noqa: E402
+                                          RHO_I, SECONDS_PER_YEAR, split_front_melt)
 
 RHO_RATIO = 917.0 / 1024.0
 # The scalars integrate over true area (issue #97). The unit meshes below sit
@@ -746,3 +747,207 @@ def test_a_withheld_sink_splits_in_proportion_and_closes(two_cells, tmp_path):
     applied = acc["acabf"] + acc["libmassbffl"] + acc["acabf_correction"]
     requested = np.array(smb) - np.array(melt) + np.array(ref)
     assert np.allclose(applied, requested + np.array(held))
+
+
+# Front melt (issue #109, option 3 of the 25 September 2026 meeting). The melt
+# of ice that flows into a marine cell holding no ice at either end of the
+# year is written as lifmassbf, the inflow's share of what the cell was
+# supplied; the share the reference and the SMB supplied stays in
+# libmassbffl, and the two sum to the melt the transport applied.
+
+def _front_year(tmp_path, cases, year_time=1.0):
+    r"""One year of a strip of unit cells, one per case, with the year's sums
+    set as the transport books them, then ``year_end`` with the forward's own
+    masks. A case gives the start and end thickness ``h0`` and ``h1`` (m),
+    the bed (m, marine by default) and the year's sums in metres of ice:
+    ``melt`` (booked ``libmassbffl``), ``smb``, ``ref`` (the apparent-MB
+    reference) and ``calv`` (``licalvf``). Returns the year file's
+    ``libmassbffl`` and ``lifmassbf`` in case order (m/yr), its scalars row
+    and its front-melt stamp."""
+    import csv
+    n = len(cases)
+    mesh, Q, V, order = _strip(n)
+    out = str(tmp_path / "out" / "annual.h5")
+    annual = AnnualOutput(mesh, Q, out, str(tmp_path / "out" / "scalars.csv"),
+                          first_year=2015, rho_ratio=RHO_RATIO)
+
+    def column(key, default=0.0):
+        v = np.zeros(n)
+        v[order] = [c.get(key, default) for c in cases]
+        return v
+
+    annual.start_year(_dg(Q, column("h0")))
+    annual.begin_step()
+    for acc, key in (("libmassbffl", "melt"), ("acabf", "smb"),
+                     ("acabf_correction", "ref"), ("licalvf", "calv")):
+        annual.step_acc[acc][:] = column(key)
+    annual.step_time = year_time
+    annual.commit_step()
+    h1 = _dg(Q, column("h1"))
+    annual.year_end(h1, h1, _dg(Q, column("bed", -500.0)), fd.Function(V), fd.Function(V),
+                    np.zeros(n, dtype=bool), h1.dat.data_ro > AnnualOutput.ICE_THICKNESS)
+    annual.close()
+    with fd.CheckpointFile(AnnualOutput.year_path(out, 2015), "r") as chk:
+        m = chk.load_mesh()
+        got = {k: chk.load_function(m, name=k) for k in ("libmassbffl", "lifmassbf")}
+        stamp = str(chk.get_attr("/", FRONT_MELT_ATTR)) if chk.has_attr("/", FRONT_MELT_ATTR) else None
+    x = fd.Function(got["lifmassbf"].function_space()).interpolate(fd.SpatialCoordinate(m)[0])
+    left_to_right = np.argsort(x.dat.data_ro)
+    with open(tmp_path / "out" / "scalars.csv") as f:
+        row = next(iter(csv.DictReader(f)))
+    return (got["libmassbffl"].dat.data_ro[left_to_right].copy(),
+            got["lifmassbf"].dat.data_ro[left_to_right].copy(), row, stamp)
+
+
+# The cases, year sums in metres of ice. The inflow a cell kept is the
+# remainder of its thickness budget, h1 - h0 - smb - ref - melt.
+INFLOW = dict(h0=0.0, h1=0.5, melt=-40.0, smb=-5.0)          # kept 45.5, all of the supply
+MIXED = dict(h0=0.0, h1=0.0, melt=-40.0, ref=30.0)            # kept 10 of a supply of 40
+UNTOUCHED = {
+    "calved inflow": dict(h0=0.0, h1=0.0, smb=2.0, melt=-2.0, calv=-7.0),   # kept 0
+    "smb only": dict(h0=0.0, h1=0.0, smb=3.0, melt=-3.0),
+    "own residue": dict(h0=0.8, h1=0.0, melt=-0.8),
+    "shelf gone": dict(h0=100.0, h1=0.0, melt=-100.0),
+    "ice at year end": dict(h0=0.0, h1=5.0, melt=-20.0),
+    "dry bed": dict(h0=0.0, h1=0.0, melt=-10.0, bed=50.0),
+    "refreezing": dict(h0=0.0, h1=0.3, melt=0.3),
+}
+
+
+def test_the_melt_of_inflow_into_an_empty_cell_is_front_melt(tmp_path):
+    r"""Grounded ice that goes afloat into an emptied shelf cell and melts
+    there: all of the melt is front melt, and the year's scalar carries it
+    with its sign."""
+    lib, lif, row, stamp = _front_year(tmp_path, [INFLOW])
+    assert lif == pytest.approx([-40.0]) and lib == pytest.approx([0.0], abs=1e-12)
+    assert float(row["tendlifmassbf"]) == pytest.approx(
+        -40.0 * AF2_POLE * RHO_I / SECONDS_PER_YEAR, rel=1e-6)      # unit cells; 7 digits
+    assert float(row["tendlibmassbffl"]) == pytest.approx(0.0, abs=1e-12)
+    assert stamp == FRONT_MELT
+
+
+def test_the_reference_s_share_of_an_empty_cell_s_melt_stays_basal(tmp_path):
+    r"""An emptied shelf cell under a pinned front keeps receiving the frozen
+    reference (issue #105). The melt is shared in proportion to what the
+    inflow and the reference supplied, and the reference's share stays in
+    libmassbffl."""
+    lib, lif, _, _ = _front_year(tmp_path, [MIXED])
+    assert lif == pytest.approx([-10.0]) and lib == pytest.approx([-30.0])
+
+
+@pytest.mark.parametrize("case", sorted(UNTOUCHED))
+def test_melt_that_no_kept_inflow_fed_stays_basal(tmp_path, case):
+    r"""Calved inflow, SMB-fed melt, a cell's own residue, a cell that held
+    ice at either end, a dry bed and refreezing all keep their booking."""
+    c = UNTOUCHED[case]
+    lib, lif, _, _ = _front_year(tmp_path, [c])
+    assert lif[0] == 0.0
+    assert lib[0] == pytest.approx(c["melt"])
+
+
+def test_a_cell_at_the_ice_threshold_at_both_ends_holds_no_ice(tmp_path):
+    r"""The forward's ice mask is h > 1 m, so a cell of exactly 1 m at both
+    ends of the year counts as empty."""
+    lib, lif, _, _ = _front_year(tmp_path, [dict(h0=1.0, h1=1.0, melt=-30.0)])
+    assert lif == pytest.approx([-30.0]) and lib == pytest.approx([0.0], abs=1e-12)
+
+
+def test_the_split_uses_the_change_in_thickness_and_the_year_s_length(tmp_path):
+    r"""A cell whose residue grew over the year, and a year of half length
+    whose sums become means over it; the other cells ride along to check
+    that each case keeps its own cell."""
+    cases = [dict(h0=0.2, h1=0.9, melt=-20.0, smb=-1.0, ref=7.0), INFLOW, MIXED]
+    lib, lif, _, _ = _front_year(tmp_path, cases, year_time=0.5)
+    kept = 0.9 - 0.2 + 1.0 - 7.0 + 20.0                      # 14.7 of a supply of 21.7
+    assert lif == pytest.approx([-20.0 * kept / (kept + 7.0) / 0.5, -80.0, -20.0])
+    assert lib + lif == pytest.approx([-40.0, -80.0, -80.0])
+
+
+def test_front_melt_and_basal_melt_sum_to_the_melt_applied(tmp_path):
+    cases = [INFLOW, MIXED] + [UNTOUCHED[k] for k in sorted(UNTOUCHED)]
+    lib, lif, row, _ = _front_year(tmp_path, cases)
+    assert lib + lif == pytest.approx([c["melt"] for c in cases])
+    assert np.all(lif <= 0.0)
+    total = float(row["tendlibmassbffl"]) + float(row["tendlifmassbf"])
+    assert total == pytest.approx(sum(c["melt"] for c in cases) * AF2_POLE * RHO_I
+                                  / SECONDS_PER_YEAR, rel=2e-6)
+
+
+def test_a_midyear_resume_splits_the_year_as_one_link_would(tmp_path):
+    r"""The split reads the thickness the year began with, which the run's
+    checkpoint carries, so a chained link that picks the year up at 0.4
+    books the same front melt as one that runs it whole."""
+    mesh, Q, V, order = _strip(2)
+    first_h = np.zeros(2)
+    sums = {"libmassbffl": [-40.0, -40.0], "acabf": [-5.0, 0.0],
+            "acabf_correction": [0.0, 30.0]}
+    h1 = np.zeros(2); h1[order[0]] = 0.5
+
+    def book(annual, share, time):
+        annual.begin_step()
+        for k, v in sums.items():
+            annual.step_acc[k][order] = np.asarray(v) * share
+        annual.step_time = time
+        annual.commit_step()
+
+    whole = AnnualOutput(mesh, Q, str(tmp_path / "whole" / "annual.h5"),
+                         str(tmp_path / "whole" / "scalars.csv"),
+                         first_year=2015, rho_ratio=RHO_RATIO)
+    whole.start_year(_dg(Q, first_h))
+    book(whole, 1.0, 1.0)
+    bed = _dg(Q, [-500.0, -500.0])
+    whole.year_end(_dg(Q, h1), _dg(Q, h1), bed, fd.Function(V), fd.Function(V),
+                   np.zeros(2, dtype=bool), h1 > AnnualOutput.ICE_THICKNESS)
+    whole.close()
+
+    out = str(tmp_path / "linked" / "annual.h5")
+    scalars = str(tmp_path / "linked" / "scalars.csv")
+    first = AnnualOutput(mesh, Q, out, scalars, first_year=2015, rho_ratio=RHO_RATIO)
+    first.start_year(_dg(Q, first_h))
+    book(first, 0.4, 0.4)
+    resume = _round_trip_state(first, mesh, str(tmp_path / "state.h5"))
+    first.close()
+    second = AnnualOutput(mesh, Q, out, scalars, first_year=2015.4,
+                          rho_ratio=RHO_RATIO, resume=resume)
+    book(second, 0.6, 0.6)
+    second.year_end(_dg(Q, h1), _dg(Q, h1), bed, fd.Function(V), fd.Function(V),
+                    np.zeros(2, dtype=bool), h1 > AnnualOutput.ICE_THICKNESS)
+    second.close()
+
+    got = {}
+    for tag, path in (("whole", str(tmp_path / "whole" / "annual.h5")), ("linked", out)):
+        with fd.CheckpointFile(AnnualOutput.year_path(path, 2015), "r") as chk:
+            m = chk.load_mesh()
+            got[tag] = {k: chk.load_function(m, name=k).dat.data_ro.copy()
+                        for k in ("libmassbffl", "lifmassbf")}
+    for k in ("libmassbffl", "lifmassbf"):
+        assert got["linked"][k] == pytest.approx(got["whole"][k])
+    assert got["whole"]["lifmassbf"][order] == pytest.approx([-40.0, -40.0 * 10.0 / 40.0])
+
+
+def test_split_front_melt_never_books_a_gain_and_keeps_the_total():
+    r"""On random cells: every value finite, lifmassbf never above zero,
+    zero outside the empty cells and wherever the year refroze, never more
+    than the melt, and the two fields summing to the melt booked."""
+    rng = np.random.default_rng(109)
+    n = 20000
+    melt = rng.normal(0.0, 30.0, n)
+    melt[rng.random(n) < 0.1] = 0.0
+    smb, ref = rng.normal(0.0, 5.0, n), rng.normal(0.0, 20.0, n)
+    ref[rng.random(n) < 0.3] = 0.0
+    dh = rng.uniform(-1.0, 1.0, n)
+    empty = rng.random(n) < 0.7
+    lib, lif = split_front_melt(melt, smb, ref, dh, empty)
+    assert np.isfinite(lib).all() and np.isfinite(lif).all()
+    assert (lif <= 0.0).all()
+    assert (lif[~empty] == 0.0).all() and (lif[melt >= 0.0] == 0.0).all()
+    assert (-lif <= np.maximum(-melt, 0.0)).all()
+    assert np.allclose(lib + lif, melt, rtol=0.0, atol=1e-12)
+
+
+def test_split_front_melt_with_nothing_supplied_moves_nothing():
+    r"""A cell that melted only its own residue, and one fed by the
+    reference alone."""
+    lib, lif = split_front_melt(np.array([-0.8, -3.0]), np.zeros(2), np.array([0.0, 3.0]),
+                                np.array([-0.8, 0.0]), np.ones(2, dtype=bool))
+    assert (lif == 0.0).all() and lib == pytest.approx([-0.8, -3.0])

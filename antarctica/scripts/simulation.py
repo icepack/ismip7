@@ -3025,7 +3025,7 @@ def run_simulation(
                 raise RuntimeError(f"runaway tripwire at step {k}: {message}")
         if annual is not None and abs(t_yr - round(t_yr)) < 1e-6:
             annual.year_end(h_dg, s, b, z.subfunctions[0], z.subfunctions[2],
-                            _grounded_cells(), h_dg.dat.data_ro > 1.0)
+                            _grounded_cells(), h_dg.dat.data_ro > annual.ICE_THICKNESS)
 
         if k % output_interval == 0 or k == 1:
             _amb_txt = f"amb={amb_rate:+.0f} " if a_ref is not None else ""
