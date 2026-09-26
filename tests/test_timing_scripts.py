@@ -338,6 +338,48 @@ def test_the_melt_bound_job_ends_with_the_check_s_own_status(sandbox):
     assert len(seen) == n_before
 
 
+def test_the_deltaT_refit_job_passes_its_K_and_output_and_needs_both_inputs(sandbox):
+    r"""calibrate_deltaT.script: one serial fit at the K it is given, written
+    under an absolute DELTAT_OUT; the mesh source, ISMIP7_LC and the output
+    are required before the fit starts."""
+    stub = sandbox / "bin" / "python"
+    stub.write_text('#!/bin/bash\n[ "$1" = -u ] && shift\nshift\n'
+                    'exec "$FAKE_PYTHON" "$FAKE_DRIVER" "$@"\n')
+    stub.chmod(0o755)
+    mesh = sandbox / "rice_build.msh"
+    mesh.write_text("")
+    out = sandbox / "refit"
+
+    proc, seen = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                            ISMIP7_INV_H5=str(mesh), DELTAT_OUT=str(out),
+                            DELTAT_K="6.5e-5")
+    assert proc.returncode == 0, proc.stderr
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1] == (
+        f"ARGV --out {out} --K 6.5e-5")
+    assert "calibrate_deltaT exit status: 0" in proc.stdout
+    # several K, and none, which leaves the script's own default
+    proc, seen = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                            ISMIP7_INV_H5=str(mesh), DELTAT_OUT=str(out),
+                            DELTAT_K="4.75e-5 8.5e-5")
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1] == (
+        f"ARGV --out {out} --K 4.75e-5 8.5e-5")
+    proc, seen = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                            ISMIP7_INV_H5=str(mesh), DELTAT_OUT=str(out))
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1] == f"ARGV --out {out}"
+
+    n_before = len(seen)
+    proc, _ = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                         DELTAT_OUT=str(out))
+    assert proc.returncode != 0 and "ISMIP7_INV_H5 is required" in proc.stderr
+    proc, _ = run_script(sandbox, "calibrate_deltaT.script", ISMIP7_LC="1000",
+                         ISMIP7_INV_H5=str(mesh), DELTAT_OUT="refit")
+    assert proc.returncode == 2 and "must be an absolute directory" in proc.stderr
+    proc, seen = run_script(sandbox, "calibrate_deltaT.script",
+                            ISMIP7_INV_H5=str(mesh), DELTAT_OUT=str(out))
+    assert proc.returncode != 0 and "ISMIP7_LC is required" in proc.stderr
+    assert len(seen) == n_before
+
+
 def test_the_scalar_processing_job_keeps_the_tool_clear_and_ends_with_the_verdict(sandbox):
     r"""scalar_processing.script: the organisers' tool runs from its own venv
     with the Firedrake environment's PYTHONPATH scrubbed; it reads params.nc
