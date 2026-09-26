@@ -587,7 +587,13 @@ Output and submission:
     pinned front is tracked on its own (issue #105). The rest, about 82,000 Gt
     over the run and 620 Gt/yr at 2300, is melt of real ice gone by year end,
     most of it grounded ice that goes afloat into an empty cell and melts on
-    arrival; where the submission reports it is a group decision (issue #109).
+    arrival. The group chose on 25 September to report that as front melt
+    (issue #109): the forward books the inflow's share of the melt in marine
+    cells holding no ice at either end of the year as `lifmassbf`, which the
+    request never fills, and leaves the reference's share in `libmassbffl`.
+    Applied to the p4 annual files, the split moves 571 Gt/yr at 2300 out of
+    the pixels the fill blanks and leaves 1,200 there, 1,094 of them the
+    reference's share; the submission README states the booking.
     What is left is the submitted files, paired with their historical. (issue #13)
 12. **Adopt or refetch the forcing that predates the manifest.** Done on 21
     September, and the premise above was wrong. The first
