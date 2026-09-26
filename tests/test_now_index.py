@@ -6,11 +6,12 @@ write the paragraph" hold: a documented open item with no issue reference fails
 the suite, and the failure says which command files it.
 
 `NOW.md` is generated from the open issues. The drift check and the reference
-check need `gh`, so they skip where it is absent, exactly as the Firedrake
-tests skip where Firedrake is absent.
+check read live GitHub state, so opening or closing an issue fails them on
+every branch until someone regenerates the index and rewrites the lines that
+cite the issue. Both are skipped for everybody; `make -C antarctica now-check`
+runs the drift check on demand.
 """
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -95,23 +96,13 @@ def test_the_detector_would_catch_a_new_marker(tmp_path):
     assert not REF.search("departs from the climatology (#48).")
 
 
-def _gh_ready():
-    if shutil.which("gh") is None:
-        return False
-    return subprocess.run(["gh", "auth", "status"],
-                          capture_output=True).returncode == 0
+# Off for everybody (see the module docstring). Deleting the marker brings both
+# checks back, and they then need an authenticated `gh`.
+LIVE_BOARD = pytest.mark.skip(
+    reason="reads live GitHub state; make -C antarctica now-check runs the drift check")
 
 
-def _gh_reads_board():
-    r"""The index reads the project board, which needs a project scope."""
-    if not _gh_ready():
-        return False
-    r = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
-    return re.search(r"'(read:)?project'", r.stdout + r.stderr) is not None
-
-
-@pytest.mark.skipif(not _gh_reads_board(),
-                    reason="gh cannot read the board (gh auth refresh -s read:project)")
+@LIVE_BOARD
 def test_now_index_matches_the_open_issues():
     r = subprocess.run([sys.executable, str(BUILD), "--check"],
                        capture_output=True, text=True)
@@ -122,7 +113,7 @@ def test_now_index_matches_the_open_issues():
     assert r.returncode == 0, r.stderr or r.stdout
 
 
-@pytest.mark.skipif(not _gh_ready(), reason="gh is absent or not authenticated")
+@LIVE_BOARD
 def test_every_reference_resolves_to_an_open_issue():
     import json
     open_now = {i["number"] for i in json.loads(subprocess.run(

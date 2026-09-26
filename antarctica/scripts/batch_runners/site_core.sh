@@ -350,8 +350,20 @@ ismip7_persistent_jit_cache() {
 # image's own mpiexec, inside one `exec`: every job here is a single node, and
 # that way the MPI in the image never has to agree with the host's Slurm about
 # PMI. The image has python3 and no python, so that one word is translated.
+#
+# Open MPI's default MPI-IO component (ompio) writes a parallel HDF5 file to an
+# NFS file system at a crawl: on NOTS, measured 24 September 2026 with 32 ranks
+# on the 1000 m mesh, one 1.48 GB yearly output file took 1042 s to /scratch
+# (VAST) under ompio and 52 s under romio321, on a file system that takes a
+# single stream at 600 MB/s. At 45 minutes per model year that write was a
+# third of the run. ISMIP7_MPI_IO names the component (default romio321; set
+# it empty to leave the MPI's own default); an MPI other than Open MPI ignores
+# the variable.
 ismip7_mpirun() {
     local n="$1"; shift
+    if [ -n "${ISMIP7_MPI_IO-romio321}" ]; then
+        export OMPI_MCA_io="${ISMIP7_MPI_IO-romio321}"
+    fi
     if [ -z "$ISMIP7_CONTAINER" ]; then
         srun -n "$n" "$@"
         return

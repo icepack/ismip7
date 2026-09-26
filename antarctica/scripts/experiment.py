@@ -47,6 +47,7 @@ from icepack2_tools.climatology import (
     clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
 )
 from icepack2_tools.runconfig import (
+    geometry_backdate_years,
     FRACTURE_MASK_MODES, fracture as fracture_mode, k_per_basin_npz,
     deltat_per_basin_npz,
 )
@@ -171,7 +172,11 @@ def run_core_experiment(*, core, title, name, esm, scenario,
         PETSc.Sys.Print("  Cold start from BedMachine/inversion initial state")
     dT_npz = deltat_per_basin_npz()
 
-    ctx = setup_model(restart_from=restart)
+    # A cold start before the 2015 geometry starts from it with the observed
+    # thinning undone (issue #117); a restart carries its own geometry.
+    ctx = setup_model(
+        restart_from=restart,
+        backdate_years=0.0 if restart else geometry_backdate_years(t_start))
 
     smb_anomaly, smb_baseline = False, None
     if atm is not None:

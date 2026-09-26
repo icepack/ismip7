@@ -48,6 +48,8 @@ print(f"driver: solver={diagnostic_solver_mode()} dt={os.environ.get('ISMIP7_DT'
 # srun takes SLURM_EXPORT_ENV as its own --export, so a list there would
 # reach the real driver's environment through the launcher.
 print(f"driver: srun export list={os.environ.get('SLURM_EXPORT_ENV', 'none')}")
+# the MPI-IO component the launcher selects (site_core.sh, ismip7_mpirun)
+print(f"driver: mpi io={os.environ.get('OMPI_MCA_io', 'unset')}")
 
 start = os.environ.get("FAKE_START_YEAR", "")
 if start:
@@ -376,3 +378,21 @@ def test_a_named_solver_and_step_win(sandbox):
         ISMIP7_DIAGNOSTIC_LINEAR_SOLVER="full_mumps", ISMIP7_DT="0.1")
     assert rc == 0, log
     assert "driver: solver=full_mumps dt=0.1" in log
+
+
+def test_the_launcher_selects_romio_for_the_ranks(sandbox):
+    r"""Open MPI's default ompio writes a parallel HDF5 file to NFS twenty
+    times slower than romio321 (site_core.sh has the numbers), so the launcher
+    hands every rank OMPI_MCA_io=romio321 unless a site says otherwise."""
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000")
+    assert rc == 0, log
+    assert "driver: mpi io=romio321" in log
+    # an empty ISMIP7_MPI_IO leaves the MPI's own default in place
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000",
+                             ISMIP7_MPI_IO="")
+    assert rc == 0, log
+    assert "driver: mpi io=unset" in log
+    # and a named component is passed through as given
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000",
+                             ISMIP7_MPI_IO="ompio")
+    assert "driver: mpi io=ompio" in log

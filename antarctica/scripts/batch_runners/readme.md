@@ -441,6 +441,16 @@ A relaunch from a stalled state has cleared the diagnostic-Newton wall in every
 observed case (see Known issues in `antarctica/README.md`). The chain leaves
 that judgement to you: resubmit, and auto-resume picks the run up.
 
+**MPI-IO goes through romio.** Every rank is started with
+`OMPI_MCA_io=romio321` (`ismip7_mpirun` in `site_core.sh`), because Open MPI's
+default ompio component writes a parallel HDF5 file to an NFS file system at
+about 1.5 MB/s: on NOTS, 32 ranks on the 1000 m mesh, one 1.48 GB yearly
+output file took 1042 s to `/scratch` under ompio and 52 s under romio321
+(24 September 2026), on a file system that takes a single stream at 600 MB/s.
+Before the change the yearly write was a third of a 45-minute model year.
+`ISMIP7_MPI_IO` names the component; set it empty to leave the MPI's own
+default. An MPI other than Open MPI ignores the variable.
+
 The wall budget is derived per job. Each link reads its own partition's
 `TimeLimit`, holds back 25 minutes and passes the rest as
 `ISMIP7_WALL_STOP_MIN`, so the model stops a step early and writes a complete

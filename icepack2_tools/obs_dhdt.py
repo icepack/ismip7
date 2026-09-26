@@ -320,3 +320,26 @@ def load_dhdt_obs(Q_g, variable=None, data_root=None, min_coverage=0.5):
     mask.dat.data[:] = np.where(ok, 1.0, 0.0)
     dhdt.dat.data[:] = np.where(ok, ssum / np.maximum(npix, 1.0), 0.0)
     return dhdt, mask
+
+
+def backdate_thickness(h, bed, dhdt, observed, years, rho_ratio):
+    r"""Per-cell thickness ``years`` before the observed state: the observed
+    mean thickness change undone on grounded ice (issue #117).
+
+    ``h`` and ``bed`` [m] are the observed state's cells, ``dhdt`` [m/yr ice
+    equivalent] and ``observed`` (1 where the cell has coverage) come from
+    :func:`load_dhdt_obs`, and ``rho_ratio`` is rho_ice / rho_water. Returns
+    the new thickness and the boolean mask of the cells it changed.
+
+    Only cells grounded in the observed state and with observations change.
+    Over floating ice the field is noisy and confounded by firn, tide and ocean
+    signals (the module note above), and the inversion fits it on grounded ice
+    only, so shelves keep their observed thickness. A thinning undone makes the
+    ice thicker; a thickening undone is floored at zero thickness.
+    """
+    h = np.asarray(h, dtype=float)
+    haf = h - np.maximum(-np.asarray(bed, dtype=float), 0.0) / float(rho_ratio)
+    changed = (haf > 0.0) & (np.asarray(observed) > 0.5)
+    out = h.copy()
+    out[changed] = np.maximum(h[changed] - float(years) * np.asarray(dhdt)[changed], 0.0)
+    return out, changed

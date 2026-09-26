@@ -72,6 +72,7 @@ from icepack2_tools.geometry import sample_to_geometry
 from icepack2_tools.naming import map_basename
 from icepack2_tools.front import (
     clamp_thickness, clear_reference_where_ice_free, retreat_slivers,
+    unforced_cells, applied_forcing,
     facet_neighbours, front_connected, ocean_drag_cells,
     collapse_banner, collapse_cell_counts, collapse_csv_fields,
     COLLAPSE_CSV_COLUMNS, COLLAPSE_MARKER, FRONT_OWNER_MARKER,
@@ -92,6 +93,7 @@ from icepack2_tools.runconfig import (
     # knob through one import rather than each reaching into runconfig.
     fixed_front as _fixed_front, auto_resume, apparent_mb_mode,  # noqa: F401
     front_hmin as _front_hmin,
+    GEOMETRY_YEAR,
 )
 DATA_DIR = obs_data_root()
 from icepack2_tools.solverconfig import (
@@ -198,13 +200,19 @@ def latest_checkpoint(experiment_name, lc_val=None):
     return best
 
 
-def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False):
+def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
+                backdate_years=0.0):
     r"""Load mesh, data, inversion fields, and build diagnostic solver.
 
     ``allow_timing_cache_a_ref`` is the narrow exception used after a timing
     manifest has been validated: it permits ``APPARENT_MB=div`` to be built
     from that pristine initial state. Evolved restarts must carry their frozen
     correction and cannot use this escape hatch.
+
+    ``backdate_years`` dates a cold start before the 2015 geometry: that many
+    years of the Smith mean dH/dt are undone on grounded ice after the friction
+    anchors are built, so the 2015 friction and fluidity carry over unchanged
+    and the run starts from the earlier ice (issue #117). A restart ignores it.
     """
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -973,6 +981,35 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False):
                 f"h_visc_floor={rc_hvisc_floor:.0f}m, cw0_floor={rc_cw0_floor:.1e}, "
                 f"eps_tauc={rc_eps_tauc:.1e} MPa, alpha={float(alpha_reg):.1e})"
             )
+
+    # Issue #117: a cold start dated before the 2015 geometry starts from that
+    # geometry with the Smith et al. (2020) mean thinning undone on grounded
+    # ice. It comes after the anchors above, so C_w0 and N_ref stay those of
+    # the 2015 geometry the MAP was inverted on, and before the prognostic
+    # thickness is copied from H below, so the initial solve, the transport,
+    # H_init and the apparent-MB reference all start from the earlier ice.
+    if backdate_years > 0.0 and not is_restart:
+        if not geom_dg:
+            raise RuntimeError(
+                "backdating the geometry (issue #117) needs the DG0 geometry "
+                "(ISMIP7_GEOMETRY_SPACE=dg0)")
+        from icepack2_tools.obs_dhdt import load_dhdt_obs, backdate_thickness
+        _dhdt, _observed = load_dhdt_obs(Q_g)
+        _h_obs = H.dat.data_ro.copy()
+        _h_new, _changed = backdate_thickness(
+            _h_obs, b.dat.data_ro, _dhdt.dat.data_ro, _observed.dat.data_ro,
+            backdate_years, float(rho_ratio))
+        H.dat.data[:] = _h_new
+        s.interpolate(max_value(b + H, (Constant(1.0) - rho_ratio) * H))
+        _area = assemble(fd.TestFunction(Q_g) * dx).dat.data_ro
+        _dm_gt = mesh.comm.allreduce(
+            float(((_h_new - _h_obs) * _area).sum())) * 917.0 / 1e12
+        PETSc.Sys.Print(
+            f"  Geometry backdated {backdate_years:g} yr (issue #117): "
+            f"{mesh.comm.allreduce(int(_changed.sum()))} grounded cells with "
+            f"Smith dH/dt coverage, ice mass {_dm_gt:+.0f} Gt; floating ice and "
+            f"unobserved cells keep their {GEOMETRY_YEAR:g} thickness; friction "
+            f"anchors from the {GEOMETRY_YEAR:g} geometry")
 
     # ISMIP7_SNES_TYPE=newtontr switches the diagnostic Newton to trust
     # region (gia COUPLED_SOLVER's choice: more robust than line search at
@@ -1898,6 +1935,13 @@ def run_simulation(
     proj_rhs = fd.Cofunction(Q.dual())
     src_dg = Function(Q_dg, name="mass_source")
     src_cof = fd.Cofunction(Q_dg.dual())
+    # Where the surface and ocean forcing act: 1 on cells that can hold ice,
+    # 0 on open ocean and on cells a front rule holds ice-free
+    # (front.unforced_cells). Refreshed at the start of every advance, and at
+    # t=0 for the balancing reference, so the reference, the transport source,
+    # the budget and the ISMIP7 fields all count the same forcing.
+    forced = Function(Q_dg, name="forced")
+    bed_cell = Function(Q_dg).project(b).dat.data_ro.copy()
 
     # h_dg is the PERSISTENT prognostic state (DG0). The old scheme
     # re-projected CG1 h -> DG0 every step; that roundtrip (L2 project +
@@ -2011,7 +2055,14 @@ def run_simulation(
                 # balanced control: evaluate the t=0 forcing and fold it in
                 if forcing_callback is not None:
                     forcing_callback(ctx, t_start + dt)
-                b_smb = assemble((accum - ocean_melt) * phi_dg * dx)
+                # the forcing the loop will apply, so the t=0 tendency is
+                # zero where it acts and no reference is left where it
+                # does not (open ocean would otherwise be handed a source
+                # equal to the melt it never receives)
+                forced.dat.data[:] = np.where(
+                    unforced_cells(h_dg.dat.data_ro, bed_cell, beyond_front),
+                    0.0, 1.0)
+                b_smb = assemble(forced * (accum - ocean_melt) * phi_dg * dx)
                 a_ref.dat.data[:] -= b_smb.dat.data_ro / cell_area
             if beyond_front is not None:
                 # No ice existed outside the t=0 extent, so no balancing
@@ -2533,14 +2584,25 @@ def run_simulation(
             if a_ref is not None and free_front:
                 clear_reference_where_ice_free(a_ref.dat.data, ls_ice_free)
 
-        src = accum - ocean_melt
+        # No forcing where there can be no ice: open ocean at the start of
+        # this advance and the cells the front rules hold ice-free. SMB there
+        # would make ice the front removes and books as calving; melt there
+        # has nothing to melt (front.unforced_cells has the measured cost).
+        forced.dat.data[:] = np.where(
+            unforced_cells(h_dg_old.dat.data_ro, bed_cell, beyond, ls_ice_free),
+            0.0, 1.0)
+        smb_f, melt_f, ref_f = applied_forcing(forced, accum, ocean_melt, a_ref)
+        smb_gt = float(assemble(smb_f * dx)) * rho_gt * dt_local
+        melt_gt = float(assemble(melt_f * dx)) * rho_gt * dt_local
+        src = smb_f - melt_f
         amb_gt = 0.0
-        if a_ref is not None:
-            src = src + a_ref
+        if ref_f is not None:
+            src = src + ref_f
             # The reference as APPLIED here: the live-extent mask above may
-            # have zeroed cells since the step's entry measurement, so the
-            # budget and the CSV must use this, not the entry value.
-            amb_gt = float(assemble(a_ref * dx)) * rho_gt * dt_local
+            # have zeroed cells since the step's entry measurement, and the
+            # forcing mask withholds it from open ocean, so the budget and
+            # the CSV must use this, not the entry value.
+            amb_gt = float(assemble(ref_f * dx)) * rho_gt * dt_local
         # Cell-averaged DG0 source (exact for the DG0 test space) with a
         # positivity limit (gia a_step clamp): the net sink may not draw a
         # cell below h_clamp within one advance. With the limited source
@@ -2628,9 +2690,11 @@ def run_simulation(
         # state and must see it.
         grounded = _grounded_cells()
         if annual is not None:
-            # the sources as the limiter left them: the withheld sink comes
-            # off the booked SMB, melt and reference (ismip7_output)
-            annual.book_advance(dt_local, accum, ocean_melt, a_ref, h_dg, u_vel, grounded,
+            # the sources as the limiter left them, and only where there can
+            # be ice: the withheld sink comes off the booked SMB, melt and
+            # reference (ismip7_output)
+            annual.book_advance(dt_local, smb_f, melt_f, ref_f,
+                                h_dg, u_vel, grounded,
                                 withheld=src_dg.dat.data_ro - _src_want)
 
         # Floor to h_clamp, EXCEPT in the cells the front rules report as
@@ -2734,6 +2798,8 @@ def run_simulation(
             "clamp_gt": clamp_gt + clamp_cg_gt + limit_gt,
             "limit_gt": limit_gt,
             "amb_gt": amb_gt,
+            "smb_gt": smb_gt,
+            "melt_gt": melt_gt,
             "collapse_cells": collapse_cells,
         }
 
@@ -2797,9 +2863,6 @@ def run_simulation(
         if forcing_callback is not None:
             forcing_callback(ctx, t_yr)
 
-        # Forcing-field integrals are constant within the step.
-        smb_rate = float(assemble(accum * dx)) * rho_gt          # Gt/yr
-        melt_rate = float(assemble(ocean_melt * dx)) * rho_gt    # Gt/yr
 
         z_entry.assign(z)
         h_dg_entry.assign(h_dg)
@@ -2828,7 +2891,8 @@ def run_simulation(
                     level_set.phi.assign(phi_entry)
                     level_set.update_cell_fields()
             acc = {"out_gt": 0.0, "calv_gt": 0.0, "clamp_gt": 0.0,
-                   "limit_gt": 0.0, "amb_gt": 0.0}
+                   "limit_gt": 0.0, "amb_gt": 0.0,
+                   "smb_gt": 0.0, "melt_gt": 0.0}
             ok = True
             for _j in range(m):
                 sub = _advance(
@@ -2877,6 +2941,10 @@ def run_simulation(
         vaf = float(assemble(haf * dx)) * _RHO_I_SI / 1e12 / 362.5
         total_mass = float(assemble(h * dx)) * _RHO_I_SI / 1e12
 
+        # SMB and melt as the advances applied them, where there was ice to
+        # force, so the budget, the timeseries and the ISMIP7 fields agree.
+        smb_rate = tallies["smb_gt"] / dt                        # Gt/yr
+        melt_rate = tallies["melt_gt"] / dt                      # Gt/yr
         out_rate = tallies["out_gt"] / dt                        # Gt/yr
         calv_gt = tallies["calv_gt"]
         clamp_all = tallies["clamp_gt"]

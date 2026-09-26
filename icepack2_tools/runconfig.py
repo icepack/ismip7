@@ -289,6 +289,39 @@ def fixed_front():
     return os.environ.get("ISMIP7_FIXED_FRONT") not in (None, "0")
 
 
+# The year the initial geometry is dated (BedMachine v4.1's nominal year, the
+# year the MAPs are inverted at), and the window of the Smith et al. (2020)
+# mean dH/dt that dates a cold start before it (issue #117).
+GEOMETRY_YEAR = 2015.0
+DHDT_WINDOW = (2003.0, 2019.0)
+
+
+def geometry_backdate_years(t_start):
+    r"""Years of the Smith mean dH/dt a cold start at ``t_start`` subtracts from
+    the 2015 geometry (issue #117, 25 September 2026 meeting: "2003, subtracting
+    the change map").
+
+    ``ISMIP7_GEOMETRY_BACKDATE`` names the years outright (``0`` turns it off).
+    Unset, a start from 2003 up to 2015 subtracts ``2015 - t_start`` years, a
+    start at or after 2015 none, and a start before 2003 is refused: the
+    2003 to 2019 mean would be extrapolated past its own window.
+    """
+    named = os.environ.get("ISMIP7_GEOMETRY_BACKDATE", "").strip()
+    if named:
+        return float(named)
+    years = GEOMETRY_YEAR - float(t_start)
+    if years <= 0.0:
+        return 0.0
+    if float(t_start) < DHDT_WINDOW[0]:
+        raise ValueError(
+            f"a cold start at {t_start:g} would subtract {years:g} years of the "
+            f"{DHDT_WINDOW[0]:g} to {DHDT_WINDOW[1]:g} Smith mean dH/dt from the "
+            f"{GEOMETRY_YEAR:g} geometry, past the window it was measured over; set "
+            f"ISMIP7_GEOMETRY_BACKDATE=0 to start from the {GEOMETRY_YEAR:g} "
+            f"geometry as it is, or to the years to subtract")
+    return years
+
+
 def apparent_mb_mode():
     r"""``ISMIP7_APPARENT_MB``: the apparent-mass-balance init, or None for off.
 
