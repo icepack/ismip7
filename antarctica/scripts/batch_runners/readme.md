@@ -393,9 +393,12 @@ once if `<map>.done` exists, meaning the MAP reached disk. The driver writes
 that marker as soon as the checkpoint write returns, so a kill in the tail
 (final solve, summary figure) cannot lose it; the runner's post-`srun` grep for
 the driver's `Saved MAP:` line is the fallback. Depth is capped by
-`ISMIP7_CHAIN_MAX` (4). A warm start whose mesh dof ordering differs from the
-run's own is refused, since a rank-count change mid-chain would scramble theta
-and phi silently. Regression test: `tests/test_inversion_chain.py`.
+`ISMIP7_CHAIN_MAX` (4). Under `ISMIP7_LOG_VEL_WEIGHT=auto`, the runner's
+default, a link takes the log-velocity weight the checkpoint records, so every
+link of one MAP minimises the objective the first link set (issue 68). A warm
+start whose mesh dof ordering differs from the run's own is refused, since a
+rank-count change mid-chain would scramble theta and phi silently. Regression
+test: `tests/test_inversion_chain.py`.
 
 ### `projection.sbatch`, self-chaining
 

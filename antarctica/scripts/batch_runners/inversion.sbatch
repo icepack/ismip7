@@ -102,6 +102,9 @@ else
 fi
 
 # --- resume if a checkpoint exists ------------------------------------------
+# The driver takes theta and phi from the checkpoint and, under
+# ISMIP7_LOG_VEL_WEIGHT=auto, the log-velocity weight it records, so every
+# link minimises the objective the first one set (issue 68).
 if [ -f "$ISMIP7_MAP_OUT" ]; then
     export ISMIP7_WARM_START="$ISMIP7_MAP_OUT"
     echo "chain: warm-starting theta/phi from the periodic checkpoint $ISMIP7_MAP_OUT"
