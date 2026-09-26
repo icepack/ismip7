@@ -24,16 +24,26 @@ fast.
 
 import os
 
-# 1000 m / 10 km is the production pair (``antarctica_10000_1000_buffered20000``):
-# the finest mesh the Quartz timing matrix carries through a 285-year run in
-# two days, under scpc_gamg on 64 ranks
-# (antarctica/TIMING_MATRIX_QUARTZ_SCPC_GAMG.md). It is the pair the batch
-# runners export (batch_runners/site_env.sh) and the README documents; until
-# 2026-09-19 that was 2500 m / 64 km. The old 8000 and 32000 module-level
-# defaults were dev-probe leftovers; a coarse probe exports ISMIP7_LC /
-# ISMIP7_LC_COARSE instead of disagreeing with the gate about what "unset" means.
+# 1000 m / 10 km is the production pair (``antarctica_10000_1000_buffered20000``),
+# the submission mesh since 25 September 2026 (issue 20): the finest mesh the
+# Quartz timing matrix carries through a 285-year run in two days at dt 0.05,
+# under scpc_gamg on 64 ranks (antarctica/TIMING_MATRIX_QUARTZ_SCPC_GAMG.md).
+# It is the pair the batch runners export (batch_runners/site_env.sh) and the
+# README documents; until 2026-09-19 that was 2500 m / 64 km. The old 8000 and
+# 32000 module-level defaults were dev-probe leftovers; a coarse probe exports
+# ISMIP7_LC / ISMIP7_LC_COARSE instead of disagreeing with the gate about what
+# "unset" means.
 LC_DEFAULT = "1000"
 LC_COARSE_DEFAULT = "10000"
+# The production forward step [yr], chosen with the mesh (issue 20). The timing
+# matrix's rule gives 0.05 at 1000 m. At 0.05 a 1 km control from a transferred
+# 2 km Budd MAP diverged in 2016.1 at Rice, and on Quartz it grew a two-step
+# grounded/floating oscillation at the Lambert confluence (MAP_CHECK.md). At
+# 0.025 the same control ran five years, and Rice's 1 km historicals ran 78
+# (CESM2-WACCM) and 66 (MRI-ESM2-0) model years with no rescue step.
+# batch_runners/projection.sbatch exports the same value, and a test holds the
+# two equal.
+DT_DEFAULT = "0.025"
 GEOMETRY_SPACE_DEFAULT = "dg0"
 FRICTION_DEFAULT = "budd"
 # The closed set friction() accepts; an unknown spelling is an error at
@@ -125,6 +135,11 @@ def lc():
 def lc_coarse():
     r"""Target edge length [m] in the coarse region of the mesh."""
     return int(os.environ.get("ISMIP7_LC_COARSE", LC_COARSE_DEFAULT))
+
+
+def dt():
+    r"""Forward time step [yr]."""
+    return float(os.environ.get("ISMIP7_DT", DT_DEFAULT))
 
 
 def geometry_space():

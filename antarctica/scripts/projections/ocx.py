@@ -48,7 +48,9 @@ from simulation import (setup_model, run_simulation, latest_checkpoint,
 from experiment import find_k_npz
 import math
 
-from icepack2_tools.runconfig import ocx_forcing, ocx_ocean, deltat_per_basin_npz
+from icepack2_tools.runconfig import (
+    ocx_forcing, ocx_ocean, deltat_per_basin_npz, dt as time_step,
+)
 from icepack2_tools.forcing import (
     OCX, OCX_ATMOSPHERE_SOURCE,
     ISMIP7Atmosphere, ISMIP7Ocean, make_forcing_callback,
@@ -61,7 +63,7 @@ T_START = float(os.environ.get("ISMIP7_T_START", "1979"))
 # 1 January of the year AFTER the last one covered, the convention every core
 # driver uses: years 1979 through 2025 run and 2025 is the last banked year.
 T_END = float(os.environ.get("ISMIP7_T_END", "2026"))
-DT = float(os.environ.get("ISMIP7_DT", "0.1"))
+DT = time_step()
 OUTPUT_INTERVAL = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "10"))
 RACMO_LAST = 2023  # smbgl_monthlyS_ANT11_RACMO2.4p1_ERA5_197901_202312
 

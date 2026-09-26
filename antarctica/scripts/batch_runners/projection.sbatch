@@ -1,6 +1,6 @@
 #!/bin/bash
 # ISMIP7 forward run (control, historical or projection) on any cluster.
-# SELF-CHAINING: a 285-year projection is about two days on the production
+# SELF-CHAINING: a 285-year projection is about four days on the production
 # mesh and will not fit an ordinary queue, so this script resubmits itself
 # until the run reaches its driver's own end year, resuming from its own
 # newest checkpoint each time. The driver owns that year and this script does
@@ -20,14 +20,18 @@
 #   hist_cesm_waccm    antarctica/scripts/historical/cesm_waccm.py
 #   hist_mri_esm2      antarctica/scripts/historical/mri_esm2.py
 #
-# Sizing, from the timing matrix on Quartz (TIMING_MATRIX_QUARTZ_SCPC_GAMG.md):
-# 30 s per 0.05 yr step at 1000 m / 10 km on 64 ranks under scpc_gamg, i.e.
-# 10.0 min per simulated year, ~11 core-hours per year. That is the transient
-# loop alone, under the matrix's strict contract: setup, forcing updates and
-# output come on top. 24 h of wall time therefore buys at most 140 simulated
-# years, so a 285-year projection is about three chained jobs. On 32 ranks the
-# year costs 15.7 min and on 16, 32.3; scpc_mumps does not get below 23 min on
-# any rank count (TIMING_MATRIX_QUARTZ_SCPC_MUMPS.md).
+# Sizing at the production step, 0.025 yr (issue 20). Rice measured 22.5 min
+# per simulated year at 1000 m / 10 km on 32 Cascade Lake ranks under
+# scpc_gamg, 62 simulated years per 24 h job. The timing matrix on Quartz
+# (TIMING_MATRIX_QUARTZ_SCPC_GAMG.md) measured 30 s per 0.05 yr step on 64
+# ranks, 10.0 min per simulated year; at 0.025 that is about 20 min and 21
+# core-hours per simulated year if a step costs the same, which is not yet
+# measured. That is the transient loop alone, under the matrix's strict
+# contract: setup, forcing updates and output come on top. 24 h of wall time
+# then buys about 70 simulated years, so a 285-year projection is about five
+# chained jobs and a historical three. At 0.05 the matrix's year cost 15.7 min
+# on 32 ranks and 32.3 on 16; scpc_mumps does not get below 23 min on any rank
+# count (TIMING_MATRIX_QUARTZ_SCPC_MUMPS.md).
 #
 # The older measurement, on Cascade Lake under full_mumps: 155 s per 0.1 yr
 # step at 2500 m / 64 km on 12 ranks, ~26 min per simulated year, ~5
@@ -99,10 +103,15 @@ export ISMIP7_INVERSION="${ISMIP7_INVERSION:-$ISMIP7_MAP_DEFAULT}"
 # construction and which stamps the solver it finds in the environment on its
 # MAP. ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=full_mumps restores the reference.
 export ISMIP7_DIAGNOSTIC_LINEAR_SOLVER="${ISMIP7_DIAGNOSTIC_LINEAR_SOLVER:-scpc_gamg}"
-# The step the matrix timed at 1000 m (0.125 yr x lc / 2500). The stable step
-# does not grow with the mesh (0.25 yr ran away at 2500 m and at 5000 m), so a
-# coarser ISMIP7_LC wants at most 0.125, not a step scaled up from this one.
-export ISMIP7_DT="${ISMIP7_DT:-0.05}"
+# The production step (issue 20), equal to runconfig.DT_DEFAULT, which the
+# drivers fall back to; a test holds the two equal. The matrix's rule
+# (0.125 yr x lc / 2500) gives 0.05 at 1000 m, where a 1 km control from a
+# transferred 2 km Budd MAP diverged at the Lambert confluence; at 0.025 the
+# same control ran five years, and Rice's 1 km historicals ran 78 and 66 years
+# with no rescue step. The stable step does not grow with the mesh (0.25 yr
+# ran away at 2500 m and at 5000 m), so a coarser ISMIP7_LC wants at most
+# 0.125. A chain inherits the step with the rest of the environment.
+export ISMIP7_DT="${ISMIP7_DT:-0.025}"
 # ISMIP7_T_END is deliberately NOT defaulted here. Every experiment this
 # runner offers has its own end (historical 2015, the ssp370 pair 2101, the
 # other projections and the control 2301, OCX 2026), and the driver owns it;

@@ -183,6 +183,32 @@ def test_a_control_goes_through_submit_sh_projection(sandbox, monkeypatch):
                   dependency="afterok:1", kind="projection")
 
 
+def test_the_production_mesh_control_runs_the_production_step(sandbox, monkeypatch):
+    r"""Issue 20: the control on the production mesh is the production
+    configuration, step included. The strict lanes and the control on the
+    MAP's own mesh keep the matrix's rule, and the audit divides by the step
+    each control ran."""
+    monkeypatch.setenv("ISMIP7_SITE", "iu_quartz")
+    m = manager(sandbox)
+    assert m.lane_dt("transferred") == pytest.approx(0.05)
+    assert m.control_dt("transferred") == pytest.approx(0.025)
+    assert m.control_dt("native") == m.lane_dt("native") == pytest.approx(0.1)
+
+    def env():
+        seen = calls(sandbox)
+        (sandbox / "sbatch_calls.txt").unlink()
+        return [line[len("ENV: "):] for line in seen if line.startswith("ENV: ")]
+
+    m.run_control("transferred")
+    assert "ISMIP7_DT=0.025" in env()
+    m.run_control("native")
+    assert "ISMIP7_DT=0.1" in env()
+    m.run_audit_controls()
+    got = env()
+    assert "ISMIP7_MAP_CHECK_DT_TRANSFER=0.025" in got
+    assert "ISMIP7_MAP_CHECK_DT_NATIVE=0.1" in got
+
+
 def _lane_record(m, role, **overrides):
     record = {
         "timing_kind": "map_check", "timing_tag": m.tag, "nsteps": 10,
@@ -248,7 +274,7 @@ def test_a_failed_lane_blocks_its_control_unless_the_switch_says_otherwise(sandb
 
 def _control_csv(m, role, last_year, resid="0.0000"):
     m.control_csv(role).parent.mkdir(parents=True, exist_ok=True)
-    dt = m.lane_dt(role)
+    dt = m.control_dt(role)
     with open(m.control_csv(role), "w", newline="") as stream:
         writer = csv.writer(stream)
         writer.writerow(["year", "vaf_mm_sle", "resid_gt"])
