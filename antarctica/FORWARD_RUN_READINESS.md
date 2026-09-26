@@ -593,7 +593,12 @@ Output and submission:
     request never fills, and leaves the reference's share in `libmassbffl`.
     Applied to the p4 annual files, the split moves 571 Gt/yr at 2300 out of
     the pixels the fill blanks and leaves 1,200 there, 1,094 of them the
-    reference's share; the submission README states the booking.
+    reference's share; the submission README states the booking. A main and
+    branch pair restarted from p4 at 2294.0 checked it end to end on Quartz
+    (runlog `test-32km-ssp585-front-melt-main` and `-branch`): the forward's
+    split matches the function applied offline to 1.5e-14 m/yr, the tool's
+    `tendlifmassbf` matches the model's to 0.000 %, and isschecker 0.5.1
+    finds no error outside the length checks of a five-year series.
     What is left is the submitted files, paired with their historical. (issue #13)
 12. **Adopt or refetch the forcing that predates the manifest.** Done on 21
     September, and the premise above was wrong. The first
