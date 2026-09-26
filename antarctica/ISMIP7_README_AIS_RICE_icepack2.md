@@ -281,8 +281,10 @@ that exceeds 1 m the cell counts as ice and its melt stays in `libmassbffl`,
 where the fill keeps it. In the 32 km CESM2-WACCM ssp585 at 2300 (map-plane
 area, `ISMIP7_DT=0.1`), `lifmassbf` carries 603 Gt/yr, and the gridded
 `libmassbffl` still leaves out 1,200 Gt/yr of the native melt: 1,094 is the
-reference's share and 106 is shelf ice that melted away within the year or
-ice over dry beds. **[confirm #109]** the production ssp585's numbers, which
+reference's share on emptied marine cells, 20 is the reference's supply
+melted on emptied land cells, which the melt law counts as afloat at zero
+thickness (issue #105), and 87 is shelf ice that melted away within the
+year. **[confirm #109]** the production ssp585's numbers, which
 the writer prints.
 
 Compliance: isschecker 0.5.1 of 22 September 2026, which grades a range
