@@ -76,6 +76,7 @@ from icepack2_tools.front import (
     collapse_banner, collapse_cell_counts, collapse_csv_fields,
     COLLAPSE_CSV_COLUMNS, COLLAPSE_MARKER, FRONT_OWNER_MARKER,
 )
+from icepack2_tools.timeseries import format_year, rows_kept_on_resume
 from icepack2_tools.runconfig import (
     obs_data_root,
     BUDD_SHELF_GATE as _BUDD_SHELF_GATE,
@@ -2221,7 +2222,9 @@ def run_simulation(
 
     # Crash-safe timeseries: append each row and flush, so a reboot keeps the
     # budget-audit history (it used to be dumped only at completion). On a
-    # warm restart, drop any rows at/after the resume year, then append.
+    # warm restart, drop the rows after the resume year, then append. The
+    # year is written at full precision (icepack2_tools.timeseries): the trim
+    # and the audits' step both read it back.
     csv_fn = os.path.join(RESULTS_DIR, f"{experiment_name}_{lc}_timeseries.csv")
     csv_header = ("year,vaf_mm_sle,mass_gt,smb_gtyr,melt_gtyr,"
                   "outflux_gtyr,calv_gt,clamp_gt,resid_gt,amb_gtyr,"
@@ -2234,15 +2237,8 @@ def run_simulation(
         if t_restart is not None and os.path.exists(csv_fn):
             with open(csv_fn) as _cf:
                 _lines = _cf.readlines()
-            kept = ([_lines[0]] if _lines and _lines[0].startswith("year")
-                    else [csv_header])
+            kept = rows_kept_on_resume(_lines, csv_header, t_start, dt)
             csv_head = kept[0]
-            for _ln in _lines[1:]:
-                try:
-                    if float(_ln.split(",", 1)[0]) <= t_start + 0.5 * dt:
-                        kept.append(_ln)
-                except (ValueError, IndexError):
-                    pass
             with open(csv_fn, "w") as _cf:
                 _cf.writelines(kept)
             csv_f = open(csv_fn, "a")
@@ -2298,7 +2294,7 @@ def run_simulation(
         if csv_f is None:
             return
         csv_f.write(
-            f"{row[0]:.1f},{row[1]:.6f},{row[2]:.2f},"
+            f"{format_year(row[0])},{row[1]:.6f},{row[2]:.2f},"
             + ",".join(f"{v:.4f}" for v in row[3:])
             + collapse_csv_fields(csv_head, collapse_cells) + "\n"
         )

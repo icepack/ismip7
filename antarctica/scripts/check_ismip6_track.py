@@ -43,8 +43,12 @@ import sys
 
 import numpy as np
 
-RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                           "results")
+_ANT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(_ANT))
+
+from icepack2_tools.timeseries import step_from_years  # noqa: E402
+
+RESULTS_DIR = os.path.join(_ANT, "results")
 
 # (name, lo, hi, fail_lo, fail_hi, units) - WARN outside [lo, hi],
 # FAIL outside [fail_lo, fail_hi].
@@ -129,7 +133,14 @@ def main():
               f"(legacy timeseries format?)")
         sys.exit(2)
     yr = c["year"]
-    dt = dt_arg if dt_arg else (float(np.median(np.diff(yr))) if len(yr) > 1 else 1.0)
+    if dt_arg:
+        dt = dt_arg
+    else:
+        try:
+            dt = step_from_years(yr)
+        except ValueError as e:
+            print(f"{csv_fn}: {e}; pass --dt")
+            sys.exit(2)
     n_yr1 = max(1, int(round(1.0 / dt)))          # steps in the init-transient year
 
     # calv/clamp/resid columns are per-STEP Gt; convert to rates.
