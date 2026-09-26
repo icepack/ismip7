@@ -26,8 +26,14 @@ thread 50). The flux files say so in the global attribute
 (``isschecker/data/ISMIP7_variable_request.csv``) decides only where the
 value is fill: ``outside_domain`` (``acabf``) where the model covers no part
 of the pixel, ``no_floating_ice`` (``libmassbffl``) where no ice floats at
-year end. Melt booked in such a pixel leaves ``libmassbffl``, and the summary
-line reports how much. A state variable (``ST``) takes its mean over the area
+year end. Melt booked in such a pixel leaves ``libmassbffl``. The forward
+books the melt of ice that flowed into a marine cell holding no ice at either
+end of the year as ``lifmassbf`` instead (issue #109), whose ``forbidden``
+policy never fills, so what leaves is the melt of shelf ice gone within the
+year and the share the frozen apparent-MB reference supplied. The summary
+lines report both, at their largest and at 2100, 2200 and 2300. Every year
+file names its booking in the ``front_melt`` attribute, and a series that
+mixes two bookings is refused. A state variable (``ST``) takes its mean over the area
 the policy names: ``forbidden`` (thickness, fractions) over the whole pixel
 with the uncovered part counting as zero, so sums over the grid are the
 model's sums; ``outside_domain`` (elevations) over the covered part, filling
@@ -71,8 +77,8 @@ _ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(_ROOT)))
 
 import icepack2_tools.dual_friction  # noqa: F401,E402  (icepack2 -> irksome import order)
-from icepack2_tools.ismip7_output import (AnnualOutput, RHO_I, SCALARS, SECONDS_PER_YEAR,  # noqa: E402
-                                          VARIABLES_2D, VARIABLES_BANKED)
+from icepack2_tools.ismip7_output import (AnnualOutput, FRONT_MELT_ATTR, RHO_I, SCALARS,  # noqa: E402
+                                          SECONDS_PER_YEAR, VARIABLES_2D, VARIABLES_BANKED)
 from icepack2_tools.regrid import (ISMIP7_DX, ISMIP7_NX, ISMIP7_NY, ISMIP7_X0, ISMIP7_Y0,  # noqa: E402
                                    area_factor)
 import firedrake as fd  # noqa: E402
@@ -95,6 +101,13 @@ FLUX_MEAN = "whole_pixel"
 # --native-af2 to it.
 SCALAR_AREA_ATTR = "scalar_area"
 TRUE_AREA, MAP_PLANE = "true_area", "map_plane"
+# What a year file without the forward's front_melt stamp holds: a forward
+# from before issue #109 wrote lifmassbf as zero and kept all the melt in
+# libmassbffl.
+UNSTAMPED_MELT = "none (lifmassbf zero, all melt in libmassbffl)"
+# The years at which the melt summary reports its values, besides its
+# largest year and the series' last.
+MELT_MARKERS = (2100, 2200, 2300)
 
 
 def standard_name(meta):
@@ -189,6 +202,69 @@ def series_area(area_of):
         + "; ".join(f"{k} in {len(ys)} years, {ys[0]} to {ys[-1]}" for k, ys in spans.items())
         + ". The run's links straddled the change to true-area scalars; run the "
           "series again on one version of the code.")
+
+
+def series_front_melt(booking_of):
+    r"""The one melt booking of a series, from ``{year: front_melt stamp}``.
+
+    A year file written before the forward booked front melt carries no
+    stamp and counts as ``UNSTAMPED_MELT``. A chained run whose links
+    straddled that change would submit ``lifmassbf`` as zero in some years
+    and the melt of the same cells in others, so any mix is refused."""
+    kinds = sorted(set(booking_of.values()))
+    if len(kinds) == 1:
+        return kinds[0]
+    spans = {k: [y for y, v in sorted(booking_of.items()) if v == k] for k in kinds}
+    raise ValueError(
+        "the annual files mix melt bookings: "
+        + "; ".join(f"{k} in {len(ys)} years, {ys[0]} to {ys[-1]}" for k, ys in spans.items())
+        + ". The run's links straddled the change that books front melt as "
+          "lifmassbf (issue #109); run the series again on one version of the code.")
+
+
+def melt_booking(W, cells, afloat_before, afloat):
+    r"""One year's melt as the gridded fields carry it, in Gt/yr over the
+    cells' map-plane area.
+
+    ``left out`` is the melt booked in pixels with no floating ice at year
+    end, which the ``no_floating_ice`` fill leaves out of ``libmassbffl``,
+    and ``near flotation`` its part in pixels only the near-flotation rule
+    emptied (``afloat_before`` and ``afloat`` are each pixel's floating area
+    before and after that rule). ``front melt`` is the grid sum of
+    ``lifmassbf``, which no fill touches."""
+    melt_px = W @ cells["libmassbffl"]                     # m3/yr of ice per pixel
+    gt = RHO_I / 1e12
+    return {
+        "left out": float(melt_px[afloat <= 0.0].sum()) * gt,
+        "near flotation": float(melt_px[(afloat_before > 0.0) & (afloat <= 0.0)].sum()) * gt,
+        "front melt": float((W @ cells["lifmassbf"]).sum()) * gt,
+    }
+
+
+def melt_summary(per_year, markers=MELT_MARKERS):
+    r"""The summary lines for ``{year: melt_booking(...)}``: each quantity at
+    its largest, then at the marker years the series holds and at its last."""
+    what = {
+        "left out": "libmassbffl leaves out the melt booked in pixels with no "
+                    "floating ice at year end",
+        "near flotation": "of it, in pixels the near-flotation rule left with no "
+                          "floating ice",
+        "front melt": "lifmassbf carries the front melt of cells holding no ice "
+                      "at either end of the year",
+    }
+    years = sorted(per_year)
+    shown = [y for y in markers if y in per_year]
+    if years and years[-1] not in shown:
+        shown.append(years[-1])
+    lines = []
+    for key, text in what.items():
+        if not years:
+            lines.append(f"  {text}: no years")
+            continue
+        top = max(years, key=lambda y: abs(per_year[y][key]))
+        at = ", ".join(f"{per_year[y][key]:+.1f} in {y}" for y in shown)
+        lines.append(f"  {text}: largest {per_year[top][key]:+.1f} Gt/yr ({top}); {at}")
+    return lines
 
 
 def grid_mesh():
@@ -510,16 +586,19 @@ def main():
                                      req[var]["Type"] == "FL")
         stats = {var: [np.inf, -np.inf, 0] for var in VARIABLES_2D}
         grounded_near = 0
-        # the melt booked in pixels with no floating ice at year end, which
-        # the no_floating_ice fill leaves out of libmassbffl, and the part of
-        # it in pixels the near-flotation rule emptied: (Gt/yr, year), largest
-        melt_out = {"all": (0.0, None), "near flotation": (0.0, None)}
+        # each year's melt as the gridded fields carry it (melt_booking)
+        melt_of = {}
+        # each year's front_melt stamp, held to one booking per series
+        booking_of = {}
         area_of = {}
         for k, yr in enumerate(years):
             with fd.CheckpointFile(AnnualOutput.year_path(a.annual, yr), "r") as chk:
                 ymesh = chk.load_mesh()
                 cells = {var: chk.load_function(ymesh, name=var).dat.data_ro.copy()
                          for var in VARIABLES_BANKED}
+                booking_of[yr] = (str(chk.get_attr("/", FRONT_MELT_ATTR))
+                                  if chk.has_attr("/", FRONT_MELT_ATTR) else UNSTAMPED_MELT)
+            series_front_melt(booking_of)
             # the overlap operator is built once from the first year's mesh;
             # a series whose links remeshed cannot be regridded through it
             if len(cells["lithk"]) != W.shape[1]:
@@ -540,12 +619,7 @@ def main():
                      "no_grounded_ice": cells["sftgrf"] > 0.5,
                      "no_floating_ice": cells["sftflf"] > 0.5}
             afloat = W @ masks["no_floating_ice"].astype(float)
-            melt_px = W @ cells["libmassbffl"]                     # m3/yr of ice per pixel
-            for key, where in (("all", afloat <= 0.0),
-                               ("near flotation", (afloat_before > 0.0) & (afloat <= 0.0))):
-                gt = float(melt_px[where].sum()) * RHO_I / 1e12
-                if abs(gt) > abs(melt_out[key][0]):
-                    melt_out[key] = (gt, yr)
+            melt_of[yr] = melt_booking(W, cells, afloat_before, afloat)
 
             def plane(var):
                 return pixel_values(W, cells[var], req[var], masks).reshape(
@@ -572,11 +646,9 @@ def main():
                 st[2] += int(finite.sum())
         print(f"  {grounded_near} cell-years within {FLOTATION_TOLERANCE_M:g} m of "
               f"flotation written as grounded", flush=True)
-        for key, (gt, yr) in melt_out.items():
-            where = ("in pixels with no floating ice at year end" if key == "all" else
-                     "in pixels the near-flotation rule left with no floating ice")
-            print(f"  libmassbffl leaves out the melt booked {where}: at most "
-                  f"{gt:+.1f} Gt/yr" + (f" ({yr})" if yr is not None else ""), flush=True)
+        print(f"  melt booking: {series_front_melt(booking_of)} in every year", flush=True)
+        for line in melt_summary(melt_of):
+            print(line, flush=True)
         for var in VARIABLES_2D:
             handles.pop(var)[0].close()
             lo, hi, nfin = stats[var]

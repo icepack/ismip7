@@ -1,0 +1,33 @@
+{
+ "task": "test",
+ "institution": "IU",
+ "status": "done",
+ "exp_id": "C007",
+ "esm": "CESM2-WACCM",
+ "scenario": "ssp585",
+ "period": "2294.0 to 2299.0, 50 steps, reached 2299.0",
+ "friction": "budd",
+ "mesh": "antarctica_320000_32000, DG0 geometry",
+ "initial_state": "ssp585_cesm2_waccm_p4_32000_t2294.0.h5, the state checkpoint of core07-32km-ssp585-cesm2waccm-p4, sha256 c8b60d6d9aadd7109e6a068c6c33ca6c40048e5541330e56f2730b719c48be62",
+ "branch_from": "core07-32km-ssp585-cesm2waccm-p4 at 2294.0. The restart re-solved the loaded state (||F|| 7.13e9 to 4.31e3): the p4 state was written at ae44194, before the ocean-drag gate of pull request 122, and current main solves it much faster (41,501 Gt/yr across the grounding line in 2294, falling to 3,537 in 2298), so these runs check the booking, and their trajectory departs from p4's",
+ "forcing": "CESM2-WACCM ssp585, atmosphere SDBN1-8000m v2, ocean v3",
+ "melt": "per-basin K from K_issue11_mesh2500.npz, local slope",
+ "front": "held fixed (ISMIP7_FIXED_FRONT=1), ice-shelf collapse ISMIP7_FRACTURE=none",
+ "apparent_mb": "balance, the frozen reference loaded from the p4 checkpoint",
+ "dt": 0.1,
+ "site": "IU Quartz, debug partition",
+ "resources": "8 ranks, 32G",
+ "started": "2026-09-25",
+ "finished": "2026-09-25",
+ "id": "test-32km-ssp585-front-melt-main",
+ "title": "The p4 ssp585 at 32 km restarted at 2294.0 on main for five years, the control arm of the front-melt booking (issue #109)",
+ "jobs": [
+  "10644890"
+ ],
+ "code": "main 7f6e54a, from a scratch clone with its own results",
+ "cost": "3 min 54 s for five model years, about 47 s a model year",
+ "results": "Quartz scratch ismip7_issue109/main/antarctica/results/ssp585_cesm2_waccm_i109main_32000_*",
+ "audit": "resid 0.0000 on all 50 rows, no rescue; dM/dt near -15,000 Gt/yr in 2294 and -10,500 in 2295, as the re-solved state thins",
+ "ismip7_output": "five annual files, 2294 to 2298, with the ten native scalars; lifmassbf zero and no front_melt stamp, the booking before issue #109",
+ "notes": "Paired with test-32km-ssp585-front-melt-branch through the same knobs, restart, node (c1) and rank count. The two timeseries first differ at 2294.2 in the seventh digit, before the first year end, the only place the branch's code differs from main's, so the solver does not reproduce bit for bit between jobs and this fast state amplifies it: melt differs by at most 0.6 % and mass by 2e-8 over the five years. Run by submit_i109.sh in Quartz scratch ismip7_issue109."
+}

@@ -43,17 +43,22 @@ year by year and splits every difference into named parts:
   part of a pixel, so it is multiplied by the pixel coverage from the writer's
   overlap cache, and libmassbffl a mean over the part floating at year end, so
   it is multiplied by sftflf.
-- d_resid, what is left against N. For tendlicalvf, tendligroundf, the ice
-  area iareagr + iareafl and tendacabf (whole-pixel means, or the overlap
-  cache) it is zero up to float32 and the CSV's seven digits, because the
-  writer's remap is conservative. A writer that writes floating cells within a
-  centimetre of flotation as grounded (isschecker's elevation tolerance) moves
-  area from iareafl to iareagr, so each of the two may differ while their sum
-  holds; the moved area is reported. For lim d_resid is the mass in cells of
-  1 m or less, which lithk leaves out; for limnsw the pixel averaging of a
-  nonlinear integrand; for tendlibmassbffl the melt booked where the grid
-  holds none: in pixels with no floating ice at year end, or, in a tree
-  written before, outside the year-end floating mask.
+- d_resid, what is left against N. For tendlicalvf, tendlifmassbf,
+  tendligroundf, the ice area iareagr + iareafl and tendacabf (whole-pixel
+  means, or the overlap cache) it is zero up to float32 and the CSV's seven
+  digits, because the writer's remap is conservative. A writer that writes
+  floating cells within a centimetre of flotation as grounded (isschecker's
+  elevation tolerance) moves area from iareafl to iareagr, so each of the two
+  may differ while their sum holds; the moved area is reported. For lim
+  d_resid is the mass in cells of 1 m or less, which lithk leaves out; for
+  limnsw the pixel averaging of a nonlinear integrand; for tendlibmassbffl the
+  melt booked where the grid holds none: in pixels with no floating ice at
+  year end, or, in a tree written before, outside the year-end floating mask.
+  Since the forward books the melt of ice flowing into cells holding no ice at
+  either end of the year as lifmassbf (issue #109), that residual is the melt
+  of shelf ice gone within the year and the share the frozen apparent-MB
+  reference supplied; a tree from before carries the front melt in it too,
+  and its lifmassbf is zero.
 
 The sea-level contributions get native counterparts from the model's lim and
 limnsw, with the tool's ocean area A_O = 3.625e14 m2:
@@ -98,9 +103,11 @@ SCALARS = ST_SCALARS + tuple(s for s, _ in FL_SCALARS) + SEA_LEVEL
 UNITS = dict({s: "kg" for s in ("lim", "limnsw")}, iareagr="m2", iareafl="m2",
              **{s: "kg s-1" for s, _ in FL_SCALARS}, **{s: "m" for s in SEA_LEVEL})
 # forbidden-policy fields: whole-pixel means, so a grid sum is the mesh sum
-# (tendacabf holds too in a tree of whole-pixel means, under its own gate)
-EXACT = ("tendlicalvf", "tendligroundf")
-ZERO = ("tendlibmassbfgr", "tendlifmassbf")
+# (tendacabf holds too in a tree of whole-pixel means, under its own gate).
+# lifmassbf carries front melt since issue #109 and is zero in a tree from
+# before, which the same gate passes.
+EXACT = ("tendlicalvf", "tendlifmassbf", "tendligroundf")
+ZERO = ("tendlibmassbfgr",)
 GRID_FILES = {"af2": "af2_AIS_{res}000m_v1.nc", "maxmask1": "maxmask1_AIS_{res}000m_v0.nc"}
 MARKERS = (2015, 2050, 2100, 2200, 2300)
 # The writer's global attribute on its gridded flux files (FLUX_MEAN_ATTR and
@@ -617,6 +624,13 @@ def warnings_for(res, strict_share=RESID_SHARE):
              else "outside the writer's year-end floating mask")
     out.append(f"tendlibmassbffl: the model's value carries "
                f"{-m['d_resid'] * SECONDS_PER_YEAR / 1e12:+.1f} Gt/yr {where} ({m['year']})")
+    front = max(by["tendlifmassbf"], key=lambda r: abs(r["N"]))
+    out.append(f"tendlifmassbf: the front melt booked in cells holding no ice at either end "
+               f"of the year (issue #109) is at most "
+               f"{front['N'] * SECONDS_PER_YEAR / 1e12:+.1f} Gt/yr ({front['year']})"
+               if front["N"] else
+               "tendlifmassbf: zero in every year (a tree from before the front-melt booking "
+               "of issue #109, or no cell emptied)")
     for s in ("limnsw",) + SEA_LEVEL:
         v, yr = share(s, "d_resid")
         if abs(v) > strict_share:
