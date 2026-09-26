@@ -28,10 +28,12 @@ sys.path.insert(0, SCRIPTS)
 pytest.importorskip("firedrake")
 experiment = importlib.import_module("experiment")     # noqa: E402
 
-#: driver module -> the calendar years the protocol says it covers
+#: driver module -> the calendar years the protocol says it covers. The
+#: historicals start in 2003 from the 2015 geometry with the Smith et al.
+#: (2020) thinning undone (issue #117, the 25 September meeting).
 HISTORICAL = {
-    "historical.cesm_waccm": (1850, 2014),
-    "historical.mri_esm2": (1850, 2014),
+    "historical.cesm_waccm": (2003, 2014),
+    "historical.mri_esm2": (2003, 2014),
 }
 PROJECTIONS = {
     "projections.ssp126_cesm_waccm": (2015, 2300),
@@ -85,7 +87,7 @@ def test_the_ocx_driver_uses_the_same_end_year_convention():
     T_START/T_END. It has to follow the same rule or core 11 banks a year
     fewer than its title claims."""
     ocx = importlib.import_module("projections.ocx")
-    first, last = 1979, 2025          # the OCX forcing span
+    first, last = 2003, 2025          # from the backdated 2003 geometry (issue #117) to the OCX forcing's end
     assert ocx.T_START == float(first)
     assert ocx.T_END == float(last + 1)
 

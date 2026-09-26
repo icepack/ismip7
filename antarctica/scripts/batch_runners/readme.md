@@ -406,7 +406,7 @@ and the runner does not default `ISMIP7_T_END`; the chain reads the value the
 run used from the driver's `Time-stepping: <start>-><end>` line. At the
 production step, `dt = 0.025` (issue 20), Rice's default of 32 ranks on one
 Cascade Lake node measured 22.5 min a simulated year, 62 years a 24 h link,
-so a full projection is five links and a historical three. On 64 Quartz ranks
+so a full projection is five links, and a historical from 2003 fits in one. On 64 Quartz ranks
 the matrix's 30 s a step would give about 70 years a link, also five links; a
 chain already running keeps the step it started with.
 
@@ -438,9 +438,36 @@ resubmits, unless `ISMIP7_CHAIN=0`, or auto-resume is off (a successor would
 cold-start and repeat the years), or the final checkpoint is unreadable, or the
 job advanced no years at all (setup alone spent the budget).
 
+**A historical can queue what branches from it.** `ISMIP7_CHAIN_THEN` names
+follow-on experiments (space-separated, from the runner's list), and the job
+that brings the chain to its end year queues each one behind itself, as a fresh
+chain with the same environment and allocation, less `ISMIP7_T_START` and
+`ISMIP7_T_END`, since each follow-on's driver owns its period; a job that stops
+short carries the list on to its successor, and a stalled or failed one queues
+nothing. So a
+control and the projections are submitted with their historical and start only
+once it has reached 2015, which is what `simulation.historical_endpoint` then
+checks before they branch. A misspelt follow-on stops the first job before the
+driver runs:
+
+```bash
+ISMIP7_EXPERIMENT=hist_mri_esm2 ISMIP7_ESM=MRI-ESM2-0 \
+    ISMIP7_CHAIN_THEN="control" antarctica/scripts/batch_runners/submit.sh projection
+```
+
 A relaunch from a stalled state has cleared the diagnostic-Newton wall in every
 observed case (see Known issues in `antarctica/README.md`). The chain leaves
 that judgement to you: resubmit, and auto-resume picks the run up.
+
+**MPI-IO goes through romio.** Every rank is started with
+`OMPI_MCA_io=romio321` (`ismip7_mpirun` in `site_core.sh`), because Open MPI's
+default ompio component writes a parallel HDF5 file to an NFS file system at
+about 1.5 MB/s: on NOTS, 32 ranks on the 1000 m mesh, one 1.48 GB yearly
+output file took 1042 s to `/scratch` under ompio and 52 s under romio321
+(24 September 2026), on a file system that takes a single stream at 600 MB/s.
+Before the change the yearly write was a third of a 45-minute model year.
+`ISMIP7_MPI_IO` names the component; set it empty to leave the MPI's own
+default. An MPI other than Open MPI ignores the variable.
 
 The wall budget is derived per job. Each link reads its own partition's
 `TimeLimit`, holds back 25 minutes and passes the rest as

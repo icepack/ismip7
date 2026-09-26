@@ -167,3 +167,39 @@ def test_core_11_on_the_stopgap_says_that_is_what_it_is(monkeypatch, tmp_path, c
     _run_core_11(monkeypatch, tmp_path, None, forcing="stopgap")
     line = _core_line(capsys, "core 11")
     assert "READY" in line and "ISMIP7_OCX_FORCING=stopgap" in line
+
+
+# ── the melt calibration a run reads ────────────────────────────────────────
+def _shared(monkeypatch, tmp_path):
+    r"""preflight.shared_missing over an empty results directory."""
+    sys.modules.pop("preflight", None)
+    preflight = importlib.import_module("preflight")
+    monkeypatch.setattr(preflight, "RESULTS_DIR", str(tmp_path))
+    return preflight.shared_missing([])
+
+
+def test_a_deltat_file_is_the_melt_calibration(monkeypatch, tmp_path):
+    r"""With ISMIP7_DELTAT_PER_BASIN_NPZ naming a file the drivers read no
+    per-basin K, so the gate must not ask for one."""
+    for knob in ("ISMIP7_K_PER_BASIN_NPZ", "ISMIP7_K_SCALE"):
+        monkeypatch.delenv(knob, raising=False)
+    dT = tmp_path / "deltaT_per_basin_1000_K8.500e-05.npz"
+    dT.write_bytes(b"")
+    monkeypatch.setenv("ISMIP7_DELTAT_PER_BASIN_NPZ", str(dT))
+    assert not [m for m in _shared(monkeypatch, tmp_path) if "per-basin" in m]
+
+
+def test_without_either_file_the_melt_calibration_is_missing(monkeypatch, tmp_path):
+    for knob in ("ISMIP7_K_PER_BASIN_NPZ", "ISMIP7_K_SCALE",
+                 "ISMIP7_DELTAT_PER_BASIN_NPZ"):
+        monkeypatch.delenv(knob, raising=False)
+    assert "per-basin K npz (or ISMIP7_DELTAT_PER_BASIN_NPZ)" in \
+        _shared(monkeypatch, tmp_path)
+
+
+def test_a_named_deltat_file_that_is_absent_is_reported(monkeypatch, tmp_path):
+    monkeypatch.delenv("ISMIP7_K_SCALE", raising=False)
+    monkeypatch.setenv("ISMIP7_DELTAT_PER_BASIN_NPZ", str(tmp_path / "nope.npz"))
+    missing = _shared(monkeypatch, tmp_path)
+    assert any("ISMIP7_DELTAT_PER_BASIN_NPZ" in m and "does not exist" in m
+               for m in missing)

@@ -250,7 +250,9 @@ checkouts of the same clone. To keep handoffs clean:
   stay in the topic doc, which carries the issue number as `(issue #NN)`.
   A bare `#NN` in this repository's prose is an ISMIP7 forum thread. The
   board at https://github.com/users/dlilien/projects/1 holds status and the
-  claim, and `NOW.md` is the generated index for a login node with no `gh`.
+  claim, and `NOW.md` is the generated index for a login node with no `gh`,
+  current as of its Generated line: the suite skips the checks against the
+  live board, and `make -C antarctica now` regenerates it.
   `tests/test_now_index.py` fails the suite when a document states something
   open with no issue on it, so filing is the cheapest way past the gate.
 - **Claim the card before you start a run or an inversion.** Move it to Claimed
