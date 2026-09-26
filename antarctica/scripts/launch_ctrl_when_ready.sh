@@ -7,7 +7,7 @@
 # floor via N_hat, exact-zero shelf drag, driven by the
 # inversion_icepack2_budd MAP). This runs the 2500 m
 # Budd CTRL with all the conservation work: RACMO SMB, the ESM's `ctrl`
-# ocean + per-basin K, exactly-conservative transport, fixed calving
+# ocean + the melt calibration, exactly-conservative transport, fixed calving
 # front, h_clamp_init=0 (true geometry), dt=0.1, 2015->T_END.
 #
 # Config note: h_clamp_init=0 + fixed front is NEW for Budd (May runs used
@@ -27,7 +27,9 @@ LC="${ISMIP7_LC:-2500}"
 MESH="${ISMIP7_MESH:-$REPO/antarctica/mesh/antarctica_64000_2500.msh}"
 T_END="${ISMIP7_T_END:-2025}"              # 10-yr validation by default
 DT="${ISMIP7_DT:-0.1}"
-K_NPZ="${ISMIP7_K_PER_BASIN_NPZ:-$REPO/antarctica/results/calibrated_K_per_basin_2500.npz}"
+# The melt calibration is the tracked one unless a legacy per-basin K is
+# named here (ISMIP7_K_PER_BASIN_NPZ); an empty value exports as unset.
+K_NPZ="${ISMIP7_K_PER_BASIN_NPZ:-}"
 NRANKS="${NRANKS:-16}"
 MIN_FREE_GB="${MIN_FREE_GB:-64}"           # 2500 m MUMPS is lighter than 500 m
 MIN_FREE_CORES="${MIN_FREE_CORES:-20}"
@@ -81,7 +83,7 @@ trap 'rm -f "$LOCK"' EXIT
 
 [ -f "$MESH" ]   || { log "ERROR: mesh not found: $MESH"; exit 1; }
 [ -x "$PY" ]     || { log "ERROR: python not found: $PY"; exit 1; }
-[ -f "$K_NPZ" ]  || { log "ERROR: per-basin K npz not found: $K_NPZ"; exit 1; }
+[ -z "$K_NPZ" ] || [ -f "$K_NPZ" ] || { log "ERROR: per-basin K npz not found: $K_NPZ"; exit 1; }
 [ -f "$BNDIDS" ] || { log "ERROR: boundary ids not found: $BNDIDS"; exit 1; }
 [ -f "$REPO/antarctica/mesh/inversion_icepack2_budd${NTAG}${GTAG}_${LC}.h5" ] \
   || { log "ERROR: Budd MAP inversion_icepack2_budd${NTAG}${GTAG}_${LC}.h5 not found (geometry=$GEOM)"; exit 1; }

@@ -1,31 +1,34 @@
 #!/bin/bash
 
-# The OCX tripwire core 11 needs before it runs on the ISMIP7 OCX product
-# (scripts/check_melt_bound.py --ocx, issue #11): the forward half melted with
-# the OCX ocean, set against the climatology K was fitted to, per IMBIE2 basin
-# and per 256 km block. Serial. The job ends with the check's own status, 0
-# clean and 1 when any basin or block is flagged in any year, so sacct carries
-# the verdict.
+# scripts/check_melt_bound.py as a job. It melts the reference geometry with
+# the forward's own callback and sets the melt, per IMBIE2 basin, against the
+# totals the melt calibration was fitted to (issue 30), and with --ocx it is
+# the tripwire core 11 needs before it runs on the ISMIP7 OCX product (issue
+# #11): the forward half melted with the OCX ocean, set against the
+# climatology the calibration was fitted to, per IMBIE2 basin and per 256 km
+# block. Serial. The job ends with the check's own status, 0 clean and 1 when
+# any basin misses its calibration or any basin or block is flagged in any
+# year, so sacct carries the verdict.
 #
 # From antarctica/ (measured on Quartz, September 2026: 1 min and under 1 GB on
 # a 2500 m mesh, 4 min and 5 GB on the 1000 m production mesh):
 #
 #   scripts/batch_runners/submit.sh script scripts/batch_runners/check_melt_bound.script \
 #       --cd antarctica --queue debug --tasks 1 --mem 16G --time 00:30:00 \
-#       ISMIP7_LC=1000 ISMIP7_INV_H5=$PWD/mesh/<map>.h5
+#       ISMIP7_INV_H5=$PWD/mesh/<map>.h5
 #
 # ISMIP7_INV_H5 supplies the mesh and nothing else, so a forward state serves
 # where no MAP exists yet at that resolution:
 #
-#       ISMIP7_LC=1000 ISMIP7_INV_H5=$PWD/results/<run>_1000_final.h5
+#       ISMIP7_INV_H5=$PWD/results/<run>_1000_final.h5
 #
-# K is results/calibrated_K_per_basin_<ISMIP7_LC>.npz. The check has no 2500
-# fallback of its own, so where a site stages the 2500 file alone, or keeps a
-# calibration outside results/, name it with ISMIP7_K_PER_BASIN_NPZ, the
-# override a forward honours too. ISMIP7_OCX_OCEAN picks the variant (main).
-# The log carries the forcing-provenance lines, which say which OCX version
-# the reader opened: record them with the verdict, since upstream replaces
-# these files.
+# The calibration is the one a forward reads: the tracked
+# calibration/deltaT_per_basin_1000_K6.500e-05.npz, unless
+# ISMIP7_DELTAT_PER_BASIN_NPZ names offsets or ISMIP7_K_PER_BASIN_NPZ a legacy
+# per-basin K. ISMIP7_OCX_OCEAN picks the OCX variant (main), and `none` skips
+# the OCX comparison. The log carries the forcing-provenance lines, which say
+# which calibration and which OCX version the check read: record them with
+# the verdict, since upstream replaces these files.
 
 #SBATCH -o ant_melt_bound_%j.txt
 #SBATCH -e ant_melt_bound_%j.err
@@ -41,14 +44,19 @@ ismip7_persistent_jit_cache
 ismip7_banner
 
 h5="${ISMIP7_INV_H5:?ISMIP7_INV_H5 is required (a MAP or a forward state, read for its mesh)}"
-: "${ISMIP7_LC:?ISMIP7_LC is required (it names the default K file)}"
 [ -f "${h5}" ] || { echo "mesh source not found: ${h5}" >&2; exit 2; }
+if [ -n "${ISMIP7_DELTAT_PER_BASIN_NPZ:-}" ] && [ -n "${ISMIP7_K_PER_BASIN_NPZ:-}" ]; then
+    echo "ISMIP7_DELTAT_PER_BASIN_NPZ and ISMIP7_K_PER_BASIN_NPZ are both set; name one calibration" >&2
+    exit 2
+fi
 
-args=(--ocx "${ISMIP7_OCX_OCEAN:-main}")
-if [ -n "${ISMIP7_K_PER_BASIN_NPZ:-}" ]; then
-    [ -f "${ISMIP7_K_PER_BASIN_NPZ}" ] || { echo "K file not found: ${ISMIP7_K_PER_BASIN_NPZ}" >&2; exit 2; }
-    args+=(--npz "${ISMIP7_K_PER_BASIN_NPZ}")
-    echo "    K       ${ISMIP7_K_PER_BASIN_NPZ}  sha256 $({ sha256sum "${ISMIP7_K_PER_BASIN_NPZ}" 2>/dev/null || shasum -a 256 "${ISMIP7_K_PER_BASIN_NPZ}"; } | cut -d' ' -f1)"
+args=()
+[ "${ISMIP7_OCX_OCEAN:-main}" = none ] || args+=(--ocx "${ISMIP7_OCX_OCEAN:-main}")
+npz="${ISMIP7_DELTAT_PER_BASIN_NPZ:-${ISMIP7_K_PER_BASIN_NPZ:-}}"
+if [ -n "${npz}" ]; then
+    [ -f "${npz}" ] || { echo "melt calibration not found: ${npz}" >&2; exit 2; }
+    args+=(--npz "${npz}")
+    echo "    melt    ${npz}  sha256 $({ sha256sum "${npz}" 2>/dev/null || shasum -a 256 "${npz}"; } | cut -d' ' -f1)"
 fi
 echo "    commit  $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 

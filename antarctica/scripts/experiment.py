@@ -41,13 +41,13 @@ from simulation import (setup_model, run_simulation, latest_checkpoint,
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere, ISMIP7Ocean, ISMIP7Fracture,
     make_forcing_callback, load_racmo_smb_climatology, forcing_coords,
-    describe_forcing_provenance, forcing_year, k_melt,
+    describe_forcing_provenance, describe_melt_calibration, forcing_year,
 )
 from icepack2_tools.climatology import (
     clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
 )
 from icepack2_tools.runconfig import (
-    FRACTURE_MASK_MODES, fracture as fracture_mode, k_per_basin_candidates,
+    FRACTURE_MASK_MODES, fracture as fracture_mode, k_per_basin_npz,
     deltat_per_basin_npz,
 )
 
@@ -57,16 +57,6 @@ from icepack2_tools.runconfig import (
 CLIM_START = clim_start()
 CLIM_END = clim_end()
 CLIM_SCENARIO = clim_scenario()
-
-
-def find_k_npz():
-    r"""Calibrated per-basin K npz: this mesh's calibration, else the 2500 m
-    one (16 basin scalars remapped through the IMBIE2 8 km grid,
-    mesh-independent), else None (scalar ISMIP7_K_MELT)."""
-    for c in k_per_basin_candidates(RESULTS_DIR, lc):
-        if c and os.path.exists(c):
-            return c
-    return None
 
 
 def smb_scheme(ctx, esm):
@@ -215,24 +205,21 @@ def run_core_experiment(*, core, title, name, esm, scenario,
 
     # What this run opens, for the committed report: a collapse mask only
     # counts when the run reads it.
-    for line in describe_forcing_provenance(
-            atm, ocean, fracture if fracture_mode() != "none" else None):
+    for line in (describe_forcing_provenance(
+            atm, ocean, fracture if fracture_mode() != "none" else None)
+            + describe_melt_calibration(ctx.get("mesh_basename"))):
         PETSc.Sys.Print(f"  {line}")
 
-    K_npz = None if dT_npz is not None else find_k_npz()
-    K_melt = k_melt()
+    # The melt calibration: the tracked one or a named offsets file, else a
+    # legacy per-basin K named with ISMIP7_K_PER_BASIN_NPZ.
+    K_npz = None if dT_npz is not None else k_per_basin_npz()
     if dT_npz is not None:
         PETSc.Sys.Print(f"  Ocean melt: per-basin deltaT at one K from {dT_npz}")
-    elif K_npz is not None:
-        PETSc.Sys.Print(f"  Ocean melt: calibrated per-basin K from {K_npz}")
     else:
-        PETSc.Sys.Print(
-            f"  WARNING: no per-basin K calibration; scalar K={K_melt:.2e}"
-        )
+        PETSc.Sys.Print(f"  Ocean melt: legacy per-basin K from {K_npz}")
 
     callback = make_forcing_callback(
-        atm=atm, ocean=ocean, fracture=fracture,
-        K=K_melt, K_per_basin_npz=K_npz,
+        atm=atm, ocean=ocean, fracture=fracture, K_per_basin_npz=K_npz,
         smb_anomaly=smb_anomaly, smb_baseline=smb_baseline,
     )
 

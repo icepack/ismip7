@@ -83,7 +83,8 @@ def test_the_fit_reduces_basin_totals_across_ranks():
 def clean(monkeypatch):
     import icepack2_tools.forcing as forcing
     for k in ("ISMIP7_MELT_SLOPE", "ISMIP7_SIN_ALPHA_ANT", "ISMIP7_GEOMETRY_SPACE",
-              "ISMIP7_K_SCALE", "ISMIP7_DELTAT_PER_BASIN_NPZ", "ISMIP7_FRACTURE"):
+              "ISMIP7_K_SCALE", "ISMIP7_DELTAT_PER_BASIN_NPZ", "ISMIP7_FRACTURE",
+              "ISMIP7_K_PER_BASIN_NPZ", "ISMIP7_K_MELT"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr(forcing, "_MELT_SLOPE_WARNED", False)
     monkeypatch.setattr(forcing, "_SLOPE_CAP_WARNED", False)
@@ -121,25 +122,33 @@ def test_the_offset_is_stamped_by_basin(tmp_path, clean, capsys):
     assert "WARNING" not in capsys.readouterr().out
 
 
-def test_another_slope_constant_names_the_deltaT_remedy(tmp_path, clean, capsys):
+def test_another_slope_constant_is_refused_with_the_deltaT_remedy(tmp_path, clean):
+    r"""The forward has to apply the melt its offsets were fitted to, so an
+    offsets file fitted under another slope constant stops the run."""
     from icepack2_tools.forcing import load_deltaT_per_basin
     npz = _offsets(tmp_path, sin_alpha_ant=5.7e-3)
-    load_deltaT_per_basin(npz, np.array([0.4]), np.array([0.1]))
-    out = capsys.readouterr().out
-    assert "sin(alpha) = 0.0057" in out
-    assert "calibrate_deltaT.py" in out and "ISMIP7_DELTAT_PER_BASIN_NPZ" in out
-    assert "calibrate_melt.py" not in out
+    with pytest.raises(ValueError, match=r"sin\(alpha\) 0.0057") as e:
+        load_deltaT_per_basin(npz, np.array([0.4]), np.array([0.1]))
+    said = str(e.value)
+    assert "calibrate_deltaT.py" in said and "ISMIP7_DELTAT_PER_BASIN_NPZ" in said
+    assert "calibrate_melt.py" not in said
 
 
-def test_another_geometry_names_the_deltaT_remedy(tmp_path, clean, capsys):
+def test_another_geometry_is_refused_with_the_deltaT_remedy(tmp_path, clean):
     from icepack2_tools.forcing import load_deltaT_per_basin
     from icepack2_tools.runconfig import geometry_space
     other = "cg1" if geometry_space() == "dg0" else "dg0"
     npz = _offsets(tmp_path, geometry_space=other)
-    load_deltaT_per_basin(npz, np.array([0.4]), np.array([0.1]))
-    out = capsys.readouterr().out
-    assert f"calibrated on {other} geometry" in out
-    assert "calibrate_deltaT.py" in out
+    with pytest.raises(ValueError, match=f"{other} geometry") as e:
+        load_deltaT_per_basin(npz, np.array([0.4]), np.array([0.1]))
+    assert "calibrate_deltaT.py" in str(e.value)
+
+
+def test_another_slope_law_is_refused(tmp_path, clean):
+    from icepack2_tools.forcing import load_deltaT_per_basin
+    npz = _offsets(tmp_path, melt_slope="local")
+    with pytest.raises(ValueError, match="ISMIP7_MELT_SLOPE local"):
+        load_deltaT_per_basin(npz, np.array([0.4]), np.array([0.1]))
 
 
 def test_a_missing_offsets_file_is_refused(tmp_path, clean, monkeypatch):
@@ -184,6 +193,9 @@ def test_a_projection_melts_with_the_offsets_and_never_reads_the_K_file(
     xy = fd.Function(fd.VectorFunctionSpace(mesh, "DG", 0)).interpolate(
         fd.SpatialCoordinate(mesh)).dat.data_ro
     h = fd.Function(Q_g).assign(100.0)
+    # the last cell is open ocean: it floats by the flotation test and holds
+    # no ice, so the forward books no melt there, as the calibration fits none
+    h.dat.data[-1] = 0.0
     ctx = {"mesh": mesh, "geom_xy": (xy[:, 0].copy(), xy[:, 1].copy()),
            "h": h, "b": fd.Function(Q_g).assign(-1000.0),
            "s": fd.Function(Q_g).assign(5.0),
@@ -196,6 +208,7 @@ def test_a_projection_melts_with_the_offsets_and_never_reads_the_K_file(
     dT = np.where(x < 1.5, 0.3, np.where(x <= 3.0, -0.5, 0.0))
     assert (dT == 0.0).any()
     expect = forcing.quadratic_mixed_slope(1.5 + dT, 34.5, 5.115e-3, K=8.5e-5)
+    expect[-1] = 0.0
     assert np.allclose(ctx["ocean_melt"].dat.data_ro, expect)
     out = capsys.readouterr().out
     assert "outside the fitted basins" in out

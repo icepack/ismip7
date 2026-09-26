@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-r"""ISMIP7 ocean-melt calibration (Burgard quadratic_mixed_slope, local TF).
+r"""ISMIP7 ocean-melt calibration (Burgard quadratic_mixed_slope, local TF):
+the per-basin K the runs used before issue 26 was decided. A run now melts
+with one K and a thermal-forcing offset per basin, the tracked calibration
+(runconfig.MELT_CALIBRATION_DEFAULT, from select_melt_parameters.py), and
+reads a file written here only when ISMIP7_K_PER_BASIN_NPZ names it.
 
 Mesh: the section 4 MAP for the configured ISMIP7_FRICTION, named by
 `icepack2_tools/naming.py` (ISMIP7_LC; ISMIP7_INV_H5 names a different MAP).
@@ -11,17 +15,17 @@ Geometry: the same ISMIP7_GEOMETRY_SPACE the forward reads (default dg0).
   bed and thickness sampled onto the cells (ISMIP7_RASTER_SAMPLE), the
   surface from flotation, the slope of `forcing.compute_sin_alpha`,
   thermal forcing and salinity at each centroid and its own draft,
-  the callback's `haf <= 0` floating test on cells holding ice (`h > 0`),
+  the forward's melt set `forcing.melt_receiving` (floating, `h > 0`),
   cell areas. A K fitted here is the K the forward applies, by construction.
-  Ice-free cells with `haf <= 0` are left out: the forward cannot melt ice
-  from a cell holding none, and the observations cover real shelves only.
+  Ice-free cells with `haf <= 0` are left out, as the forward leaves them
+  out: the observations cover real shelves only.
 * `cg1` is the nodal calibration the earlier K files came from: BedMachine
   interpolated onto CG1 nodes with its raster surface and `mask == 3` as
   the floating mask, grad(draft) projected onto CG1 and capped at 5e-3,
   lumped-mass areas. With the same cap the DG0 fit reproduces these within
   about 10 percent per basin, 22 percent in basin 7
-  (GEOMETRY_DISCRETIZATION.md, issue #30); the slope convention is what
-  separates them (issue #26).
+  (GEOMETRY_DISCRETIZATION.md); the slope convention is what separates
+  them.
 
 The K file records the geometry and the slope convention it was fitted
 under, and `load_K_per_basin` warns once when a run melts under another.
@@ -47,11 +51,10 @@ Since melt is linear in K, the Term-1 optimum is closed form:
     K* = sum_b M_obs(b) * M_1(b) / sigma(b)^2
        / sum_b   M_1(b)^2          / sigma(b)^2
 
-Output: antarctica/results/calibrated_K_per_basin_<LC>.npz, the path every
-forward and inversion in this checkout reads its K from
-(`runconfig.k_per_basin_candidates`). ISMIP7_K_OUT names another destination,
-so a calibration made as a check leaves later runs melting with what they had;
-a bare filename resolves under antarctica/results/.
+Output: antarctica/results/calibrated_K_per_basin_<LC>.npz. No run searches
+for it: a forward reads it only when ISMIP7_K_PER_BASIN_NPZ names it.
+ISMIP7_K_OUT names another destination; a bare filename resolves under
+antarctica/results/.
 
 Usage:
     ISMIP7_LC=2500 python antarctica/scripts/calibrate_melt.py
@@ -78,7 +81,8 @@ import rasterio
 import icepack
 
 from icepack2_tools.forcing import (quadratic_mixed_slope, compute_sin_alpha,
-                                    is_floating, melt_slope, sin_alpha_ant,
+                                    is_floating, melt_receiving,
+                                    melt_slope, sin_alpha_ant,
                                     SIN_ALPHA_ANT_DEFAULT, _K_PERCENTILES,
                                     _RHO_I)
 K05, K50, K95 = _K_PERCENTILES
@@ -164,11 +168,10 @@ def _announce_obs_table():
 def _k_out():
     r"""Where the calibration is written.
 
-    The default is the first path `runconfig.k_per_basin_candidates` searches,
-    so every later forward and inversion in this checkout melts with what is
-    written there. ISMIP7_K_OUT names another destination for a calibration
-    made as a check. Like ISMIP7_MAP_OUT, a bare filename resolves under the
-    default directory; no run searches that directory for any other name.
+    The default is ``antarctica/results/calibrated_K_per_basin_<LC>.npz``,
+    which a forward reads only when ISMIP7_K_PER_BASIN_NPZ names it.
+    ISMIP7_K_OUT names another destination. Like ISMIP7_MAP_OUT, a bare
+    filename resolves under the default directory.
     """
     out_dir = os.path.join(_PROJECT, "antarctica", "results")
     named = os.environ.get("ISMIP7_K_OUT")
@@ -280,12 +283,12 @@ def forward_geometry(mesh):
     thickness sampled onto the cells (``ISMIP7_RASTER_SAMPLE``), the surface
     from flotation as simulation.py builds it, the cell slope of
     ``forcing.compute_sin_alpha``, the forcing at each cell centroid and its
-    own draft, the callback's ``haf <= 0`` floating test and cell areas.
+    own draft, the forward's melt set and cell areas.
 
-    Floating is ``haf <= 0`` on cells with ``h > 0``. An ice-free ocean cell
-    also has ``haf <= 0``, but the forward cannot remove ice from a cell
-    holding none and the observations cover real shelves only, so it is left
-    out of the fit."""
+    The melt set is ``forcing.melt_receiving``, ``haf <= 0`` on cells with
+    ``h > 0``, the one the forward's callbacks melt. An ice-free ocean cell
+    also has ``haf <= 0``; the observations cover real shelves only, so it is
+    left out of the fit, and the forward leaves it out of the melt."""
     Q = FunctionSpace(mesh, "CG", 1)
     Q_g = FunctionSpace(mesh, "DG", 0)
     bm = _bedmachine_path()
@@ -300,7 +303,7 @@ def forward_geometry(mesh):
         fd.SpatialCoordinate(mesh)).dat.data_ro
     b_np, h_np, s_np = b_dg.dat.data_ro, h_dg.dat.data_ro, s_dg.dat.data_ro
     afloat = is_floating(s_np, b_np)
-    floating = afloat & (h_np > 0)
+    floating = melt_receiving(s_np, b_np, h_np)
     comm = mesh.comm
     h_lo, h_hi = global_range(h_np, comm)
     PETSc.Sys.Print(f"  BedMachine on cells: h min={h_lo:.1f}  "

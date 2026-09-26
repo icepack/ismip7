@@ -1,0 +1,46 @@
+{
+  "file": "deltaT_per_basin_1000_K6.500e-05.npz",
+  "sha256": "64eb824ad079f0b44a8280b97580d682156c15eb2f012c70b2785df977832a34",
+  "decided": "2026-09-25",
+  "decision": "icepack/ismip7 issue 26: K50 of IU's rule-based toolbox selection, calculated on the 1000 m / 10 km production mesh, with its per-basin thermal-forcing offsets",
+  "run_record": "calibration-melt-toolbox-1km-rule",
+  "site": "IU Quartz, debug partition, serial",
+  "job": "10619005",
+  "written_by": "antarctica/scripts/select_melt_parameters.py --geometry mesh",
+  "selection_commit": "c687b4fafb272c6f9005450802d088277c76040a",
+  "toolbox_commit": "84d17692935867d62b9c8e26f076a9869d74be31",
+  "K": 6.5e-05,
+  "selected_as": "K50",
+  "K50_by_seed": [6.5e-05, 6.5e-05, 6.25e-05, 6.25e-05, 6.25e-05],
+  "mesh": "antarctica_10000_1000_buffered20000",
+  "lc": 1000,
+  "lc_coarse": 10000,
+  "geometry_space": "dg0",
+  "raster_sample": "vertex",
+  "melt_slope": "ant",
+  "sin_alpha_ant": 0.005115,
+  "oi_version": "30_sep",
+  "rho_i": 917.0,
+  "dt_window": [-3.0, 3.0],
+  "tf_rule": {
+    "floor": -1.8,
+    "floor_area": [-1.0, 0.25],
+    "cap": null,
+    "cap_area": [5.5, 0.25],
+    "rooted": true
+  },
+  "melt_total_gtyr": 1067.3895,
+  "obs_table": {
+    "name": "Melt_Paolo_Davison_Adusumilli_imbie2.csv",
+    "sha256": "ccea556ebfe7f3de9fd140c5f364ace1775478a479f864c71d811c70ef54a7d7",
+    "total_gtyr": 1067.4
+  },
+  "floating_cells": 1398387,
+  "bedmachine": "NSIDC-0756_BedMachineAntarctica_19700101-20191001_V04.1.nc",
+  "inputs_sha256": {
+    "mesh": ["timing_scpc_gamg_10step_dt0p125at2500_dg0_logvelnet_cached_strict_v4_lcc10000_n64_1000_final.h5", "1255a2fcceb5dd4a3ba017a57922ec987ffe6fb353b64bad44c142696dd7448f"],
+    "clim_tf": ["OI_Climatology_ismip8km_60m_tf_extrap.nc", "15e810a19a79672bd824c7574e5386e1c4a35e0c280af87e9c101949a3187425"],
+    "clim_so": ["OI_Climatology_ismip8km_60m_so_extrap.nc", "9f18e73638543d7b3afdea79b50983734d6574adae3656006d37795f55f78e80"],
+    "imbie2": ["basin_numbers_ismip8km_v2.nc", "2ac20e55a20265ff911ece65d489bb33ed41d6fba115c78125b1a846f91b7cec"]
+  }
+}

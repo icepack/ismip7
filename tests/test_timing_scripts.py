@@ -303,20 +303,32 @@ def test_the_melt_bound_job_ends_with_the_check_s_own_status(sandbox):
     assert f"ISMIP7_INV_H5={state}" in seen and "OMP_NUM_THREADS=1" in seen
     assert "check_melt_bound exit status: 1" in proc.stdout
 
-    # with no override the check resolves results/calibrated_K_per_basin_<lc>.npz itself
-    proc, seen = run_script(sandbox, "check_melt_bound.script", ISMIP7_LC="1000",
+    # with no override the check reads the tracked calibration itself, and an
+    # offsets file is passed on the same way a legacy K is
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
                             ISMIP7_INV_H5=str(state), ISMIP7_OCX_OCEAN="warm")
     assert proc.returncode == 0, proc.stderr
     assert [ln for ln in seen if ln.startswith("ARGV")][-1] == "ARGV --ocx warm"
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
+                            ISMIP7_INV_H5=str(state), ISMIP7_OCX_OCEAN="none",
+                            ISMIP7_DELTAT_PER_BASIN_NPZ=str(k_npz))
+    assert proc.returncode == 0, proc.stderr
+    assert [ln for ln in seen if ln.startswith("ARGV")][-1] == f"ARGV --npz {k_npz}"
 
-    # a missing mesh source or K file stops the job before the check starts
+    # a missing mesh source or calibration, or two calibrations, stops the
+    # job before the check starts
     n_before = len(seen)
     proc, seen = run_script(sandbox, "check_melt_bound.script", ISMIP7_LC="1000")
     assert proc.returncode != 0 and "ISMIP7_INV_H5 is required" in proc.stderr
-    proc, seen = run_script(sandbox, "check_melt_bound.script", ISMIP7_LC="1000",
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
                             ISMIP7_INV_H5=str(state),
                             ISMIP7_K_PER_BASIN_NPZ=str(sandbox / "absent.npz"))
-    assert proc.returncode == 2 and "K file not found" in proc.stderr
+    assert proc.returncode == 2 and "melt calibration not found" in proc.stderr
+    proc, seen = run_script(sandbox, "check_melt_bound.script",
+                            ISMIP7_INV_H5=str(state),
+                            ISMIP7_K_PER_BASIN_NPZ=str(k_npz),
+                            ISMIP7_DELTAT_PER_BASIN_NPZ=str(k_npz))
+    assert proc.returncode == 2 and "both set" in proc.stderr
     assert len(seen) == n_before
 
 

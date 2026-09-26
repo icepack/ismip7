@@ -9,7 +9,8 @@ model against the observed record, and independent of CMIP by design
     SMB:   RACMO2.3p2-ERA, statistically downscaled (SDBN1, 8 km), the full
            ``acabf`` field year by year, 1979-2025.
     Ocean: the expert-judgment thermal forcing and salinity at draft,
-           1950-2025, with the calibrated per-basin K. ``ISMIP7_OCX_OCEAN``
+           1950-2025, with the melt calibration (one K and a thermal-forcing
+           offset per IMBIE basin). ``ISMIP7_OCX_OCEAN``
            picks the scenario: ``main`` (the core one), ``cold``, ``warm`` or
            ``vary``. The Antarctic OCX ocean cites no observational source
            (discussion #41).
@@ -18,8 +19,8 @@ model against the observed record, and independent of CMIP by design
 ``stopgap``, what this core ran on before the product was readable here:
     SMB:   RACMO2.4p1 actual-year fields (1979-2023; end years held at the
            last available RACMO year).
-    Ocean: constant OI-climatology TF/so at draft with the calibrated
-           per-basin K (the same forcing the CTRL uses).
+    Ocean: constant OI-climatology TF/so at draft with the melt
+           calibration, the climatology it was fitted against.
 
 OPEN, discussion #48 (17 September 2026): the OCX ``main`` thermal forcing
 differs strongly from the Zhou climatology around Mertz, halving that
@@ -45,16 +46,18 @@ sys.path.insert(0, _SCRIPTS)
 
 from simulation import (setup_model, run_simulation, latest_checkpoint,
                         auto_resume, PETSc)
-from experiment import find_k_npz
 import math
 
-from icepack2_tools.runconfig import ocx_forcing, ocx_ocean, deltat_per_basin_npz
+from icepack2_tools.runconfig import (
+    ocx_forcing, ocx_ocean, deltat_per_basin_npz, k_per_basin_npz,
+)
 from icepack2_tools.forcing import (
     OCX, OCX_ATMOSPHERE_SOURCE,
     ISMIP7Atmosphere, ISMIP7Ocean, make_forcing_callback,
     make_climatology_ocean_callback, load_racmo_smb_climatology,
-    load_K_per_basin, forcing_coords, _K_DEFAULT, reject_collapse_mask, forcing_year,
+    load_K_per_basin, forcing_coords, reject_collapse_mask, forcing_year,
     describe_forcing_provenance, describe_observational_forcing,
+    describe_melt_calibration,
 )
 
 T_START = float(os.environ.get("ISMIP7_T_START", "1979"))
@@ -126,26 +129,21 @@ def main():
     # DG0 geometry those are cell centroids (see forcing.forcing_coords).
     mesh_x, mesh_y = forcing_coords(ctx)
 
-    # Per-basin deltaT at one K, else per-basin K (with 2500 m fallback) +
-    # optional global scale.
+    # The melt calibration: per-basin deltaT at one K, the tracked file
+    # unless another is named, else a legacy per-basin K named with
+    # ISMIP7_K_PER_BASIN_NPZ, with its optional global scale.
     if dT_npz is not None:
         K_npz = None
-        K_field = _K_DEFAULT
+        K_field = None
         melt_what = f"per-basin deltaT at one K ({dT_npz})"
     else:
-        K_npz = find_k_npz()
-        if K_npz is None:
-            raise FileNotFoundError(
-                "OCX needs the calibrated per-basin K "
-                "(antarctica/scripts/calibrate_melt.py) or "
-                "ISMIP7_DELTAT_PER_BASIN_NPZ (calibrate_deltaT.py)."
-            )
+        K_npz = k_per_basin_npz()
         K_field = load_K_per_basin(K_npz, mesh_x, mesh_y, fill=0.0)
         K_scale = float(os.environ.get("ISMIP7_K_SCALE", "1.0"))
         if K_scale != 1.0:
             K_field = K_field * K_scale
             PETSc.Sys.Print(f"  K scaled by ISMIP7_K_SCALE={K_scale:.3f}")
-        melt_what = f"per-basin K ({K_npz})"
+        melt_what = f"legacy per-basin K ({K_npz})"
     if readers is not None:
         atm, ocean = readers
         PETSc.Sys.Print(f"  Atmosphere: ISMIP7 OCX, {OCX_ATMOSPHERE_SOURCE} SDBN1 acabf")
@@ -176,7 +174,7 @@ def main():
             ctx_["accum"].dat.data[:] = racmo_cache[yr]
             oi_melt(ctx_, t_yr)
 
-    for line in provenance:
+    for line in provenance + describe_melt_calibration(ctx.get("mesh_basename")):
         PETSc.Sys.Print(f"  {line}")
 
     PETSc.Sys.Print("\nCore Experiment 11: OCX (observationally constrained)")

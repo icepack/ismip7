@@ -32,6 +32,12 @@ the offsets are the same under any mpiexec -n. Run with the same ISMIP7_* melt k
 
 The mesh comes from the MAP calibrate_melt.py names (ISMIP7_INV_H5 to name
 another). Point a run at the result with ISMIP7_DELTAT_PER_BASIN_NPZ.
+
+A run that names nothing melts with the tracked calibration,
+antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz: K50 of the
+rule-based selection (select_melt_parameters.py) with its offsets, fitted on
+the 1000 m / 10 km production mesh (issue 26). Refitting the offsets for
+another mesh keeps that K: --K 6.5e-5.
 """
 import argparse
 import os
