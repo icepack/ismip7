@@ -678,7 +678,10 @@ preflight reports the same cores BLOCKED. Every forward checkpoint records the
 mode in its `smb_elevation_feedback` attribute (absent reads as off), and a
 restart refuses a checkpoint from the other mode unless it is an adapted t=0
 state: a chain carries the feedback from its cold start or not at all, so a
-projection with the feedback on needs a historical run with it on.
+projection with the feedback on needs a historical run with it on. Its size at
+32 km, CESM2-WACCM core 1 then core 7 against the same chain without it: -3.6
+Gt/yr of SMB at 2015, -613 Gt/yr at 2300, and 17 mm SLE more VAF at 2300
+(`runlog/core07-32km-ssp585-cesm2waccm-i116on.json`).
 
 **Is the run on track?**
 
