@@ -414,7 +414,9 @@ The forward applies the melt the file was fitted to:
   (`forcing.melt_receiving`);
 - an offsets file whose recorded slope law, slope constant or geometry
   space differs from the run's stops the run, and so does geometry sampled
-  with another `raster_sample` than the file's;
+  with another `raster_sample` than the file's, or a cold start that floors
+  the initial thickness (`ISMIP7_H_CLAMP_INIT` above 0, the legacy friction
+  law's default);
 - the tracked file has to match the sha256 its sidecar records;
 - `ISMIP7_K_SCALE` other than 1 is refused with an offsets file, and the
   removed `ISMIP7_K_MELT` is refused when exported;
@@ -445,8 +447,9 @@ On the production mesh (run record `calibration-melt-forward-1km-k50`, Quartz
 job 10644378) the forward melts 1067.390 Gt/yr against the 1067.386 its offsets
 were fitted to, every basin within 0.006 Gt/yr, and no cell passes the
 `libmassbffl` bound (maximum 41.7 m/yr). Its earlier melt set also covered
-264 353 ice-free floating cells, where it booked 156.3 Gt/yr of melt and 23.1
-Gt/yr of refreezing. At 32 km (job 10644430) the same offsets put the basins
+257 687 ice-free open-ocean cells, where it booked 156.3 Gt/yr of melt and
+23.1 Gt/yr of refreezing, and 6 666 cells of bare land, where the climatology
+melts nothing. At 32 km (job 10644430) the same offsets put the basins
 at 0.33 to 1.74 times their totals and the whole at 1069.5 Gt/yr, which is why
 a production core runs on the calibration's mesh.
 

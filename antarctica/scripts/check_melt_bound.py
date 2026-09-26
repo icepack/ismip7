@@ -23,9 +23,9 @@ any basin is off by more than ``--match-tol``. That is the measurement issue
 forward's melt on the same cells. On a mesh other than the one the offsets
 were fitted on, the table measures how far they carry over: at 32 km the
 tracked offsets put the basins at 0.33 to 1.74 times their totals (job
-10644430). The table also gives what the forward
-booked on ice-free floating cells before it melted only cells holding ice
-(``forcing.melt_receiving``).
+10644430). The table also gives what the forward booked on ice-free cells
+that pass the flotation test, open ocean and bare land apart, before it
+melted only cells holding ice (``forcing.melt_receiving``).
 
 The ISMIP7 variable request gives ``libmassbffl`` an AIS minimum of
 -0.008 kg m-2 s-1 with severity ``error``. In ice-equivalent thickness that is
@@ -334,10 +334,11 @@ def match_calibration(g, npz_path, tol):
                         ("bare land (bed at or above sea level)", g["bed"] >= 0.0)):
         cells = g["ice_free"] & where
         part = np.where(cells, free, 0.0)
+        refreezing = float(-part[part < 0].sum())
         PETSc.Sys.Print(
             f"    {name}: {int(cells.sum())} cells, melt "
             f"{float(part[part > 0].sum()):.1f} Gt/yr, refreezing "
-            f"{max(-float(part[part < 0].sum()), 0.0):.1f} Gt/yr")
+            f"{refreezing if refreezing > 0.0 else 0.0:.1f} Gt/yr")
     return bad
 
 

@@ -10,14 +10,15 @@
   "forcing": "OI climatology 30_sep",
   "melt": "the tracked calibration antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz (sha256 64eb824a), K 6.5e-5 with its per-basin offsets, the constant slope 5.115e-3, melted by forcing.make_climatology_ocean_callback on forcing.melt_receiving",
   "site": "IU Quartz, debug partition",
-  "resources": "serial, 4.1 GB peak, 4 min 7 s",
+  "resources": "serial, 2.6 GB peak, 3 min 19 s (the first run, one climatology load per callback, 4.1 GB and 4 min 7 s)",
   "jobs": [
-    "10644378"
+    "10644378",
+    "10644547"
   ],
-  "code": "eee634f",
+  "code": "eee634f, rerun at 65c870a",
   "started": "2026-09-25",
   "finished": "2026-09-25",
-  "results": "Quartz /N/scratch/dlilien/ismip7_issue26/antarctica/ant_melt_bound_10644378.txt, the per-basin table",
-  "audit": "check_melt_bound.py exit 0: the forward melts 1067.390 Gt/yr against the 1067.386 its offsets were fitted to, every basin at ratio 1.0000 and the largest difference 0.006 Gt/yr (basin 14, its fit residual); 1 548 666 km2 floating over 1 398 387 cells, maximum 41.7 m/yr, 99th percentile 16.2, area mean 0.75, no cell past the libmassbffl bound. The callbacks' earlier melt set also covered 264 353 ice-free floating cells, where they booked 156.3 Gt/yr of melt and 23.1 Gt/yr of refreezing, 1200.6 Gt/yr in all",
+  "results": "Quartz /N/scratch/dlilien/ismip7_issue26/antarctica/ant_melt_bound_10644378.txt and ant_melt_bound_10644547.txt, the per-basin tables",
+  "audit": "check_melt_bound.py exit 0 at both commits, with the same table: the forward melts 1067.390 Gt/yr against the 1067.386 its offsets were fitted to, every basin at ratio 1.0000 and the largest difference 0.006 Gt/yr (basin 14, its fit residual); 1 548 666 km2 floating over 1 398 387 cells, maximum 41.7 m/yr, 99th percentile 16.2, area mean 0.75, no cell past the libmassbffl bound. The callbacks' earlier melt set also covered 257 687 ice-free open-ocean cells, where they booked 156.3 Gt/yr of melt and 23.1 Gt/yr of refreezing, 1200.6 Gt/yr in all, and 6 666 cells of bare land, where the climatology melts nothing",
   "notes": "issue #30: the DG0 melt total measured against the table the calibration targets, through the forward's own callback; issue #26: the calibration chosen on 25 September. Run from a scratch clone of claude/issue-26-k50-default"
 }

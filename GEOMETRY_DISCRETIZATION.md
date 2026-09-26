@@ -337,9 +337,10 @@ vertex-sampled, the 865.0 Gt/yr table, 21 September 2026):
    the forward's own callback on the production mesh (run record
    `calibration-melt-forward-1km-k50`): 1067.390 Gt/yr against the 1067.386
    the offsets were fitted to, every basin within 0.006 Gt/yr. The
-   callbacks' earlier melt set, every `haf <= 0` cell, also covered 264 353
-   ice-free floating cells at draft 0 there and booked 156.3 Gt/yr of melt
-   and 23.1 Gt/yr of refreezing on them. At 32 km the same offsets put the
+   callbacks' earlier melt set, every `haf <= 0` cell, also covered 257 687
+   ice-free open-ocean cells at draft 0 there, booking 156.3 Gt/yr of melt
+   and 23.1 Gt/yr of refreezing on them, and 6 666 cells of bare land, where
+   the climatology melts nothing. At 32 km the same offsets put the
    basins at 0.33 to 1.74 times their totals, 1069.5 Gt/yr in all.
 
 ## Incompatibilities

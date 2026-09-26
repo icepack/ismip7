@@ -129,12 +129,14 @@ without reading the linked rationale and stating why.
   retained-first indexing. Deleting the term or replacing the `Constant` with
   literal zero makes UFL simplify it away and SCPC fails during setup.
 - **Melt falls only on floating cells that hold ice (`forcing.melt_receiving`).**
-  An ice-free ocean cell passes the flotation test at draft 0, and the melt
-  calibration was fitted over cells holding ice, so the forward melts exactly
-  the set its calibration summed over. An offsets file fitted under another
-  slope law, slope constant, geometry space or raster sampling stops the run
-  instead of warning: the forward has to apply the melt its calibration was
-  fitted to. `check_melt_bound.py` measures that per basin.
+  An ice-free cell passes the flotation test (open ocean at draft 0, bare
+  land at a height above flotation of exactly 0), and the melt calibration
+  was fitted over cells holding ice, so the forward melts exactly the set its
+  calibration summed over. An offsets file fitted under another slope law,
+  slope constant, geometry space or raster sampling stops the run instead of
+  warning, and so does a cold start that floors the initial thickness
+  (`ISMIP7_H_CLAMP_INIT`): the forward has to apply the melt its calibration
+  was fitted to. `check_melt_bound.py` measures that per basin.
 
 One line that looks fine and is always a bug:
 
