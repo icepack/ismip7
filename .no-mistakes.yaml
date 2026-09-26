@@ -14,3 +14,8 @@ commands:
   # AGENTS.md). Which environment that is, and how it is entered, is a
   # machine-local concern and deliberately stays outside this shared file.
   test: "python -m pytest tests/ -q"
+# Bring a moved base in with a merge commit. AGENTS.md: never rebase a branch
+# that has been pushed, and a later push through the gate is usually to one.
+# Read from the default branch like the rest, so it takes effect once merged.
+rebase:
+  strategy: merge

@@ -43,8 +43,12 @@ import sys
 
 import numpy as np
 
-RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                           "results")
+_ANT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(_ANT))
+
+from icepack2_tools.timeseries import row_steps  # noqa: E402
+
+RESULTS_DIR = os.path.join(_ANT, "results")
 
 # (name, lo, hi, fail_lo, fail_hi, units) - WARN outside [lo, hi],
 # FAIL outside [fail_lo, fail_hi].
@@ -70,8 +74,9 @@ def load(csv_fn):
 def runaway_detected(discharge, dt):
     r"""True when the front discharge is running away, not merely spiking.
 
-    Year blocks make the test independent of dt. Two clauses, both sustained:
-    the block MEDIAN above 6000 Gt/yr (a mean is moved by one step, a median is
+    ``dt`` is the step, one value or one per row. Blocks of one model year,
+    cut by elapsed time, make the test independent of dt. Two clauses, both
+    sustained: the block MEDIAN above 6000 Gt/yr (a mean is moved by one step, a median is
     not), or a growth factor >= 1.5 in each of two consecutive years to above
     1000 Gt/yr. Growth uses block means on purpose: a year whose mean is lifted
     1.5x by several large steps counts as growth. The median clause is what
@@ -85,9 +90,12 @@ def runaway_detected(discharge, dt):
     3 and 7 of the July matrix, fails neither.
     """
     discharge = np.abs(np.asarray(discharge, float))
-    nblk = max(1, int(round(1.0 / dt)))
-    blocks = [discharge[i:i + nblk] for i in range(0, len(discharge), nblk)]
-    if len(blocks) > 1 and len(blocks[-1]) < nblk // 2:
+    steps = np.broadcast_to(np.asarray(dt, float), discharge.shape)
+    year = np.floor(np.cumsum(steps) - 1e-6).astype(int)
+    edges = np.flatnonzero(np.diff(year)) + 1
+    blocks = np.split(discharge, edges)
+    spans = np.split(steps, edges)
+    if len(blocks) > 1 and spans[-1].sum() < 0.5 - 1e-6:
         blocks.pop()
     means = [np.mean(b) for b in blocks]
     medians = [np.median(b) for b in blocks]
@@ -129,31 +137,41 @@ def main():
               f"(legacy timeseries format?)")
         sys.exit(2)
     yr = c["year"]
-    dt = dt_arg if dt_arg else (float(np.median(np.diff(yr))) if len(yr) > 1 else 1.0)
-    n_yr1 = max(1, int(round(1.0 / dt)))          # steps in the init-transient year
+    if dt_arg:
+        dt = np.full(len(yr), dt_arg)
+    else:
+        try:
+            dt = np.asarray(row_steps(yr))
+        except ValueError as e:
+            print(f"{csv_fn}: {e}; pass --dt")
+            sys.exit(2)
 
     # calv/clamp/resid columns are per-STEP Gt; convert to rates.
     calv_rate = c["calv_gt"] / dt
     resid_rate = c["resid_gt"] / dt
     discharge = c["outflux_gtyr"] + calv_rate     # total front discharge
 
-    post = slice(n_yr1, None) if len(yr) > n_yr1 else slice(None)
+    post = np.cumsum(dt) > 1.0 + 1e-6              # past the init-transient year
+    if not post.any():
+        post = slice(None)
     dm = np.diff(c["mass_gt"], prepend=c["mass_gt"][0]) / dt
     dvaf = np.diff(c["vaf_mm_sle"], prepend=c["vaf_mm_sle"][0]) / dt
 
     vals = {
-        "smb":       float(np.mean(c["smb_gtyr"])),
-        "melt":      float(np.mean(c["melt_gtyr"])),
-        "discharge": float(np.mean(discharge[post])),
-        "dmdt":      float(np.mean(dm[post])),
-        "dvafdt":    float(np.mean(dvaf[post])),
+        "smb":       float(np.average(c["smb_gtyr"], weights=dt)),
+        "melt":      float(np.average(c["melt_gtyr"], weights=dt)),
+        "discharge": float(np.average(discharge[post], weights=dt[post])),
+        "dmdt":      float(np.average(dm[post], weights=dt[post])),
+        "dvafdt":    float(np.average(dvaf[post], weights=dt[post])),
         "resid":     float(np.abs(resid_rate).max()),
     }
 
     runaway = runaway_detected(discharge, dt)
 
     print(f"ISMIP6-track audit: {os.path.basename(csv_fn)}")
-    print(f"  {len(yr)} steps, {yr[0]:.1f}->{yr[-1]:.1f}, dt={dt:.3g} yr\n")
+    dt_lo, dt_hi = dt.min(), dt.max()
+    dt_txt = f"{dt_lo:.3g}" if dt_hi - dt_lo <= 1e-6 * dt_hi else f"{dt_lo:.3g}..{dt_hi:.3g}"
+    print(f"  {len(yr)} steps, {yr[0]:.1f}->{yr[-1]:.1f}, dt={dt_txt} yr\n")
     print(f"  {'quantity':<22} {'run':>10}   {'obs/ISMIP6 envelope':<22} verdict")
     n_fail = 0
     for key, (name, lo, hi, flo, fhi, unit) in ENVELOPES.items():

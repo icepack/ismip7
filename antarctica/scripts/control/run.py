@@ -48,14 +48,14 @@ from icepack2_tools.forcing import (
     describe_melt_calibration,
     _K_DEFAULT,
 )
-from icepack2_tools.runconfig import deltat_per_basin_npz, k_per_basin_npz
+from icepack2_tools.runconfig import deltat_per_basin_npz, dt as time_step, k_per_basin_npz
 from icepack2_tools.climatology import (
     clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
 )
 
 T_START = 2015.0
 T_END = float(os.environ.get("ISMIP7_T_END", "2301"))
-DT = float(os.environ.get("ISMIP7_DT", "1.0"))
+DT = time_step()
 OUTPUT_INTERVAL = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "10"))
 
 ESM = os.environ.get("ISMIP7_ESM", "CESM2-WACCM")

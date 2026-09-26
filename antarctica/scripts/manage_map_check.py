@@ -36,7 +36,7 @@ sys.path.insert(0, os.fspath(_SCRIPTS))
 sys.path.insert(0, os.fspath(_SCRIPTS.parents[1]))
 
 from check_solver_qualification import qualification_verdict  # noqa: E402
-from icepack2_tools.runconfig import MESH_FROM_CHECKPOINT  # noqa: E402
+from icepack2_tools.runconfig import DT_DEFAULT, MESH_FROM_CHECKPOINT  # noqa: E402
 from icepack2_tools.solverconfig import (  # noqa: E402
     SNES_DIVERGENCE_TOL_DEFAULT,
     solver_provenance,
@@ -281,6 +281,15 @@ class MapCheckManager(SlurmStageRunner):
     def lane_dt(self, role):
         return expected_dt(self.lane_lc(role))
 
+    def control_dt(self, role):
+        r"""The step of the 10-year control. The control on the production
+        mesh runs the production step (issue 20); the one on the MAP's own
+        mesh, and both strict lanes, keep the timing matrix's rule, so the
+        lanes stay comparable with the matrix rows."""
+        if role == "native":
+            return self.lane_dt(role)
+        return float(DT_DEFAULT)
+
     def lane_experiment(self, role):
         return f"{self.tag}_lcc{self.lane_lc_coarse(role)}_n{self.cores}"
 
@@ -474,7 +483,7 @@ class MapCheckManager(SlurmStageRunner):
             rows = list(csv.DictReader(stream))
         if not rows:
             return None, "empty timeseries"
-        dt = self.lane_dt(role)
+        dt = self.control_dt(role)
         last = float(rows[-1]["year"])
         resid = max(abs(float(row["resid_gt"])) for row in rows)
         if resid > MASS_RESIDUAL_TOL_GT:
@@ -839,7 +848,7 @@ class MapCheckManager(SlurmStageRunner):
         exports.update({
             "ISMIP7_EXPERIMENT": "control",
             "ISMIP7_T_END": f"{self.t_end:g}",
-            "ISMIP7_DT": f"{self.lane_dt(role):.12g}",
+            "ISMIP7_DT": f"{self.control_dt(role):.12g}",
             "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER": self.solver,
             "ISMIP7_RUN_TAG": self.run_tag(role),
             "ISMIP7_OUTPUT": "1",
@@ -866,8 +875,8 @@ class MapCheckManager(SlurmStageRunner):
             "ISMIP7_MAP_CHECK_CSV_TRANSFER": self.control_csv("transferred"),
             "ISMIP7_MAP_CHECK_FINAL_NATIVE": self.control_final("native"),
             "ISMIP7_MAP_CHECK_FINAL_TRANSFER": self.control_final("transferred"),
-            "ISMIP7_MAP_CHECK_DT_NATIVE": f"{self.lane_dt('native'):.12g}",
-            "ISMIP7_MAP_CHECK_DT_TRANSFER": f"{self.lane_dt('transferred'):.12g}",
+            "ISMIP7_MAP_CHECK_DT_NATIVE": f"{self.control_dt('native'):.12g}",
+            "ISMIP7_MAP_CHECK_DT_TRANSFER": f"{self.control_dt('transferred'):.12g}",
             "ISMIP7_MAP_CHECK_AUDIT_JSON": self.stem_dir / "audit_controls.json",
             "ISMIP7_MAP_CHECK_PNG": self.stem_dir / "compare_controls.png",
             "ISMIP7_MAP_CHECK_STATUS": status_path,

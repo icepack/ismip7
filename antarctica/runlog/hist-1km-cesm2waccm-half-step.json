@@ -1,0 +1,18 @@
+{
+  "id": "hist-1km-cesm2waccm-half-step",
+  "task": "historical",
+  "institution": "Rice",
+  "title": "1 km CESM2-WACCM historical at the production step",
+  "status": "stopped",
+  "esm": "CESM2-WACCM",
+  "scenario": "historical",
+  "period": "1850 to 1927, 78 model years",
+  "mesh": "antarctica_10000_1000_buffered20000, 1 km fine, 10 km interior, 20 km buffer",
+  "front": "held at the initial extent by the legacy fixed front",
+  "dt": 0.025,
+  "site": "nots, cascadelake",
+  "resources": "32 ranks",
+  "cost": "about 22.5 minutes a model year on 32 ranks, 62 model years a 24 h job",
+  "audit": "no rescue step in 78 model years",
+  "notes": "the evidence for the production step (issue 20). Stopped for the held front of issue 115, which PR 122 addressed; stable throughout. Written from Rice's report on issue 20, 25 September 2026; jobs, code and initial state are Rice's to add"
+}
