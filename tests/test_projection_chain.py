@@ -365,10 +365,22 @@ def test_the_runner_names_the_production_solver_and_step(sandbox):
     the environment, so a chain cannot change solver between links."""
     rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000")
     assert rc == 0, log
-    assert "driver: solver=scpc_gamg dt=0.05" in log
-    assert "    solver=scpc_gamg dt=0.05 " in log
+    assert "driver: solver=scpc_gamg dt=0.025" in log
+    assert "    solver=scpc_gamg dt=0.025 " in log
     assert "ENV: ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg" in calls
-    assert "ENV: ISMIP7_DT=0.05" in calls
+    assert "ENV: ISMIP7_DT=0.025" in calls
+
+
+def test_the_runner_exports_the_step_the_drivers_fall_back_to(sandbox):
+    r"""Issue 20 set the production step. The runner exports it, so the job
+    log and every link of the chain carry it, and it is the value a driver run
+    by hand falls back to (runconfig.DT_DEFAULT)."""
+    from icepack2_tools.runconfig import DT_DEFAULT
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000")
+    assert rc == 0, log
+    # Whole lines: 0.02 is a prefix of 0.025.
+    assert f"driver: solver=scpc_gamg dt={DT_DEFAULT}" in log.splitlines()
+    assert f"ENV: ISMIP7_DT={DT_DEFAULT}" in calls.splitlines()
 
 
 def test_a_named_solver_and_step_win(sandbox):

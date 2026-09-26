@@ -29,7 +29,7 @@ out="${ISMIP7_MAP_CHECK_AUDIT_JSON:?ISMIP7_MAP_CHECK_AUDIT_JSON is required}"
 png="${ISMIP7_MAP_CHECK_PNG:?ISMIP7_MAP_CHECK_PNG is required}"
 status="${ISMIP7_MAP_CHECK_STATUS:?ISMIP7_MAP_CHECK_STATUS is required}"
 dt_native="${ISMIP7_MAP_CHECK_DT_NATIVE:-0.1}"
-dt_transfer="${ISMIP7_MAP_CHECK_DT_TRANSFER:-0.05}"
+dt_transfer="${ISMIP7_MAP_CHECK_DT_TRANSFER:-0.025}"
 
 write_status() {
     status_tmp="${status}.tmp.${SLURM_JOB_ID:-$$}"

@@ -50,7 +50,7 @@ from icepack2_tools.climatology import (
 from icepack2_tools.runconfig import (
     geometry_backdate_years,
     FRACTURE_MASK_MODES, fracture as fracture_mode, k_per_basin_npz,
-    deltat_per_basin_npz,
+    deltat_per_basin_npz, dt as time_step,
 )
 
 # Owned by icepack2_tools.climatology: this pool must match the CONTROL's
@@ -114,7 +114,7 @@ def run_core_experiment(*, core, title, name, esm, scenario,
     r"""Run one ESM-forced ISMIP7 core experiment end to end."""
     t_start = float(os.environ.get("ISMIP7_T_START", str(t_start_default)))
     t_end = float(os.environ.get("ISMIP7_T_END", str(t_end_default)))
-    dt = float(os.environ.get("ISMIP7_DT", "0.1"))
+    dt = time_step()
     output_interval = int(os.environ.get("ISMIP7_OUTPUT_INTERVAL", "10"))
 
     esm_tag = esm.lower().replace("-", "_")

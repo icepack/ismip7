@@ -399,15 +399,16 @@ and phi silently. Regression test: `tests/test_inversion_chain.py`.
 
 ### `projection.sbatch`, self-chaining
 
-A 285-year projection is about two days on the production mesh, so this
+A 285-year projection is about four days on the production mesh, so this
 resubmits itself with `--dependency=afterok` until the run reaches its end
 year, resuming through `ISMIP7_AUTO_RESUME=1`. Each driver owns its end year
 and the runner does not default `ISMIP7_T_END`; the chain reads the value the
-run used from the driver's `Time-stepping: <start>-><end>` line. At 1000 m /
-10 km on 64 ranks under `scpc_gamg`, 24 h buys at most 140 simulated years, so
-a full projection is about three links. At Rice's default of 32 ranks on one
-Cascade Lake node, 31 min a year buys about 46 years a link, so a full
-projection is about seven.
+run used from the driver's `Time-stepping: <start>-><end>` line. At the
+production step, `dt = 0.025` (issue 20), Rice's default of 32 ranks on one
+Cascade Lake node measured 22.5 min a simulated year, 62 years a 24 h link,
+so a full projection is five links, and a historical from 2003 fits in one. On 64 Quartz ranks
+the matrix's 30 s a step would give about 70 years a link, also five links; a
+chain already running keeps the step it started with.
 
 ```bash
 submit.sh projection ISMIP7_EXPERIMENT=control
@@ -483,17 +484,25 @@ final checkpoint for the successor.
 | 2 km / 20 km interior inversion | 12 | 120 GB | 1.5 days | 450 |
 | 2 km / 5 km interior inversion | 12 | 255 GB | 2-3 days | 800 |
 | full 11-experiment set at 2500 m | | | | 15,000 |
-| 1000 m / 10 km forward, per simulated year (Quartz, `scpc_gamg`) | 64 | under 70 GB | 10 min | 11 |
-| 1000 m / 10 km projection, 285 years (Quartz, `scpc_gamg`) | 64 | under 70 GB | 2 days | 3,040 |
-| 1000 m / 10 km forward, per simulated year (Rice, `scpc_gamg`) | 32 | under 180 GB | 31 min | 16 |
+| 1000 m / 10 km forward, per simulated year at `dt = 0.025` (Rice, `scpc_gamg`) | 32 | under 180 GB | 22.5 min | 12 |
+| 1000 m / 10 km forward, per simulated year at `dt = 0.025` (Quartz, `scpc_gamg`, estimated) | 64 | under 70 GB | about 20 min | about 21 |
+| 1000 m / 10 km projection, 285 years at `dt = 0.025` (Quartz, `scpc_gamg`, estimated) | 64 | under 70 GB | about 4 days | about 6,100 |
+| 1000 m / 10 km forward, per simulated year at `dt = 0.05` (Quartz, `scpc_gamg`) | 64 | under 70 GB | 10 min | 11 |
+| 1000 m / 10 km projection, 285 years at `dt = 0.05` (Quartz, `scpc_gamg`) | 64 | under 70 GB | 2 days | 3,040 |
+| 1000 m / 10 km forward, per simulated year at `dt = 0.05` (Rice, `scpc_gamg`) | 32 | under 180 GB | 31 min | 16 |
 
-The two Quartz rows are the production configuration, from
+The production step is `dt = 0.025` (issue 20). The Rice row at that step is
+the 1 km historicals the group chose it on, CESM2-WACCM for 78 and
+MRI-ESM2-0 for 66 simulated years with no rescue step, 62 simulated years a
+24 h job. The Quartz rows at `dt = 0.05` are from
 `antarctica/TIMING_MATRIX_QUARTZ_SCPC_GAMG.md`: the transient loop of a
-ten-step lane at `dt = 0.05` under the matrix's strict contract, extrapolated.
-Setup, forcing updates and output are not in them, and the memory is 64 times
-the largest rank's peak. The Rice row is a 1 km control from a transferred
-2 km MAP on one Cascade Lake node (job 1592597), 92 s per `dt = 0.05` step.
-The 2500 m and 2 km rows are whole runs on Cascade Lake under `full_mumps`.
+ten-step lane under the matrix's strict contract, extrapolated. Setup,
+forcing updates and output are not in them, and the memory is 64 times the
+largest rank's peak. The Quartz rows at `dt = 0.025` double their steps at the
+same cost a step, which is not yet measured. The Rice row at `dt = 0.05` is a
+1 km control from a transferred 2 km MAP on one Cascade Lake node (job
+1592597), 92 s a step. The 2500 m and 2 km rows are whole runs on Cascade
+Lake under `full_mumps`.
 
 Per iterate at 2500 m on 12 ranks: forward median 1081 s (p10 932, p90 1365),
 adjoint 92 s, iterate 1174 s. The adjoint is 8% of the iterate, so the cost

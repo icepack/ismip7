@@ -47,9 +47,10 @@ ISMIP7_MEM="${ISMIP7_MEM:-240G}"
 ISMIP7_TIME_INV="${ISMIP7_TIME_INV:-48:00:00}"
 ISMIP7_TIME_FWD="${ISMIP7_TIME_FWD:-24:00:00}"
 # Forwards take 64 ranks, the fastest lane the matrix measured on the
-# production mesh: 10.0 min per simulated year at 1000 m / 10 km under
-# scpc_gamg, against 15.7 on 32 ranks and 32.3 on 16
-# (antarctica/TIMING_MATRIX_QUARTZ_SCPC_GAMG.md). That lane peaked at 1.0 GiB
+# production mesh: 10.0 min per simulated year at 1000 m / 10 km and dt 0.05
+# under scpc_gamg, against 15.7 on 32 ranks and 32.3 on 16
+# (antarctica/TIMING_MATRIX_QUARTZ_SCPC_GAMG.md); the production step, 0.025,
+# takes twice the steps. That lane peaked at 1.0 GiB
 # a rank (sacct MaxRSS, job 10524648), so the 240G above is ample. The inversion keeps the 16: its full
 # mixed-Jacobian MUMPS solve is sized by memory, not by this. A bare
 # `submit.sh script` takes the forward's size too; give a small job --tasks.

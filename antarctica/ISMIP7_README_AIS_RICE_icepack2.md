@@ -39,7 +39,8 @@ shallow-shelf formulation on Firedrake 2026.4.1)
    adjustment theta, log fluidity adjustment phi, and the velocity field
    consistent with them.
 3. The velocity misfit (median 16-19 m/yr over observed nodes; the figure is
-   mesh-specific and is to be re-measured on the chosen production mesh),
+   mesh-specific and is to be re-measured on the production mesh once its
+   MAP exists),
    the grounding-line discharge scored against the flux
    the observed velocity carries across the same facets
    (`antarctica/scripts/score_map.py`), a check that a forward re-solve
@@ -204,9 +205,10 @@ PPE / ESM participation: **[confirm #38]**.
 Summary paragraph: **[confirm, draft #38]** icepack2 is a finite-element
 shallow-shelf model on Firedrake in its dual (velocity, membrane stress,
 basal stress) formulation, with a first-order upwind finite-volume
-thickness transport on the same unstructured mesh (resolution **[confirm #20]**,
-pending the 1000 m inversions: 2 km at the grounding line coarsening to
-180 km in the interior, or 1000 m / 10 km), an adjoint initialisation to
+thickness transport on the same unstructured mesh (1000 m near the
+grounding line and calving front coarsening to 10 km in the interior, with
+a 20 km ice-free buffer around the initial ice outline, and a 0.025 yr
+step), an adjoint initialisation to
 MEaSUReS velocities and observed thickness change, regularised Coulomb
 sliding, the ISMIP7 quadratic mixed-slope ocean melt with one K and a
 thermal-forcing offset per basin, a pinned or level-set calving front, and
@@ -218,11 +220,11 @@ Burgard et al. 2022; Hahn, Mikula and Frolkovic 2025; Smith et al. 2020.
 | Characteristic | Main suite of experiments | PPE change? |
 |---|---|---|
 | Mesh discretisation | Delaunay triangulation (gmsh), adaptive size field | no |
-| Native grid | H: anisotropic; resolution **[confirm #20]**, pending the 1000 m inversions: the 2 km / 180 km adaptive mesh, 2 km at the grounding line and calving front to 180 km in the interior (246,677 cells), as previously run; or `antarctica_10000_1000_buffered20000`, the 1000 m / 10 km gmsh mesh (1,869,088 vertices) that has been the code default since PR #7 and on which no inversion has yet been run. V: vertically integrated (shallow shelf) | no |
+| Native grid | H: isotropic triangles, 1000 m near the grounding line and calving front coarsening to 10 km in the interior (sized by distance from the grounding line and by strain rate on outlet glaciers), with a 20 km ice-free buffer around the initial ice outline: `antarctica_10000_1000_buffered20000`, 1,869,252 vertices, Rice's build, on which the initial state is inverted. V: vertically integrated (shallow shelf) | no |
 | Native projection | EPSG:3031, same as BedMachine | no |
 | Interpolation to diagnostic grid | conservative: exact cell-pixel overlap areas (supermesh) onto the 8 km grid; whole-pixel means for thickness, fractions and every flux, so a flux times the pixel area sums to the model's integral (`acabf` is fill outside the model domain, `libmassbffl` where no ice floats at year end, `lifmassbf` nowhere); covered-part means for elevations | no |
 | Time integration | transport-first split: implicit Euler thickness transport, then the diagnostic solve at the new geometry; first order | no |
-| Time step | **[confirm #20]**, pending the 1000 m inversions: 0.1 yr on the adaptive mesh, as previously run; 0.05 yr on the 1000 m / 10 km mesh, the code default since PR #7 | no |
+| Time step | 0.025 yr | no |
 | Advection scheme | upwind finite volume, DG0, implicit; first order | no |
 | Ice flow mechanics | shallow-shelf approximation, dual finite-element formulation (CG1 velocity, DG0 membrane and basal stress) | no |
 | Ice rheology | n = 3 (composite with a linear floor for thin ice) | no |

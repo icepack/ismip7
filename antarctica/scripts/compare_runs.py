@@ -14,7 +14,8 @@ Usage:
 
 PATH is a ``*_timeseries.csv`` or the run prefix it belongs to. Fluxes are
 box-smoothed over ``--smooth`` years (default 1) because the per-step values
-carry the dt=0.1 checkpoint jitter. Read-only.
+jitter from step to step. The step of each row is read from the year column
+(``icepack2_tools.timeseries.row_steps``). Read-only.
 
 Units in the CSV are not uniform: the ``*_gtyr`` columns are rates [Gt/yr],
 while ``calv_gt``, ``clamp_gt`` and ``resid_gt`` are the mass moved by ONE
@@ -24,11 +25,16 @@ step [Gt] and must be divided by dt before they can be added to a rate.
 import argparse
 import csv
 import os
+import sys
 
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
+from icepack2_tools.timeseries import row_steps  # noqa: E402
 
 COLS = ["year", "vaf_mm_sle", "mass_gt", "smb_gtyr", "melt_gtyr",
         "outflux_gtyr", "calv_gt", "clamp_gt", "resid_gt", "amb_gtyr"]
@@ -79,13 +85,15 @@ def main():
     ax = axes.ravel()
     for label, d in runs:
         t = d["year"]
-        if len(t) < 2:
+        try:
+            dt = np.asarray(row_steps(t))
+        except ValueError as e:
+            print(f"{label}: {e}; not plotted")
             continue
-        dt = float(np.median(np.diff(t)))
-        n = max(1, int(round(args.smooth / dt)))
+        n = max(1, int(round(args.smooth / dt.mean())))
         ax[0].plot(t, d["mass_gt"] - d["mass_gt"][0], label=label)
         ax[1].plot(t, d["vaf_mm_sle"] - d["vaf_mm_sle"][0], label=label)
-        dmdt = np.gradient(d["mass_gt"], t)
+        dmdt = np.gradient(d["mass_gt"], np.cumsum(dt))
         ax[2].plot(t, smooth(dmdt, n), label=label)
         ax[3].plot(t, smooth(d["melt_gtyr"], n), label=label)
         ax[4].plot(t, smooth(d["outflux_gtyr"] + d["calv_gt"] / dt, n),

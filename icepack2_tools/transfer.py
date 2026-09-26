@@ -35,21 +35,54 @@ import contextlib
 import numbers
 
 import numpy as np
-from firedrake import Function
+from firedrake import Function, FunctionSpace, SpatialCoordinate, dot
 from mpi4py import MPI
 
 from .mpi_stats import global_count, global_size
 
 def meshes_match(mesh_a, mesh_b, comm=None):
-    r"""Whether two meshes are plausibly the same mesh: the same global cell
-    and vertex counts. A warm start from a checkpoint on another mesh must
-    not carry that mesh's cell-wise geometry across, so the inversion asks
-    this before it decides what a warm start supplies."""
+    r"""Whether two meshes are the same mesh: the same global cell and vertex
+    counts, and the same cells, compared through two sums over cells of their
+    centroids ``c``: of ``c_x c_y`` and of ``|c|^2``. Counts alone take two
+    triangulations of one vertex set (a flipped diagonal) for one mesh, and
+    so does ``|c|^2`` alone, which is equal for both splits of a square.
+
+    A warm start from a checkpoint on another mesh must not carry that mesh's
+    cell-wise geometry across, so the inversion asks this before it decides
+    what a warm start supplies; the forward asks it before it transfers a
+    checkpoint onto a mesh file of the same name (two sites' builds of the
+    production mesh differ, issue 20). Collective."""
     comm = comm if comm is not None else mesh_a.comm
     def counts(m):
         return (comm.allreduce(int(m.cell_set.size), op=MPI.SUM),
                 comm.allreduce(int(m.coordinates.dat.data_ro.shape[0]), op=MPI.SUM))
-    return counts(mesh_a) == counts(mesh_b)
+    if counts(mesh_a) != counts(mesh_b):
+        return False
+    moments_a = _centroid_moments(mesh_a, comm)
+    moments_b = _centroid_moments(mesh_b, comm)
+    # Both measured against the |c|^2 sum, the size of the terms: on the polar
+    # stereographic plane c_x c_y changes sign across the pole and its sum can
+    # cancel far below them.
+    scale = max(moments_a[1], moments_b[1])
+    return all(abs(a - b) <= CENTROID_MOMENT_RTOL * scale
+               for a, b in zip(moments_a, moments_b))
+
+
+#: Relative agreement two identical meshes reach in :func:`meshes_match`'s
+#: centroid sums under any partition: the owned cells are the same set, so
+#: only the summation order differs, about 1e-13 over millions of cells.
+CENTROID_MOMENT_RTOL = 1e-11
+
+
+def _centroid_moments(mesh, comm):
+    r"""Sums over the owned cells of every rank of ``c_x c_y`` and ``|c|^2``
+    at the cell centroids ``c``, where a DG0 dof sits."""
+    x = SpatialCoordinate(mesh)
+    Q0 = FunctionSpace(mesh, "DG", 0)
+    return tuple(
+        comm.allreduce(float(np.sum(Function(Q0).interpolate(e).dat.data_ro)),
+                       op=MPI.SUM)
+        for e in (x[0] * x[1], dot(x, x)))
 
 
 #: Relative point-location tolerance (on the reference cell) while a field is

@@ -29,6 +29,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date
@@ -46,7 +47,7 @@ from icepack2_tools.forcing import (
 )
 from icepack2_tools.front import COLLAPSE_MARKER, FRONT_OWNER_MARKER
 from icepack2_tools.runconfig import (
-    MELT_CALIBRATION_DEFAULT, N_FLOW_DEFAULT, fracture, friction,
+    MELT_CALIBRATION_DEFAULT, N_FLOW_DEFAULT, dt, fracture, friction,
     geometry_space, lc, lc_coarse,
 )
 from icepack2_tools.solverconfig import effective_solver_env, solver_provenance
@@ -76,6 +77,9 @@ def effective_env():
     resolved = {
         "ISMIP7_LC": str(lc()),
         "ISMIP7_LC_COARSE": str(lc_coarse()),
+        # The production step moved from 0.05 to 0.025 (issue 20), and the
+        # drivers' own fallbacks were 0.1 and 1.0 before that.
+        "ISMIP7_DT": f"{dt():g}",
         "ISMIP7_FRICTION": friction(),
         # The collapse mode is the largest stated uncertainty of the
         # submission (issue #10), and its default, `none`, is never exported.
@@ -179,6 +183,15 @@ def sh(cmd):
     return (r.stdout + r.stderr).strip(), r.returncode
 
 
+def resolution_km(csv_fn):
+    r"""The run's refined resolution in km, as the report's name and title
+    carry it: from the ``_<lc>_timeseries.csv`` suffix every forward writes,
+    else ISMIP7_LC as this process resolves it. 32 for the demonstration
+    matrix, 1 for the production mesh."""
+    m = re.search(r"_(\d+)_timeseries\.csv$", os.path.basename(csv_fn))
+    return f"{(int(m.group(1)) if m else lc()) / 1000:g}"
+
+
 def csv_marker_rows(fn, n=8):
     with open(fn) as f:
         rows = list(csv.reader(f))
@@ -225,11 +238,12 @@ def main():
                           os.path.join(_SCRIPTS, "compare_ismip6.py"),
                           args.csv, args.ctrl_csv, "--exps", args.exps])
 
+    km = resolution_km(args.csv)
     out = args.out or os.path.join(
-        _ANT, "reports", f"core{args.core:02d}_{args.name}_32km.md")
+        _ANT, "reports", f"core{args.core:02d}_{args.name}_{km}km.md")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:
-        f.write(f"# Core {args.core}: {args.name} (32 km)\n\n")
+        f.write(f"# Core {args.core}: {args.name} ({km} km)\n\n")
         # Banner goes directly under the title so a reader cannot miss it.
         # Deliberately a FLAG rather than a hard-coded string: runs made after
         # the ice-front fixes are valid, and a baked-in banner would mislabel

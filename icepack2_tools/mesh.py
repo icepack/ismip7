@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # <repo>/data is a gitignored symlink to antarctica/data that a fresh clone does
 # not have, so name the observational root the rest of the code uses.
-from .runconfig import obs_data_root
+from .runconfig import buffer_m as _buffer_m, obs_data_root
 DATA_DIR = obs_data_root()
 MESH_DIR = os.path.join(_ROOT, "mesh")
 
@@ -97,11 +97,13 @@ def load_bedmachine_mask(data_dir=DATA_DIR):
     return mask, x, y
 
 
-def extract_ice_outline(mask, x, y):
+def extract_ice_outline(mask, x, y, buffer_m=None):
     """Extract simplified ice outline polygon from BedMachine mask.
 
     Returns the main ice sheet polygon (largest connected ice body)
-    with simplified boundaries and small nunataks removed.
+    with simplified boundaries and small nunataks removed, pushed outward by
+    ``buffer_m`` metres. None takes runconfig.buffer_m(): ISMIP7_BUFFER_M,
+    else the production mesh's 20 km, the value the mesh names assume.
     """
     print("Extracting ice outline...")
 
@@ -156,7 +158,7 @@ def extract_ice_outline(mask, x, y):
     # Optionally buffer the outline into the ocean so the calving front
     # is interior to the domain (not at the boundary). This allows
     # dropping the calving_terminus BC entirely — icepack2 handles h=0.
-    buffer_dist = float(os.environ.get("ISMIP7_BUFFER_M", "0"))
+    buffer_dist = _buffer_m() if buffer_m is None else float(buffer_m)
     if buffer_dist > 0:
         simplified = simplified.buffer(buffer_dist, resolution=4)
         # Re-simplify after buffering
@@ -900,7 +902,9 @@ def main():
 
     # Step 1: Extract outline from BedMachine
     mask, x, y = load_bedmachine_mask()
-    outline = extract_ice_outline(mask, x, y)
+    # The meshes below carry no _buffered tag, the naming of the unbuffered
+    # legacy meshes; mesh_antarctica.py builds the named, buffered ones.
+    outline = extract_ice_outline(mask, x, y, buffer_m=0.0)
 
     # Save outline for inspection/reuse
     gdf = gpd.GeoDataFrame(geometry=[outline], crs="EPSG:3031")

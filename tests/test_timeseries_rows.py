@@ -1,0 +1,244 @@
+r"""The timeseries year column at the production step, 0.025 yr (issue 20).
+
+``run_simulation`` writes one row per step, trims the series back to the
+resume year on a warm restart, and the audits read the step back from the
+year column. With the year written to one decimal, three rows in four repeat
+a year at 0.025: the track audit inferred a step of 0 and divided by it, and
+the trim dropped the rows of the step a chain link resumed at. These are the
+rules in ``icepack2_tools.timeseries``, exercised on the cases that failed.
+
+Serial, no Firedrake, no data files.
+"""
+import os
+import re
+import subprocess
+import sys
+
+import pytest
+
+from icepack2_tools.timeseries import (
+    format_year, rows_kept_on_resume, step_from_years,
+)
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TRACK = os.path.join(REPO, "antarctica", "scripts", "check_ismip6_track.py")
+HEADER = "year,vaf_mm_sle\n"
+DT = 0.025
+
+
+def years(start, stop, dt):
+    n = int(round((stop - start) / dt))
+    return [start + k * dt for k in range(1, n + 1)]
+
+
+def series(start, stop, dt, fmt=format_year):
+    return [HEADER] + [f"{fmt(t)},0.0\n" for t in years(start, stop, dt)]
+
+
+def test_every_row_at_the_production_step_has_its_own_year():
+    written = [format_year(t) for t in years(2015.0, 2016.0, DT)]
+    assert len(written) == 40 and len(set(written)) == 40
+    assert written[0] == "2015.025000" and written[-1] == "2016.000000"
+
+
+@pytest.mark.parametrize("t_start, t_written", [
+    (2015.675, 2015.75),   # a wall-clock stop mid-year, rows past it on disk
+    (2020.0, 2020.1),      # the five-yearly checkpoint, the job ran on after it
+])
+def test_a_resume_keeps_every_row_to_its_own_year_and_none_after(t_start, t_written):
+    kept = rows_kept_on_resume(series(2015.0, t_written, DT), HEADER, t_start, DT)
+    assert kept[0] == HEADER
+    got = [float(line.split(",")[0]) for line in kept[1:]]
+    assert got == pytest.approx(years(2015.0, t_start, DT))
+    assert got[-1] == pytest.approx(t_start)
+
+
+def test_a_resume_supplies_a_missing_header_and_drops_unreadable_rows():
+    lines = ["garbled\n", "2015.025000,0.0\n", "not a row\n", "2015.050000,0.0\n",
+             "2015.075000,0.0\n"]
+    kept = rows_kept_on_resume(lines, HEADER, 2015.05, DT)
+    assert kept == [HEADER, "2015.025000,0.0\n", "2015.050000,0.0\n"]
+    assert rows_kept_on_resume([], HEADER, 2015.05, DT) == [HEADER]
+
+
+def test_the_step_is_read_from_a_full_precision_series():
+    col = [float(format_year(t)) for t in years(1850.0, 2015.0, DT)]
+    assert step_from_years(col) == pytest.approx(DT, rel=1e-9)
+
+
+@pytest.mark.parametrize("dt", [0.05, 0.025])
+def test_the_step_is_read_from_a_legacy_one_decimal_series(dt):
+    r"""The median of neighbouring differences reads such a series as 0.1 at
+    dt 0.05 and 0 at dt 0.025; the span over the step count does not."""
+    col = [float(f"{t:.1f}") for t in years(2015.0, 2025.0, dt)]
+    assert step_from_years(col) == pytest.approx(dt, rel=1e-2)
+
+
+@pytest.mark.parametrize("col", [[], [2015.025], [2015.0, 2015.0, 2015.0]])
+def test_a_series_that_carries_no_step_is_refused(col):
+    with pytest.raises(ValueError):
+        step_from_years(col)
+
+
+def _budget_csv(path, dt, fmt):
+    cols = ("year,vaf_mm_sle,mass_gt,smb_gtyr,melt_gtyr,outflux_gtyr,"
+            "calv_gt,clamp_gt,resid_gt,amb_gtyr\n")
+    with open(path, "w") as f:
+        f.write(cols)
+        for k, t in enumerate(years(2015.0, 2020.0, dt)):
+            mass = 2.4e7 - 100.0 * k * dt
+            f.write(f"{fmt(t)},57000.0,{mass:.2f},2500.0,1100.0,1200.0,"
+                    f"{1200.0 * dt:.4f},0.0,0.0,0.0\n")
+
+
+@pytest.mark.parametrize("dt, fmt, rel", [
+    (0.025, format_year, 1e-9),
+    # one decimal, as every series before this change: the median read 0.1
+    (0.05, lambda t: f"{t:.1f}", 2e-2),
+    # and 0 here, which the audit divided by
+    (0.025, lambda t: f"{t:.1f}", 2e-2),
+])
+def test_the_track_audit_reads_the_step_without_being_told(tmp_path, dt, fmt, rel):
+    r"""``core_report.py`` runs the audit with no ``--dt``."""
+    csv_fn = tmp_path / "ctrl_1000_timeseries.csv"
+    _budget_csv(csv_fn, dt, fmt)
+    r = subprocess.run([sys.executable, TRACK, str(csv_fn)],
+                       capture_output=True, text=True)
+    assert "Traceback" not in r.stderr, r.stderr
+    assert r.returncode in (0, 1), r.stdout + r.stderr
+    (read,) = re.findall(r"dt=(\S+) yr", r.stdout)
+    assert float(read) == pytest.approx(dt, rel=rel)
+
+
+# --- a resumed series keeps its step -----------------------------------------
+# run_simulation warns when a resume continues its series at another step (a
+# step may be changed mid-run on purpose, to take a run past a crash); these
+# are the rules it reads the series' step with.
+
+from icepack2_tools.timeseries import resumed_step, step_changed  # noqa: E402
+
+
+def test_a_restart_that_keeps_no_row_of_its_own_series_starts_a_new_one():
+    r"""A projection branching from a historical's endpoint: its own series
+    has no row at or before the branch year, whatever the parent's step."""
+    assert resumed_step([HEADER]) == (None, None)
+    assert resumed_step([HEADER], checkpoint_dt=0.05) == (None, None)
+
+
+def test_the_checkpoint_record_is_the_step_of_a_resumed_series():
+    kept = series(2015.0, 2020.0, 0.05)
+    assert resumed_step(kept, checkpoint_dt=0.05) == (0.05, "the checkpoint's dt_yr")
+
+
+def test_a_checkpoint_older_than_the_record_is_read_from_its_rows():
+    r"""The hand resume of an old 0.05 run: no dt_yr, one-decimal years."""
+    kept = series(2015.0, 2020.0, 0.05, fmt=lambda t: f"{t:.1f}")
+    step, where = resumed_step(kept)
+    assert step == pytest.approx(0.05, rel=2e-2) and "100 rows" in where
+    assert step_changed(step, 0.025)
+    assert not step_changed(step, 0.05)
+
+
+def test_one_row_without_a_record_cannot_say():
+    assert resumed_step([HEADER, "2015.025000,0.0\n"]) == (None, "unknown")
+
+
+@pytest.mark.parametrize("prior, dt, changed", [
+    (0.05, 0.025, True), (0.025, 0.05, True), (0.1, 0.125, True),
+    (0.025, 0.025, False), (0.0505, 0.05, False),
+])
+def test_a_step_change_is_a_ratio_past_the_tolerance(prior, dt, changed):
+    assert step_changed(prior, dt) is changed
+
+
+# --- a series whose step changed at a resume ---------------------------------
+
+from icepack2_tools.timeseries import row_steps  # noqa: E402
+
+
+def _mixed_years():
+    first = years(2015.0, 2025.0, 0.05)
+    return [float(format_year(t)) for t in first + years(2025.0, 2035.0, 0.025)]
+
+
+def test_each_row_of_a_mixed_series_carries_its_own_step():
+    steps = row_steps(_mixed_years())
+    assert len(steps) == 600
+    assert steps[:200] == pytest.approx([0.05] * 200, rel=1e-6)
+    assert steps[200:] == pytest.approx([0.025] * 400, rel=1e-6)
+
+
+def test_a_legacy_series_falls_back_to_the_mean_step():
+    col = [float(f"{t:.1f}") for t in years(2015.0, 2025.0, 0.025)]
+    steps = row_steps(col)
+    assert len(steps) == len(col)
+    assert set(steps) == {step_from_years(col)}
+
+
+def test_the_track_audit_reads_rates_on_both_sides_of_a_step_change(tmp_path):
+    r"""0.05 for ten years, then 0.025: a mean step of about 0.033 would put
+    the discharge 1.5x off on one segment and 0.75x on the other."""
+    csv_fn = tmp_path / "ctrl_1000_timeseries.csv"
+    cols = ("year,vaf_mm_sle,mass_gt,smb_gtyr,melt_gtyr,outflux_gtyr,"
+            "calv_gt,clamp_gt,resid_gt,amb_gtyr\n")
+    mass = 2.4e7
+    prev = 2015.0
+    with open(csv_fn, "w") as f:
+        f.write(cols)
+        for t in _mixed_years():
+            step = t - prev
+            prev = t
+            mass -= 100.0 * step
+            f.write(f"{format_year(t)},57000.0,{mass:.4f},2500.0,1100.0,600.0,"
+                    f"{600.0 * step:.6f},0.0,0.0,0.0\n")
+    r = subprocess.run([sys.executable, TRACK, str(csv_fn)],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "dt=0.025..0.05 yr" in r.stdout
+    (discharge,) = re.findall(r"front discharge\s+(\S+)", r.stdout)
+    (dmdt,) = re.findall(r"dM/dt \(post-2016\)\s+(\S+)", r.stdout)
+    assert float(discharge) == pytest.approx(1200.0, abs=0.1)
+    assert float(dmdt) == pytest.approx(-100.0, abs=0.1)
+
+
+def test_the_runaway_detector_cuts_years_by_time_across_a_step_change():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("chk", TRACK)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    steps = row_steps(_mixed_years())
+    # growth of 1.6x in each of years 11 and 12: sustained, so a runaway
+    d = [1000.0] * 200 + [1000.0] * 40 + [1600.0] * 40 + [2600.0] * 40 + [2600.0] * 280
+    assert mod.runaway_detected(d, steps) is True
+    # one fast year that settles is still a spike
+    d = [1000.0] * 240 + [2400.0] * 40 + [1000.0] * 320
+    assert mod.runaway_detected(d, steps) is False
+
+
+def test_the_track_audit_weights_each_segment_by_the_time_it_covers(tmp_path):
+    r"""10 yr at 0.05 then 10 yr at 0.025, with discharge 1000 then 1600 Gt/yr
+    and dM/dt -100 then -400 Gt/yr: past the first year the time means are
+    (9 * 1000 + 10 * 1600) / 19 and (9 * -100 + 10 * -400) / 19, where a row
+    mean gives the second segment two thirds of the weight."""
+    csv_fn = tmp_path / "ctrl_1000_timeseries.csv"
+    cols = ("year,vaf_mm_sle,mass_gt,smb_gtyr,melt_gtyr,outflux_gtyr,"
+            "calv_gt,clamp_gt,resid_gt,amb_gtyr\n")
+    mass = 2.4e7
+    prev = 2015.0
+    with open(csv_fn, "w") as f:
+        f.write(cols)
+        for t in _mixed_years():
+            step = t - prev
+            prev = t
+            late = t > 2025.0 + 1e-6
+            q, dmdt = (1600.0, -400.0) if late else (1000.0, -100.0)
+            mass += dmdt * step
+            f.write(f"{format_year(t)},57000.0,{mass:.4f},2500.0,1100.0,{q / 2},"
+                    f"{q / 2 * step:.6f},0.0,0.0,0.0\n")
+    r = subprocess.run([sys.executable, TRACK, str(csv_fn)],
+                       capture_output=True, text=True)
+    assert "Traceback" not in r.stderr, r.stderr
+    (discharge,) = re.findall(r"front discharge\s+(\S+)", r.stdout)
+    (dmdt,) = re.findall(r"dM/dt \(post-2016\)\s+(\S+)", r.stdout)
+    assert float(discharge) == pytest.approx((9 * 1000.0 + 10 * 1600.0) / 19, abs=0.1)
+    assert float(dmdt) == pytest.approx((9 * -100.0 + 10 * -400.0) / 19, abs=0.1)
