@@ -111,8 +111,9 @@ def test_the_track_audit_reads_the_step_without_being_told(tmp_path, dt, fmt, re
 
 
 # --- a resumed series keeps its step -----------------------------------------
-# run_simulation refuses a resume whose series was written at another step
-# (ISMIP7_ALLOW_DT_CHANGE=1 overrides); these are the rules it applies.
+# run_simulation warns when a resume continues its series at another step (a
+# step may be changed mid-run on purpose, to take a run past a crash); these
+# are the rules it reads the series' step with.
 
 from icepack2_tools.timeseries import resumed_step, step_changed  # noqa: E402
 

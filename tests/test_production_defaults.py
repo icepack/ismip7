@@ -59,7 +59,7 @@ def test_a_named_step_wins(unset):
 # 20000, so a bare call built an unbuffered outline for a buffered name.
 
 from icepack2_tools.runconfig import (  # noqa: E402
-    BUFFER_M_DEFAULT, allow_dt_change, buffer_m, mesh_build_check,
+    BUFFER_M_DEFAULT, buffer_m, mesh_build_check,
 )
 from mesh_naming import (  # noqa: E402
     buffer_from_name, mesh_stem, resolve_outline_buffer,
@@ -117,18 +117,16 @@ def test_mesh_names_compare_without_directory_or_extension():
     assert mesh_stem(f"{PRODUCTION_MESH}.msh") == PRODUCTION_MESH
 
 
-# --- the two new integer flags ------------------------------------------------
+# --- the mesh build check's flag --------------------------------------------
 
-@pytest.mark.parametrize("value, allow, check", [
-    (None, False, True), ("", False, True), ("0", False, False), ("1", True, True),
+@pytest.mark.parametrize("value, check", [
+    (None, True), ("", True), ("0", False), ("1", True),
 ])
-def test_the_resume_and_build_flags_read_like_auto_resume(unset, value, allow, check):
-    for name in ("ISMIP7_ALLOW_DT_CHANGE", "ISMIP7_MESH_BUILD_CHECK"):
-        if value is None:
-            unset.delenv(name, raising=False)
-        else:
-            unset.setenv(name, value)
-    assert allow_dt_change() is allow
+def test_the_build_check_flag_reads_like_auto_resume(unset, value, check):
+    if value is None:
+        unset.delenv("ISMIP7_MESH_BUILD_CHECK", raising=False)
+    else:
+        unset.setenv("ISMIP7_MESH_BUILD_CHECK", value)
     assert mesh_build_check() is check
 
 

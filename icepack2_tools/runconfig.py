@@ -413,13 +413,6 @@ def _int_flag(name, default):
         raise ValueError(f"{name} must be an integer flag, got {value!r}") from None
 
 
-def allow_dt_change():
-    r"""``ISMIP7_ALLOW_DT_CHANGE``: let a resumed run continue its series at a
-    step other than the one the series was written at. Off by default, so a
-    resume at another step is refused (simulation.run_simulation)."""
-    return _int_flag("ISMIP7_ALLOW_DT_CHANGE", False)
-
-
 def mesh_build_check():
     r"""``ISMIP7_MESH_BUILD_CHECK``: refuse a MAP or restart whose mesh has the
     name of the ``ISMIP7_MESH`` file and a different triangulation, as two

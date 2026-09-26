@@ -97,7 +97,7 @@ from icepack2_tools.runconfig import (
     fixed_front as _fixed_front, auto_resume, apparent_mb_mode,  # noqa: F401
     front_hmin as _front_hmin,
     GEOMETRY_YEAR,
-    allow_dt_change, mesh_build_check,
+    mesh_build_check,
 )
 DATA_DIR = obs_data_root()
 from icepack2_tools.solverconfig import (
@@ -1836,12 +1836,14 @@ def run_simulation(
     # Every checkpoint this run writes records its step (save_model_state).
     ctx["dt"] = dt
 
-    # A resumed run continues its own timeseries, and a series keeps one step:
-    # a hand resume of a 0.05 run under the 0.025 default (issue 20) used to
-    # continue at the new step without a word. The series' step is the
-    # checkpoint's dt_yr, or, for a checkpoint older than that record, read
-    # back from the rows up to the resume year. A branch from another run's
-    # endpoint keeps no row of its own series and starts one at its own step.
+    # A resumed run continues its own timeseries. Its step may change on
+    # purpose, to take a run past a crash, so a change prints a warning and
+    # the run continues at the new step; a hand resume of a 0.05 run under the
+    # 0.025 default (issue 20) used to do so without a word. The series' step
+    # is the checkpoint's dt_yr, or, for a checkpoint older than that record,
+    # read back from the rows up to the resume year. A branch from another
+    # run's endpoint keeps no row of its own series and starts one at its own
+    # step.
     csv_fn = os.path.join(RESULTS_DIR, f"{experiment_name}_{lc}_timeseries.csv")
     prior_dt, prior_from = None, None
     if t_restart is not None and mesh.comm.rank == 0 and os.path.exists(csv_fn):
@@ -1851,16 +1853,10 @@ def run_simulation(
                 ctx.get("restart_dt"))
     prior_dt, prior_from = mesh.comm.bcast((prior_dt, prior_from), root=0)
     if prior_dt is not None and step_changed(prior_dt, dt):
-        _change = (f"{os.path.basename(csv_fn)} was written at dt={prior_dt:g} yr "
-                   f"({prior_from}) and this run steps at dt={dt:g}")
-        if not allow_dt_change():
-            raise RuntimeError(
-                f"Resume refused: {_change}. A resumed series keeps its step: "
-                f"set ISMIP7_DT={prior_dt:g} to continue it, or "
-                f"ISMIP7_ALLOW_DT_CHANGE=1 to change the step on purpose."
-            )
         PETSc.Sys.Print(
-            f"  WARNING: {_change}; continuing under ISMIP7_ALLOW_DT_CHANGE=1")
+            f"  WARNING: step change on resume: {os.path.basename(csv_fn)} was "
+            f"written at dt={prior_dt:g} yr ({prior_from}) and continues at "
+            f"dt={dt:g}. ISMIP7_DT={prior_dt:g} keeps the series' step.")
     elif prior_from == "unknown":
         PETSc.Sys.Print(
             f"  Resume: too few rows of {os.path.basename(csv_fn)} to read its "

@@ -949,7 +949,6 @@ redeclare those literals.
 | `ISMIP7_OUTPUT_INTERVAL` | budget log line every N steps; the timeseries gets a row every step | `10` |
 | `ISMIP7_CHECKPOINT_EVERY_YR` / `ISMIP7_KEEP_CHECKPOINTS` | checkpoint cadence in model years, and how many to keep besides `_final.h5` | `5` / `3` |
 | `ISMIP7_RESTART` | restart checkpoint | `hist_<esm>[_<tag>]_<lc>_final.h5` if present; refused when it is short of the branch year |
-| `ISMIP7_ALLOW_DT_CHANGE` | a resume that continues its experiment's own timeseries at another step than the series was written at (the checkpoint's `dt_yr`, or read back from the rows for an older checkpoint) is refused; `1` continues it at the new step with a warning. A branch from another run's endpoint starts its own series and is never refused | `0` |
 | `ISMIP7_MESH_BUILD_CHECK` | refuse a MAP or restart whose mesh has the `ISMIP7_MESH` file's name and another triangulation (vertex and cell counts and two centroid sums, `transfer.meshes_match`), the way two sites' builds of the production mesh differ; `0` transfers across them on purpose | `1` |
 | `ISMIP7_AUTO_RESUME` | resume from this experiment's newest checkpoint when no `ISMIP7_RESTART` is given. An integer flag, `=0` disables it, since the runners export it unconditionally and `--export=ALL` cannot unset. `projection.sbatch` refuses to chain when it is off | unset |
 | `ISMIP7_RUN_TAG` | experiment-name suffix for a parallel method line | unset |
@@ -1454,8 +1453,9 @@ Per experiment in `results/`:
   reference, and `levelset` when a calving law is configured. Under `dg0` the
   saved `thickness` is the prognostic state; a `cg1` run also saves
   `thickness_dg`. The `geometry_space` and `mesh_basename` attributes let a
-  restart resolve the same sidecar, and `dt_yr` records the step, which a
-  resume of the same series has to keep (`ISMIP7_ALLOW_DT_CHANGE`).
+  restart resolve the same sidecar, and `dt_yr` records the step. A resume
+  that continues its own series at another step, as a run taken past a crash
+  may need, prints a `WARNING: step change on resume` line and continues.
 - `<exp>_t<year>.h5`, periodic checkpoints, keeping the
   `ISMIP7_KEEP_CHECKPOINTS` most recently written.
 - `<exp>_timeseries.csv`, one row per step, the year at six decimals:
