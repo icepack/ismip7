@@ -82,8 +82,9 @@ BedMachine, MEaSUReS, RACMO, one scenario of forcing, their `.msh` and
 `inversion_*.h5`, the OI climatology, the IMBIE basin numbers, and
 `results/calibrated_K_per_basin_<lc>.npz`. That npz comes from
 `calibrate_melt.py` or a colleague; the 2500 m one is mesh independent and
-serves as the fallback for any `lc`. `control/run.py` and `projections/ocx.py`
-abort without it; the ssp drivers warn and substitute a scalar `K`, which
+serves as the fallback for any `lc`. With `ISMIP7_DELTAT_PER_BASIN_NPZ` set no
+driver reads it, and `preflight.py` accepts either. `control/run.py` and
+`projections/ocx.py` abort without it; the ssp drivers warn and substitute a scalar `K`, which
 completes with the wrong melt.
 
 **Inversion.** Add `tlm_adjoint`, and the MIPkit for the dH/dt term.
@@ -635,7 +636,9 @@ shims over `scripts/experiment.py`. Run a historical driver first to produce
 from it, so they share a t=0 state and the same frozen apparent-MB correction,
 and their relaxation drift cancels in projection minus control (the ISMIP6
 ctrl_proj convention). Without it a projection cold-starts from BedMachine and
-the control warns that it starts from a different geometry.
+the control warns that it starts from a different geometry. An endpoint whose
+`t_yr` is short of the branch year (a chain that stopped early) or missing is
+refused (`simulation.historical_endpoint`).
 
 Run management on the drivers: `--restart <ckpt>` or `ISMIP7_RESTART` resumes;
 `ISMIP7_AUTO_RESUME=1` picks up the newest checkpoint for the experiment, which
@@ -875,7 +878,7 @@ redeclare those literals.
 | `ISMIP7_FRICTION` | `budd`, `regularized_coulomb` or `budd_legacy`; selects the MAP. The set is closed, so a misspelling is rejected at startup | `budd` |
 | `ISMIP7_OUTPUT_INTERVAL` | timeseries row every N steps | `10` |
 | `ISMIP7_CHECKPOINT_EVERY_YR` / `ISMIP7_KEEP_CHECKPOINTS` | checkpoint cadence in model years, and how many to keep besides `_final.h5` | `5` / `3` |
-| `ISMIP7_RESTART` | restart checkpoint | `hist_<esm>[_<tag>]_<lc>_final.h5` if present |
+| `ISMIP7_RESTART` | restart checkpoint | `hist_<esm>[_<tag>]_<lc>_final.h5` if present; refused when it is short of the branch year |
 | `ISMIP7_AUTO_RESUME` | resume from this experiment's newest checkpoint when no `ISMIP7_RESTART` is given. An integer flag, `=0` disables it, since the runners export it unconditionally and `--export=ALL` cannot unset. `projection.sbatch` refuses to chain when it is off | unset |
 | `ISMIP7_RUN_TAG` | experiment-name suffix for a parallel method line | unset |
 | `ISMIP7_WALL_STOP_MIN` | wall-clock budget in minutes from process start, checked before each step against the longest step so far, so the run writes its final checkpoint and exits with `t_yr` short of `t_end` for a chained job to resume. `projection.sbatch` derives it from the job's own TimeLimit, holding back 25 minutes. `0` disables | `0` |

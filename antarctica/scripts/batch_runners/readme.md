@@ -437,6 +437,23 @@ resubmits, unless `ISMIP7_CHAIN=0`, or auto-resume is off (a successor would
 cold-start and repeat the years), or the final checkpoint is unreadable, or the
 job advanced no years at all (setup alone spent the budget).
 
+**A historical can queue what branches from it.** `ISMIP7_CHAIN_THEN` names
+follow-on experiments (space-separated, from the runner's list), and the job
+that brings the chain to its end year queues each one behind itself, as a fresh
+chain with the same environment and allocation, less `ISMIP7_T_START` and
+`ISMIP7_T_END`, since each follow-on's driver owns its period; a job that stops
+short carries the list on to its successor, and a stalled or failed one queues
+nothing. So a
+control and the projections are submitted with their historical and start only
+once it has reached 2015, which is what `simulation.historical_endpoint` then
+checks before they branch. A misspelt follow-on stops the first job before the
+driver runs:
+
+```bash
+ISMIP7_EXPERIMENT=hist_mri_esm2 ISMIP7_ESM=MRI-ESM2-0 \
+    ISMIP7_CHAIN_THEN="control" antarctica/scripts/batch_runners/submit.sh projection
+```
+
 A relaunch from a stalled state has cleared the diagnostic-Newton wall in every
 observed case (see Known issues in `antarctica/README.md`). The chain leaves
 that judgement to you: resubmit, and auto-resume picks the run up.

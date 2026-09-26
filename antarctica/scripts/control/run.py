@@ -29,7 +29,8 @@ sys.path.insert(0, _PROJECT)
 
 from firedrake import assemble, dx, Constant
 from simulation import (setup_model, run_simulation, latest_checkpoint,
-                        auto_resume, RESULTS_DIR, PETSc, lc)
+                        historical_endpoint,
+                        auto_resume, PETSc, lc)
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere,
     ISMIP7Ocean,
@@ -213,8 +214,8 @@ def main():
     # start (mis-matched control) only when the historical endpoint is absent.
     if restart_from is None:
         tag_sfx = f"_{args.tag}" if args.tag else ""
-        hist = os.path.join(RESULTS_DIR, f"hist_{esm_tag}{tag_sfx}_{lc}_final.h5")
-        if os.path.exists(hist):
+        hist = historical_endpoint(esm_tag, tag_sfx, T_START)
+        if hist is not None:
             restart_from = hist
             PETSc.Sys.Print(
                 f"  Branching CTRL from the historical endpoint (same initial "
@@ -223,7 +224,8 @@ def main():
             )
         else:
             PETSc.Sys.Print(
-                f"  WARNING: no historical endpoint {os.path.basename(hist)}; "
+                f"  WARNING: no historical endpoint "
+                f"hist_{esm_tag}{tag_sfx}_{lc}_final.h5; "
                 f"cold-starting from the inversion. The CTRL will start from a "
                 f"DIFFERENT geometry than the hist-branched projections, so "
                 f"projection-minus-CTRL will not cleanly isolate the forced "

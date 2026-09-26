@@ -200,6 +200,32 @@ def latest_checkpoint(experiment_name, lc_val=None):
     return best
 
 
+def historical_endpoint(esm_tag, tag_sfx, t_branch, lc_val=None):
+    r"""The historical endpoint a control or projection branches from, or None
+    when there is none.
+
+    A historical chain rewrites its ``_final.h5`` at the end of every job, so
+    a chain that stalled, or was stopped, leaves one that holds the year it
+    reached rather than the handoff. A control or projection that branched
+    from it would start its 2015 experiment on an earlier geometry and say
+    nothing, so an endpoint short of ``t_branch`` is refused outright.
+    """
+    lc_val = lc if lc_val is None else lc_val
+    path = os.path.join(RESULTS_DIR, f"hist_{esm_tag}{tag_sfx}_{lc_val}_final.h5")
+    if not os.path.exists(path):
+        return None
+    with fd.CheckpointFile(path, "r") as chk:
+        t = (float(chk.get_attr("/", "t_yr"))
+             if chk.has_attr("/", "t_yr") else None)
+    if t is None or t < t_branch - 1e-6:
+        reached = "no t_yr" if t is None else f"t_yr={t:g}"
+        raise RuntimeError(
+            f"the historical endpoint {path} holds {reached}, short of the "
+            f"{t_branch:g} handoff: its chain stopped early. Finish the "
+            f"historical, or name a state with ISMIP7_RESTART.")
+    return path
+
+
 def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 backdate_years=0.0):
     r"""Load mesh, data, inversion fields, and build diagnostic solver.
