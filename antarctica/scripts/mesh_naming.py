@@ -16,6 +16,11 @@ script that loads a mesh agree on where to find/write them.
 
 import os
 import re
+import sys
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 from icepack2_tools.runconfig import BUFFER_M_DEFAULT, buffer_m as _buffer_m
 

@@ -16,7 +16,7 @@ Firedrake.
 """
 
 __all__ = ["YEAR_DECIMALS", "STEP_CHANGE_RTOL", "format_year", "rows_kept_on_resume",
-           "step_from_years", "resumed_step", "step_changed"]
+           "step_from_years", "row_steps", "resumed_step", "step_changed"]
 
 YEAR_DECIMALS = 6
 # How far a step read back from a series may sit from the run's own before
@@ -66,6 +66,22 @@ def step_from_years(years):
     if not span > 0.0:
         raise ValueError(f"the series spans {span:g} yr, so it carries no step")
     return span / (n - 1)
+
+
+def row_steps(years):
+    r"""The step of each row of a series, from its year column.
+
+    A strictly increasing column resolves every row's own step, so a series
+    whose step changed at a resume is read segment by segment; the first row
+    takes the step of the second. A legacy one-decimal column repeats years,
+    and every row then takes :func:`step_from_years`, the mean step.
+    Raises ``ValueError`` as :func:`step_from_years` does.
+    """
+    years = [float(y) for y in years]
+    diffs = [b - a for a, b in zip(years, years[1:])]
+    if diffs and all(d > 0.0 for d in diffs):
+        return [diffs[0]] + diffs
+    return [step_from_years(years)] * len(years)
 
 
 def resumed_step(kept, checkpoint_dt=None):

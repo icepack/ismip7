@@ -134,3 +134,22 @@ def test_a_flag_that_is_not_an_integer_is_an_error(unset):
     unset.setenv("ISMIP7_MESH_BUILD_CHECK", "no")
     with pytest.raises(ValueError, match="ISMIP7_MESH_BUILD_CHECK"):
         mesh_build_check()
+
+
+def test_mesh_naming_imports_from_outside_the_repo(tmp_path):
+    r"""``diagnostic_solve.py`` and any script run from ``antarctica/`` import
+    ``mesh_naming`` with only the scripts directory on ``sys.path``."""
+    scripts = os.path.join(REPO, "antarctica", "scripts")
+    code = (
+        "import sys\n"
+        "sys.path[:] = [p for p in sys.path[1:]\n"
+        "               if 'site-packages' not in p and not p.startswith(%r)]\n"
+        "sys.path.insert(0, %r)\n"
+        "import mesh_naming\n"
+        "print(mesh_naming.DEFAULT_BUFFER_M)\n" % (REPO, scripts)
+    )
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    r = subprocess.run([sys.executable, "-c", code], cwd=tmp_path, env=env,
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert float(r.stdout) == DEFAULT_BUFFER_M

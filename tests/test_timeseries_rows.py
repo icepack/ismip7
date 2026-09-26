@@ -149,3 +149,67 @@ def test_one_row_without_a_record_cannot_say():
 ])
 def test_a_step_change_is_a_ratio_past_the_tolerance(prior, dt, changed):
     assert step_changed(prior, dt) is changed
+
+
+# --- a series whose step changed at a resume ---------------------------------
+
+from icepack2_tools.timeseries import row_steps  # noqa: E402
+
+
+def _mixed_years():
+    first = years(2015.0, 2025.0, 0.05)
+    return [float(format_year(t)) for t in first + years(2025.0, 2035.0, 0.025)]
+
+
+def test_each_row_of_a_mixed_series_carries_its_own_step():
+    steps = row_steps(_mixed_years())
+    assert len(steps) == 600
+    assert steps[:200] == pytest.approx([0.05] * 200, rel=1e-6)
+    assert steps[200:] == pytest.approx([0.025] * 400, rel=1e-6)
+
+
+def test_a_legacy_series_falls_back_to_the_mean_step():
+    col = [float(f"{t:.1f}") for t in years(2015.0, 2025.0, 0.025)]
+    steps = row_steps(col)
+    assert len(steps) == len(col)
+    assert set(steps) == {step_from_years(col)}
+
+
+def test_the_track_audit_reads_rates_on_both_sides_of_a_step_change(tmp_path):
+    r"""0.05 for ten years, then 0.025: a mean step of about 0.033 would put
+    the discharge 1.5x off on one segment and 0.75x on the other."""
+    csv_fn = tmp_path / "ctrl_1000_timeseries.csv"
+    cols = ("year,vaf_mm_sle,mass_gt,smb_gtyr,melt_gtyr,outflux_gtyr,"
+            "calv_gt,clamp_gt,resid_gt,amb_gtyr\n")
+    mass = 2.4e7
+    prev = 2015.0
+    with open(csv_fn, "w") as f:
+        f.write(cols)
+        for t in _mixed_years():
+            step = t - prev
+            prev = t
+            mass -= 100.0 * step
+            f.write(f"{format_year(t)},57000.0,{mass:.4f},2500.0,1100.0,600.0,"
+                    f"{600.0 * step:.6f},0.0,0.0,0.0\n")
+    r = subprocess.run([sys.executable, TRACK, str(csv_fn)],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "dt=0.025..0.05 yr" in r.stdout
+    (discharge,) = re.findall(r"front discharge\s+(\S+)", r.stdout)
+    (dmdt,) = re.findall(r"dM/dt \(post-2016\)\s+(\S+)", r.stdout)
+    assert float(discharge) == pytest.approx(1200.0, abs=0.1)
+    assert float(dmdt) == pytest.approx(-100.0, abs=0.1)
+
+
+def test_the_runaway_detector_cuts_years_by_time_across_a_step_change():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("chk", TRACK)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    steps = row_steps(_mixed_years())
+    # growth of 1.6x in each of years 11 and 12: sustained, so a runaway
+    d = [1000.0] * 200 + [1000.0] * 40 + [1600.0] * 40 + [2600.0] * 40 + [2600.0] * 280
+    assert mod.runaway_detected(d, steps) is True
+    # one fast year that settles is still a spike
+    d = [1000.0] * 240 + [2400.0] * 40 + [1000.0] * 320
+    assert mod.runaway_detected(d, steps) is False
