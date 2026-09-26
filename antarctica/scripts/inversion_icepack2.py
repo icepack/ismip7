@@ -111,7 +111,9 @@ from icepack2_tools.prior import (
     prior_operator_form,
 )
 from icepack2_tools.thermo_model import compute_fluidity_prior
-from icepack2_tools.optimization import FunctionalDecreaseStop
+from icepack2_tools.optimization import (FunctionalDecreaseStop,
+                                         recorded_objective,
+                                         resolve_log_vel_weight)
 from icepack2_tools.forcing import (load_racmo_smb_climatology,
                                     load_mean_annual_surface_temperature)
 from icepack2_tools.runconfig import (
@@ -219,9 +221,13 @@ GAMMA_DEFAULT = "1e5" if MISFIT_NORM == "sigma" else "1e4"
 # the ice is not moving. Other inversions use relative errors to the same end.
 #
 # ISMIP7_LOG_VEL_WEIGHT: 0 (default, the pre-Sep-2026 objective), a number, or
-# "auto" -- scaled so that at the STARTING state the log term equals the
-# velocity chi^2 term, which is the only weight that means anything before
-# the first iteration. The resolved value is stamped in the MAP.
+# "auto", which scales the log term to equal the velocity chi^2 term at the
+# STARTING state, the only weight that means anything before the first
+# iteration. A chained link starts from its predecessor's checkpoint, so under
+# "auto" a warm start that records a positive weight under the same misfit
+# norm and eps supplies that weight, and every link minimises one objective
+# (issue 68, optimization.resolve_log_vel_weight). The resolved value and its
+# source are stamped in the MAP.
 LOG_VEL_WEIGHT = os.environ.get("ISMIP7_LOG_VEL_WEIGHT", "0")
 LOG_VEL_EPS = float(os.environ.get("ISMIP7_LOG_VEL_EPS", "1.0"))   # m/yr
 GAMMA_THETA = float(os.environ.get("ISMIP7_GAMMA_THETA", GAMMA_DEFAULT))
@@ -544,6 +550,9 @@ def main():
     # Residual the warm start's writer reached under the shared F (stamped by
     # save_model_state and by save_map): the forwards' absolute tolerance.
     warm_recorded = None
+    # The log-velocity term the warm start was minimised under, which an
+    # "auto" weight is held to. None without a warm start.
+    warm_objective = None
 
     # What a target dof outside the warm start's mesh takes: the prior for
     # the log controls (0), and for the fluidity prior mean the constant
@@ -575,6 +584,7 @@ def main():
                     warm_recorded = float(chk.get_attr("/", "full_state_residual"))
                 except (TypeError, ValueError):
                     warm_recorded = None
+            warm_objective = recorded_objective(chk)
             theta.assign(_warm_load(chk, chk_mesh, "log_friction", Q))
             phi.assign(_warm_load(chk, chk_mesh, "log_fluidity", Q))
             # A warm start on this mesh supplies its geometry, observations
@@ -1368,11 +1378,11 @@ def main():
         sp_obs = sqrt(u_obs[0] ** 2 + u_obs[1] ** 2 + Constant(1e-12))
         return ln((sp + _eps_v) / (sp_obs + _eps_v))
 
-    log_vel_w = (0.0 if LOG_VEL_WEIGHT.lower() == "auto"
-                 else float(LOG_VEL_WEIGHT))
+    _derived_w = None
     if LOG_VEL_WEIGHT.lower() == "auto":
         # Scale so the two velocity terms start out comparable: the ratio of
-        # the chi^2 term to the unweighted log term at the warm-start state.
+        # the chi^2 term to the unweighted log term at the state this run
+        # starts from, used when the warm start holds no weight of its own.
         _u0 = z.subfunctions[0]
         _chi2_0 = float(assemble(
             (0.5 / area_val * obs_mask
@@ -1380,15 +1390,27 @@ def main():
                 + (_u0[1] - u_obs[1]) ** 2 / sig_uy ** 2)) * dx(mesh)))
         _log_0 = float(assemble(
             (0.5 / area_val * obs_mask * _log_ratio(_u0) ** 2) * dx(mesh)))
-        log_vel_w = (_chi2_0 / _log_0) if _log_0 > 0 else 0.0
+        _derived_w = (_chi2_0 / _log_0) if _log_0 > 0 else 0.0
+    log_vel_w, log_vel_source, _log_vel_note = resolve_log_vel_weight(
+        LOG_VEL_WEIGHT, _derived_w, warm_objective,
+        misfit_norm=MISFIT_NORM, eps=LOG_VEL_EPS)
+    if log_vel_source == "warm_start":
+        PETSc.Sys.Print(
+            f"  Log-velocity misfit (ISSM 103): auto weight {log_vel_w:.6g} "
+            f"held from the warm start (chi2 {_chi2_0:.3e} / log "
+            f"{_log_0:.3e} here would give {_derived_w:.4g}), "
+            f"eps={LOG_VEL_EPS:g} m/yr")
+    elif log_vel_source == "derived":
         PETSc.Sys.Print(
             f"  Log-velocity misfit (ISSM 103): auto weight {log_vel_w:.4g} "
             f"= chi2 {_chi2_0:.3e} / log {_log_0:.3e} at "
             f"the start, eps={LOG_VEL_EPS:g} m/yr")
-    elif log_vel_w > 0.0:
+    elif log_vel_w > 0.0 or _log_vel_note:
         PETSc.Sys.Print(
             f"  Log-velocity misfit (ISSM 103): weight {log_vel_w:g}, "
             f"eps={LOG_VEL_EPS:g} m/yr")
+    if _log_vel_note:
+        PETSc.Sys.Print(f"    {_log_vel_note}")
 
     def forward(theta_ctrl, phi_ctrl):
         clear_caches()
@@ -1653,6 +1675,12 @@ def main():
             chk.set_attr("/", "geometry_space", str(geometry_space))
             chk.set_attr("/", "misfit_norm", MISFIT_NORM)
             chk.set_attr("/", "log_vel_weight", float(log_vel_w))
+            # requested, derived (auto, at this run's start) or warm_start
+            # (auto, held from the MAP this run warm-started from). A MAP
+            # without it predates issue 68: if several chained links wrote it
+            # under auto, each re-derived the weight, and log_vel_weight is
+            # the last link's.
+            chk.set_attr("/", "log_vel_weight_source", log_vel_source)
             chk.set_attr("/", "log_vel_eps", float(LOG_VEL_EPS))
             chk.set_attr("/", "gamma_theta", float(GAMMA_THETA))
             chk.set_attr("/", "gamma_phi", float(GAMMA_PHI))
@@ -1755,6 +1783,7 @@ def main():
                 "misfit_norm": MISFIT_NORM,
                 "log_vel_weight_requested": LOG_VEL_WEIGHT,
                 "log_vel_weight": float(log_vel_w),
+                "log_vel_weight_source": log_vel_source,
                 "log_vel_eps": float(LOG_VEL_EPS),
                 "gamma_theta": float(GAMMA_THETA),
                 "gamma_phi": float(GAMMA_PHI),

@@ -180,7 +180,7 @@ criterion); the snapshots have no velocity to compare against.
 
 Confounders that go with every table: the snapshots are unconverged and at
 different iteration counts under log-velocity weights re-derived per chain
-link (issue #68); Budd carries the `ISMIP7_ALPHA_GL=0.5` grounding-line collar
+link (issue 68); Budd carries the `ISMIP7_ALPHA_GL=0.5` grounding-line collar
 and a frozen `N_ref` that regularized Coulomb has no counterpart to; the 22
 September controls melted with `K_issue11_mesh2500.npz`, a per-basin K fitted
 under the local slope on a 2500 m mesh, under the constant Antarctic slope

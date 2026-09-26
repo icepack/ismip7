@@ -379,13 +379,17 @@ IMBIE and GRACE. The per-iteration `net=` diagnostic prints either way. See
 The MAP filename encodes friction, `LC`, geometry space and flow exponent only,
 so velocity-only and transient variants collide. Give variants their own
 `ISMIP7_MAP_OUT`. Every MAP records its objective as root attributes
-(`misfit_norm`, `gamma_theta`, `gamma_phi`, `log_vel_weight`, `log_vel_eps`,
-`dhdt_weight`, `dhdt_net_sigma`, `mesh_basename`, `lc`, `lc_coarse`,
-`buffer_m`):
+(`misfit_norm`, `gamma_theta`, `gamma_phi`, `log_vel_weight`,
+`log_vel_weight_source`, `log_vel_eps`, `dhdt_weight`, `dhdt_net_sigma`,
+`mesh_basename`, `lc`, `lc_coarse`, `buffer_m`):
 
 ```bash
 python -c "import h5py,sys; print(dict(h5py.File(sys.argv[1])['/'].attrs))" MAP.h5
 ```
+
+A MAP without `log_vel_weight_source` predates issue 68: if a chain of several
+links wrote it under `ISMIP7_LOG_VEL_WEIGHT=auto`, each link re-derived the
+weight, and `log_vel_weight` is the last link's.
 
 ---
 
@@ -887,7 +891,7 @@ projection), run in that run's own shell so it captures the environment.
 |---------|---------|---------|
 | `ISMIP7_MAP_OUT` | output path for the MAP, overriding the generated name. Use it for smoke tests and variants so a short run cannot replace a production MAP. A bare filename resolves under `mesh/` | generated |
 | `ISMIP7_MISFIT_NORM` | `sigma` divides each residual by its datum's squared error, giving a dimensionless chi^2; `none` is the legacy dimensional misfit. Selects the `ISMIP7_GAMMA_*` defaults | `sigma` |
-| `ISMIP7_LOG_VEL_WEIGHT` | weight on the ISSM logarithmic velocity misfit (cost function 103). The chi^2 alone over-weights slow interior ice and leaves discharge-carrying tributaries 40 to 50% too slow; the log term is scale free. `auto` equalises it with the chi^2 term at the warm-start state. Stamped into the MAP | `0` |
+| `ISMIP7_LOG_VEL_WEIGHT` | weight on the ISSM logarithmic velocity misfit (cost function 103). The chi^2 alone over-weights slow interior ice and leaves discharge-carrying tributaries 40 to 50% too slow; the log term is scale free. `auto` equalises it with the chi^2 term at the state the inversion starts from, and under `auto` a warm start that records a positive weight under the same `ISMIP7_MISFIT_NORM` and `ISMIP7_LOG_VEL_EPS` supplies that weight, so every link of a chain minimises one objective (issue 68). Stamped into the MAP with `log_vel_weight_source`: `requested`, `derived` or `warm_start` | `0` |
 | `ISMIP7_LOG_VEL_EPS` | regularisation speed (m/yr) inside the log | `1.0` |
 | `ISMIP7_WARM_START` | path to a MAP or timing-cache checkpoint used to seed `theta`/`phi` (and, when present, geometry, `fluidity_prior`, and the mixed diagnostic state). Fields are interpolated onto the live mesh, so a 1-core cache can warm-start a multi-rank invert | unset |
 | `ISMIP7_SKIP_CONTINUATION` | `1` skips the cold `n,m: 1→n` ramp on the initial solve and inside each annotated forward eval (single solve at full exponents). Auto-enabled when the warm start supplies a full mixed state | `0` |

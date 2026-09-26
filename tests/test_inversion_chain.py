@@ -1,4 +1,5 @@
-r"""The self-chaining inversion runner's done-marker and warm-start decisions.
+r"""The self-chaining inversion runner's done-marker and warm-start decisions,
+and the objective a resumed link minimises.
 
 ``antarctica/scripts/batch_runners/inversion.sbatch`` decides, after every
 link of a multi-day chain, whether the MAP on disk is finished or whether the
@@ -13,6 +14,11 @@ driver with the real driver's externally visible behaviour - it writes the
 checkpoint at ``ISMIP7_MAP_OUT``, prints the same ``Saved MAP:`` line only after
 that write returns, and touches ``<map>.done`` itself. Everything else,
 including every decision under test, is the shipped script.
+
+A resumed link also has to minimise the objective the link before it did
+(issue 68). The weight driver below resolves its log-velocity weight with the
+inversion's own ``resolve_log_vel_weight`` from the attributes of an HDF5
+checkpoint, and the last tests hold that function to its cases.
 """
 
 import os
@@ -21,6 +27,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from icepack2_tools.optimization import recorded_objective, resolve_log_vel_weight
 
 REPO = Path(__file__).resolve().parent.parent
 SBATCH = REPO / "antarctica" / "scripts" / "batch_runners" / "inversion.sbatch"
@@ -258,3 +266,178 @@ def test_the_chain_depth_cap_stops_it(sandbox):
     assert rc == 137, log
     assert "reached ISMIP7_CHAIN_MAX=4, no successor" in log
     assert calls == ""
+
+
+# The real driver's weight, in the real driver's order: read the warm start's
+# attributes, resolve the weight, write it into the checkpoint as save_map
+# does. FAKE_DERIVED stands in for the chi^2 / log ratio at the state a link
+# starts from, which is all the solve contributes to the decision; like the
+# driver, a link given a number derives nothing.
+WEIGHT_DRIVER = r'''
+import os
+import sys
+
+import h5py
+
+from icepack2_tools.optimization import recorded_objective, resolve_log_vel_weight
+
+
+class Checkpoint:
+    """CheckpointFile's has_attr/get_attr, which read h5py's root attributes."""
+
+    def __init__(self, handle):
+        self.handle = handle
+
+    def has_attr(self, path, key):
+        return key in self.handle[path].attrs
+
+    def get_attr(self, path, key):
+        return self.handle[path].attrs[key]
+
+
+map_out = os.environ["ISMIP7_MAP_OUT"]
+warm = os.environ.get("ISMIP7_WARM_START", "")
+recorded = None
+if warm:
+    with h5py.File(warm, "r") as handle:
+        recorded = recorded_objective(Checkpoint(handle))
+misfit_norm = os.environ.get("ISMIP7_MISFIT_NORM", "sigma").lower()
+eps = float(os.environ.get("ISMIP7_LOG_VEL_EPS", "1.0"))
+requested = os.environ.get("ISMIP7_LOG_VEL_WEIGHT", "0")
+derived = float(os.environ["FAKE_DERIVED"]) if requested.lower() == "auto" else None
+weight, source, note = resolve_log_vel_weight(
+    requested, derived, recorded, misfit_norm=misfit_norm, eps=eps)
+print(f"driver: log_vel_weight={weight!r} source={source} note={note!r}")
+
+with h5py.File(map_out, "w") as handle:
+    handle["/"].attrs["misfit_norm"] = misfit_norm
+    handle["/"].attrs["log_vel_weight"] = float(weight)
+    handle["/"].attrs["log_vel_weight_source"] = source
+    handle["/"].attrs["log_vel_eps"] = eps
+if os.environ.get("FAKE_DIE_AFTER") == "map_write":
+    sys.exit(137)
+
+print(f"Saved MAP: {map_out} (misfit_norm={misfit_norm} log_vel_weight={weight:g})")
+open(map_out + ".done", "w").close()
+'''
+
+
+def test_two_links_minimise_one_log_velocity_weight(sandbox):
+    r"""Issue 68, in the numbers IU's 32 km chain measured. Under the runner's
+    default ISMIP7_LOG_VEL_WEIGHT=auto the first link derived 17452 at its
+    cold start, and the successor, warm-starting from the checkpoint of
+    evaluation 140, re-derived 2495 there: two links of one MAP minimising
+    different objectives. The successor holds the weight the checkpoint
+    records, and the MAP it finishes carries that weight."""
+    h5py = pytest.importorskip("h5py")
+    driver = sandbox / "weight_driver.py"
+    driver.write_text(WEIGHT_DRIVER)
+
+    rc, log, _ = run_job(sandbox, FAKE_DRIVER=str(driver),
+                         FAKE_DERIVED="17451.9897644", FAKE_DIE_AFTER="map_write")
+    assert rc == 137, log
+    assert "driver: log_vel_weight=17451.9897644 source=derived" in log
+    assert not (sandbox / "inversion_map.h5.done").exists()
+
+    rc, log, _ = run_job(sandbox, job_id="424244", FAKE_DRIVER=str(driver),
+                         FAKE_DERIVED="2495.0")
+    assert rc == 0, log
+    assert f"warm-starting theta/phi from the periodic checkpoint {map_out(sandbox)}" in log
+    assert "driver: log_vel_weight=17451.9897644 source=warm_start" in log
+    with h5py.File(map_out(sandbox), "r") as handle:
+        assert float(handle["/"].attrs["log_vel_weight"]) == 17451.9897644
+        assert handle["/"].attrs["log_vel_weight_source"] == "warm_start"
+
+
+def test_a_weight_passed_by_hand_reaches_every_link(sandbox):
+    r"""Rice's 1 km Budd inversion warm-starts from the 2 km snapshot 0241
+    with the weight fixed by hand at 85,380, the value 0241 recorded at its
+    fourth link. The number is queued with the successor and used as given in
+    both links, whatever the checkpoint records or the state would derive."""
+    h5py = pytest.importorskip("h5py")
+    driver = sandbox / "weight_driver.py"
+    driver.write_text(WEIGHT_DRIVER)
+    snapshot = sandbox / "budd_2km_0241.h5"
+    with h5py.File(snapshot, "w") as handle:
+        handle["/"].attrs["misfit_norm"] = "sigma"
+        handle["/"].attrs["log_vel_weight"] = 85380.0
+        handle["/"].attrs["log_vel_eps"] = 1.0
+    by_hand = {"FAKE_DRIVER": str(driver), "ISMIP7_LOG_VEL_WEIGHT": "85380",
+               "ISMIP7_WARM_START": str(snapshot)}
+
+    rc, log, calls = run_job(sandbox, FAKE_DIE_AFTER="map_write", **by_hand)
+    assert rc == 137, log
+    assert "driver: log_vel_weight=85380.0 source=requested note=''" in log
+    assert "ENV: ISMIP7_LOG_VEL_WEIGHT=85380" in calls.splitlines()
+
+    rc, log, _ = run_job(sandbox, job_id="424244", **by_hand)
+    assert rc == 0, log
+    assert f"warm-starting theta/phi from the periodic checkpoint {map_out(sandbox)}" in log
+    assert "driver: log_vel_weight=85380.0 source=requested note=''" in log
+    with h5py.File(map_out(sandbox), "r") as handle:
+        assert float(handle["/"].attrs["log_vel_weight"]) == 85380.0
+        assert handle["/"].attrs["log_vel_weight_source"] == "requested"
+
+
+SIGMA = {"misfit_norm": "sigma", "log_vel_eps": 1.0}
+
+
+def resolve(requested, derived, recorded):
+    return resolve_log_vel_weight(requested, derived, recorded,
+                                  misfit_norm="sigma", eps=1.0)
+
+
+@pytest.mark.parametrize("requested", ["auto", "AUTO", " auto "])
+def test_auto_holds_the_weight_the_warm_start_records(requested):
+    recorded = {**SIGMA, "log_vel_weight": 17451.9897644}
+    assert resolve(requested, 2495.0, recorded) == (17451.9897644, "warm_start", "")
+
+
+def test_auto_derives_the_weight_at_a_cold_start():
+    assert resolve("auto", 17451.9897644, None) == (17451.9897644, "derived", "")
+
+
+@pytest.mark.parametrize("recorded, why", [
+    # A MAP written before the log term existed, or an adapted-mesh checkpoint.
+    ({"misfit_norm": "sigma"}, "it records no log-velocity weight"),
+    ({}, "it records no log-velocity weight"),
+    # Inverted without the log term: holding its 0 would drop the term auto asks for.
+    ({**SIGMA, "log_vel_weight": 0.0}, "it records weight 0"),
+    # The weight scales a chi^2 in other units, or a log term with another floor.
+    ({**SIGMA, "log_vel_weight": 1.0e3, "misfit_norm": "none"},
+     "misfit_norm none there, sigma here"),
+    ({**SIGMA, "log_vel_weight": 1.0e3, "log_vel_eps": 10.0},
+     "log_vel_eps 10.0 there, 1 here"),
+])
+def test_auto_derives_when_the_warm_start_holds_no_comparable_weight(recorded, why):
+    weight, source, note = resolve("auto", 2495.0, recorded)
+    assert (weight, source) == (2495.0, "derived")
+    assert note == f"the warm start's weight is not used: {why}"
+
+
+def test_a_number_is_used_as_given():
+    recorded = {**SIGMA, "log_vel_weight": 17451.9897644}
+    # IU resubmitted its second link with the recorded weight by hand, and a
+    # copy rounded to a few figures is the same objective.
+    assert resolve("17451.9897644", None, recorded) == (17451.9897644, "requested", "")
+    assert resolve("17452", None, recorded) == (17452.0, "requested", "")
+    assert resolve("0", None, None) == (0.0, "requested", "")
+    weight, source, note = resolve("2495", None, recorded)
+    assert (weight, source) == (2495.0, "requested")
+    assert note == "it replaces the weight 17452 the warm start was minimised under"
+
+
+def test_a_checkpoint_file_returns_what_save_map_wrote(tmp_path):
+    r"""The attributes come back through firedrake.CheckpointFile itself, as a
+    numpy float and a str, and hold an auto weight."""
+    fd = pytest.importorskip("firedrake")
+    path = str(tmp_path / "map.h5")
+    with fd.CheckpointFile(path, "w") as chk:
+        chk.save_mesh(fd.UnitSquareMesh(2, 2))
+        chk.set_attr("/", "misfit_norm", "sigma")
+        chk.set_attr("/", "log_vel_weight", 17451.9897644)
+        chk.set_attr("/", "log_vel_eps", 1.0)
+    with fd.CheckpointFile(path, "r") as chk:
+        recorded = recorded_objective(chk)
+    assert recorded == {**SIGMA, "log_vel_weight": 17451.9897644}
+    assert resolve("auto", 2495.0, recorded) == (17451.9897644, "warm_start", "")
