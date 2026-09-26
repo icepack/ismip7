@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""ISMIP7 Core Experiment 11: OCX observationally constrained (1979-2025).
+r"""ISMIP7 Core Experiment 11: OCX observationally constrained (2003-2025).
 
 Observation-forced run over the satellite era, for validating the initialized
 model against the observed record, and independent of CMIP by design
@@ -34,10 +34,11 @@ been built from an older extrapolated climatology. Every K here is fitted to
 the climatology, so run ``check_melt_bound.py --ocx`` and read its per-basin
 table before trusting a protocol-forced core 11.
 
-No fracture forcing exists for OCX (discussion #33). The initial state is the
-~2015 BedMachine/MAP geometry, so a 1979 start is anachronistic by
-construction: treat the early years as relaxation and the 2000s-2025 as the
-validation window.
+No fracture forcing exists for OCX (discussion #33). The run starts in 2003
+from the ~2015 BedMachine/MAP geometry with 12 years of the Smith et al. (2020)
+mean dH/dt undone on grounded ice (issue #117), the 2015 friction and fluidity
+unchanged. ``ISMIP7_T_START`` moves the start; before 2003 the dH/dt window is
+exceeded and ``ISMIP7_GEOMETRY_BACKDATE`` has to say what to do.
 
 Usage:
     mpiexec -n 24 python scripts/projections/ocx.py
@@ -54,7 +55,9 @@ from simulation import (setup_model, run_simulation, latest_checkpoint,
 from experiment import find_k_npz
 import math
 
-from icepack2_tools.runconfig import ocx_forcing, ocx_ocean, deltat_per_basin_npz
+from icepack2_tools.runconfig import (
+    ocx_forcing, ocx_ocean, deltat_per_basin_npz, geometry_backdate_years,
+)
 from icepack2_tools.forcing import (
     OCX, OCX_ATMOSPHERE_SOURCE,
     ISMIP7Atmosphere, ISMIP7Ocean, make_forcing_callback,
@@ -64,7 +67,7 @@ from icepack2_tools.forcing import (
     build_smb_feedback, feedback_mode, smb_feedback_banner,
 )
 
-T_START = float(os.environ.get("ISMIP7_T_START", "1979"))
+T_START = float(os.environ.get("ISMIP7_T_START", "2003"))
 # 1 January of the year AFTER the last one covered, the convention every core
 # driver uses: years 1979 through 2025 run and 2025 is the last banked year.
 T_END = float(os.environ.get("ISMIP7_T_END", "2026"))
@@ -133,7 +136,12 @@ def main():
         readers[0] if readers is not None
         else ISMIP7Atmosphere(esm=OCX_ATMOSPHERE_SOURCE, scenario=OCX),
         int(math.floor(T_START + 1e-9)), forcing_year(T_END), log=PETSc.Sys.Print)
-    ctx = setup_model(restart_from=restart, smb_feedback=feedback_mode(feedback))
+    # 2003 start (issue #117): the 2015 geometry with the Smith mean thinning
+    # undone on grounded ice; a restart carries its own geometry.
+    ctx = setup_model(
+        restart_from=restart,
+        backdate_years=0.0 if restart else geometry_backdate_years(T_START),
+        smb_feedback=feedback_mode(feedback))
     # Sample forcing at the geometry dofs, not the mesh vertices: under
     # DG0 geometry those are cell centroids (see forcing.forcing_coords).
     mesh_x, mesh_y = forcing_coords(ctx)

@@ -34,7 +34,8 @@ from icepack2_tools.runconfig import (
     calving_law as _calving_law, calving_sigma_max as _calving_sigma_max,
     friction as _friction, geometry_space as _geometry_space, lc as _lc,
     lc_coarse as _lc_coarse, ocx_forcing as _ocx_forcing, ocx_ocean as _ocx_ocean,
-    mesh_override, smb_elevation_feedback as _smb_elevation_feedback,
+    mesh_override, deltat_per_basin_npz as _deltat_per_basin_npz,
+    k_per_basin_candidates, smb_elevation_feedback as _smb_elevation_feedback,
 )
 DATA_DIR = obs_data_root()
 from mesh_naming import get_buffer_m, mesh_filename
@@ -201,9 +202,18 @@ def shared_missing(warn=None):
             f"{os.path.basename(bnd)} (untracked — restore or regenerate "
             f"with make_boundary_ids.py)"
         )
-    if not (glob.glob(os.path.join(RESULTS_DIR, f"calibrated_K_per_basin_{lc}.npz"))
-            or glob.glob(os.path.join(RESULTS_DIR, "calibrated_K_per_basin_2500.npz"))):
-        miss.append("per-basin K npz")
+    # The melt calibration the forward reads: per-basin deltaT at one K when
+    # ISMIP7_DELTAT_PER_BASIN_NPZ names a file (the protocol's knob, and then
+    # no driver reads a per-basin K), else a per-basin K file, found where the
+    # drivers look for it.
+    try:
+        dT_npz = _deltat_per_basin_npz()
+    except (FileNotFoundError, ValueError) as err:
+        miss.append(str(err))
+        dT_npz = err
+    if dT_npz is None and not any(
+            os.path.exists(c) for c in k_per_basin_candidates(RESULTS_DIR, lc)):
+        miss.append("per-basin K npz (or ISMIP7_DELTAT_PER_BASIN_NPZ)")
     for d, pat, what in [
         (os.path.join(DATA_DIR, "bedmachine"), "*.nc", "BedMachine"),
         (os.path.join(DATA_DIR, "velocity"), "*.nc", "MEaSUREs velocity"),

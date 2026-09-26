@@ -1870,9 +1870,10 @@ class SMBElevationFeedback:
     The geometry is the one at the start of the step, since the callback runs
     once per step before the subcycle ladder: the explicit coupling the melt
     has. The change is unbounded, as in the focus group's formula. NaN in the
-    gradient reads as zero, and a cell emptied since the initial state sees
-    its whole surface change, whose sink the positivity limiter books as
-    clamp.
+    gradient reads as zero. The feedback is part of ``accum``, so the forward
+    applies it only where it applies any forcing (``front.unforced_cells``:
+    never on open ocean or on cells a front rule holds ice-free); ice-free
+    land keeps it, and there the positivity limiter books any sink as clamp.
     """
 
     def __init__(self, atm, log=None):
