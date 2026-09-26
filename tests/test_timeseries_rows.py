@@ -213,3 +213,32 @@ def test_the_runaway_detector_cuts_years_by_time_across_a_step_change():
     # one fast year that settles is still a spike
     d = [1000.0] * 240 + [2400.0] * 40 + [1000.0] * 320
     assert mod.runaway_detected(d, steps) is False
+
+
+def test_the_track_audit_weights_each_segment_by_the_time_it_covers(tmp_path):
+    r"""10 yr at 0.05 then 10 yr at 0.025, with discharge 1000 then 1600 Gt/yr
+    and dM/dt -100 then -400 Gt/yr: past the first year the time means are
+    (9 * 1000 + 10 * 1600) / 19 and (9 * -100 + 10 * -400) / 19, where a row
+    mean gives the second segment two thirds of the weight."""
+    csv_fn = tmp_path / "ctrl_1000_timeseries.csv"
+    cols = ("year,vaf_mm_sle,mass_gt,smb_gtyr,melt_gtyr,outflux_gtyr,"
+            "calv_gt,clamp_gt,resid_gt,amb_gtyr\n")
+    mass = 2.4e7
+    prev = 2015.0
+    with open(csv_fn, "w") as f:
+        f.write(cols)
+        for t in _mixed_years():
+            step = t - prev
+            prev = t
+            late = t > 2025.0 + 1e-6
+            q, dmdt = (1600.0, -400.0) if late else (1000.0, -100.0)
+            mass += dmdt * step
+            f.write(f"{format_year(t)},57000.0,{mass:.4f},2500.0,1100.0,{q / 2},"
+                    f"{q / 2 * step:.6f},0.0,0.0,0.0\n")
+    r = subprocess.run([sys.executable, TRACK, str(csv_fn)],
+                       capture_output=True, text=True)
+    assert "Traceback" not in r.stderr, r.stderr
+    (discharge,) = re.findall(r"front discharge\s+(\S+)", r.stdout)
+    (dmdt,) = re.findall(r"dM/dt \(post-2016\)\s+(\S+)", r.stdout)
+    assert float(discharge) == pytest.approx((9 * 1000.0 + 10 * 1600.0) / 19, abs=0.1)
+    assert float(dmdt) == pytest.approx((9 * -100.0 + 10 * -400.0) / 19, abs=0.1)

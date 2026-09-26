@@ -158,11 +158,11 @@ def main():
     dvaf = np.diff(c["vaf_mm_sle"], prepend=c["vaf_mm_sle"][0]) / dt
 
     vals = {
-        "smb":       float(np.mean(c["smb_gtyr"])),
-        "melt":      float(np.mean(c["melt_gtyr"])),
-        "discharge": float(np.mean(discharge[post])),
-        "dmdt":      float(np.mean(dm[post])),
-        "dvafdt":    float(np.mean(dvaf[post])),
+        "smb":       float(np.average(c["smb_gtyr"], weights=dt)),
+        "melt":      float(np.average(c["melt_gtyr"], weights=dt)),
+        "discharge": float(np.average(discharge[post], weights=dt[post])),
+        "dmdt":      float(np.average(dm[post], weights=dt[post])),
+        "dvafdt":    float(np.average(dvaf[post], weights=dt[post])),
         "resid":     float(np.abs(resid_rate).max()),
     }
 
