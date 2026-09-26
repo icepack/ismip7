@@ -37,7 +37,8 @@ sys.path.insert(0, _PROJECT)
 sys.path.insert(0, _SCRIPTS)
 
 from simulation import (setup_model, run_simulation, latest_checkpoint,
-                        auto_resume, RESULTS_DIR, PETSc, lc)
+                        historical_endpoint,
+                        auto_resume, PETSc)
 from icepack2_tools.forcing import (
     ISMIP7Atmosphere, ISMIP7Ocean, ISMIP7Fracture,
     make_forcing_callback, load_racmo_smb_climatology, forcing_coords,
@@ -47,6 +48,7 @@ from icepack2_tools.climatology import (
     clim_start, clim_end, clim_scenario, clim_pool_missing, describe_clim_pool,
 )
 from icepack2_tools.runconfig import (
+    geometry_backdate_years,
     FRACTURE_MASK_MODES, fracture as fracture_mode, k_per_basin_npz,
     deltat_per_basin_npz,
 )
@@ -136,8 +138,7 @@ def run_core_experiment(*, core, title, name, esm, scenario,
             else "Auto-resume: no prior checkpoint"
         )
     if restart is None and restart_from_hist:
-        cand = os.path.join(RESULTS_DIR, f"hist_{esm_tag}{tag_sfx}_{lc}_final.h5")
-        restart = cand if os.path.exists(cand) else None
+        restart = historical_endpoint(esm_tag, tag_sfx, t_start)
     if restart and not os.path.exists(restart):
         raise FileNotFoundError(f"ISMIP7_RESTART not found: {restart}")
 
@@ -171,7 +172,11 @@ def run_core_experiment(*, core, title, name, esm, scenario,
         PETSc.Sys.Print("  Cold start from BedMachine/inversion initial state")
     dT_npz = deltat_per_basin_npz()
 
-    ctx = setup_model(restart_from=restart)
+    # A cold start before the 2015 geometry starts from it with the observed
+    # thinning undone (issue #117); a restart carries its own geometry.
+    ctx = setup_model(
+        restart_from=restart,
+        backdate_years=0.0 if restart else geometry_backdate_years(t_start))
 
     smb_anomaly, smb_baseline = False, None
     if atm is not None:

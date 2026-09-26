@@ -20,6 +20,17 @@
 #   hist_cesm_waccm    antarctica/scripts/historical/cesm_waccm.py
 #   hist_mri_esm2      antarctica/scripts/historical/mri_esm2.py
 #
+# ISMIP7_CHAIN_THEN (space-separated experiments from the same list) queues
+# follow-on runs once THIS run has reached its end year, and only then: a
+# control or projection branches from the historical's endpoint, so it must
+# not start before the historical has finished, and no earlier point in the
+# chain knows that it has. Each follow-on starts a chain of its own with this
+# run's environment and allocation, less ISMIP7_CHAIN_THEN itself and the
+# period (ISMIP7_T_START, ISMIP7_T_END), which each follow-on's driver owns:
+#
+#   ISMIP7_EXPERIMENT=hist_mri_esm2 ISMIP7_ESM=MRI-ESM2-0 \
+#       ISMIP7_CHAIN_THEN="control ssp585_mri_esm2" submit.sh projection
+#
 # Sizing, from the timing matrix on Quartz (TIMING_MATRIX_QUARTZ_SCPC_GAMG.md):
 # 30 s per 0.05 yr step at 1000 m / 10 km on 64 ranks under scpc_gamg, i.e.
 # 10.0 min per simulated year, ~11 core-hours per year. That is the transient
@@ -70,20 +81,32 @@ ismip7_banner
 JOB="${SLURM_JOB_ID:-manual}"
 LOG="logs/ismip7_fwd_${JOB}.out"
 
+# The driver of an experiment name, or nothing for a name it does not know.
+driver_for() {
+    case "$1" in
+        control)           echo antarctica/scripts/control/run.py ;;
+        ssp126_cesm_waccm) echo antarctica/scripts/projections/ssp126_cesm_waccm.py ;;
+        ssp126_mri_esm2)   echo antarctica/scripts/projections/ssp126_mri_esm2.py ;;
+        ssp370_cesm_waccm) echo antarctica/scripts/projections/ssp370_cesm_waccm.py ;;
+        ssp370_mri_esm2)   echo antarctica/scripts/projections/ssp370_mri_esm2.py ;;
+        ssp585_cesm_waccm) echo antarctica/scripts/projections/ssp585_cesm_waccm.py ;;
+        ssp585_mri_esm2)   echo antarctica/scripts/projections/ssp585_mri_esm2.py ;;
+        ocx)               echo antarctica/scripts/projections/ocx.py ;;
+        hist_cesm_waccm)   echo antarctica/scripts/historical/cesm_waccm.py ;;
+        hist_mri_esm2)     echo antarctica/scripts/historical/mri_esm2.py ;;
+    esac
+}
 EXPERIMENT="${ISMIP7_EXPERIMENT:-control}"
-case "$EXPERIMENT" in
-    control)           DRIVER=antarctica/scripts/control/run.py ;;
-    ssp126_cesm_waccm) DRIVER=antarctica/scripts/projections/ssp126_cesm_waccm.py ;;
-    ssp126_mri_esm2)   DRIVER=antarctica/scripts/projections/ssp126_mri_esm2.py ;;
-    ssp370_cesm_waccm) DRIVER=antarctica/scripts/projections/ssp370_cesm_waccm.py ;;
-    ssp370_mri_esm2)   DRIVER=antarctica/scripts/projections/ssp370_mri_esm2.py ;;
-    ssp585_cesm_waccm) DRIVER=antarctica/scripts/projections/ssp585_cesm_waccm.py ;;
-    ssp585_mri_esm2)   DRIVER=antarctica/scripts/projections/ssp585_mri_esm2.py ;;
-    ocx)               DRIVER=antarctica/scripts/projections/ocx.py ;;
-    hist_cesm_waccm)   DRIVER=antarctica/scripts/historical/cesm_waccm.py ;;
-    hist_mri_esm2)     DRIVER=antarctica/scripts/historical/mri_esm2.py ;;
-    *) echo "ERROR: unknown ISMIP7_EXPERIMENT='$EXPERIMENT'" >&2; exit 2 ;;
-esac
+DRIVER=$(driver_for "$EXPERIMENT")
+if [ -z "$DRIVER" ]; then
+    echo "ERROR: unknown ISMIP7_EXPERIMENT='$EXPERIMENT'" >&2; exit 2
+fi
+# A misspelt follow-on is found now, not days from now when this run ends.
+for next in ${ISMIP7_CHAIN_THEN:-}; do
+    if [ -z "$(driver_for "$next")" ]; then
+        echo "ERROR: unknown experiment '$next' in ISMIP7_CHAIN_THEN" >&2; exit 2
+    fi
+done
 
 # --- forward configuration ---------------------------------------------
 # Point the forward at the MAP the inversion chain wrote. Without this it would
@@ -267,6 +290,27 @@ fi
 done_yet=$(python -c "print(1 if float('$LAST_YEAR') >= float('$T_END') - 1e-6 else 0)")
 if [ "$done_yet" = "1" ]; then
     echo "chain: reached t_end ${T_END} at ${LAST_YEAR}, finished"
+    if [ -n "${ISMIP7_CHAIN_THEN:-}" ]; then
+        if [ -z "${SLURM_JOB_ID:-}" ]; then
+            echo "chain: no scheduler, so the follow-ons (${ISMIP7_CHAIN_THEN})" \
+                 "are not queued; start them by hand"
+            exit 0
+        fi
+        then_list="$ISMIP7_CHAIN_THEN"
+        # Each follow-on is a fresh chain: it resumes its own checkpoints, not
+        # this run's restart or wall budget, runs its driver's own period, not
+        # this run's ISMIP7_T_START / ISMIP7_T_END, and queues nothing further.
+        unset ISMIP7_CHAIN_THEN ISMIP7_WALL_STOP_MIN ISMIP7_RESTART \
+              ISMIP7_T_START ISMIP7_T_END
+        ismip7_chain_resources
+        for next in $then_list; do
+            echo "chain: queueing the follow-on ${next}"
+            ISMIP7_EXPERIMENT="$next" \
+                sbatch --dependency=afterok:"${SLURM_JOB_ID}" --export=ALL \
+                       "${ISMIP7_CHAIN_RES[@]}" \
+                       antarctica/scripts/batch_runners/projection.sbatch
+        done
+    fi
     exit 0
 fi
 

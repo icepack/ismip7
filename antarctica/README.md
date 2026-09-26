@@ -706,7 +706,9 @@ shims over `scripts/experiment.py`. Run a historical driver first to produce
 from it, so they share a t=0 state and the same frozen apparent-MB correction,
 and their relaxation drift cancels in projection minus control (the ISMIP6
 ctrl_proj convention). Without it a projection cold-starts from BedMachine and
-the control warns that it starts from a different geometry.
+the control warns that it starts from a different geometry. An endpoint whose
+`t_yr` is short of the branch year (a chain that stopped early) or missing is
+refused (`simulation.historical_endpoint`).
 
 Run management on the drivers: `--restart <ckpt>` or `ISMIP7_RESTART` resumes;
 `ISMIP7_AUTO_RESUME=1` picks up the newest checkpoint for the experiment, which
@@ -941,11 +943,12 @@ redeclare those literals.
 | `ISMIP7_GEOMETRY_SPACE` | `dg0` (one thickness for terminus force and mass flux) or `cg1` (legacy, A/B only). Selects the MAP. See `../GEOMETRY_DISCRETIZATION.md` | `dg0` |
 | `ISMIP7_DATA_ROOT` | forcing tree root | `<repo>/ISMIP7/AIS` |
 | `ISMIP7_OBS_DATA_ROOT` | BedMachine, MEaSUREs velocity, RACMO and the dH/dt cache observational-data root; name it in a site file when these files do not live beside the code. Also a write target: with the MIPkit present `obs_dhdt` builds `<root>/dhdt_cache/` here, so staged cache tifs belong under this root, wherever it points | `<repo>/antarctica/data` |
-| `ISMIP7_T_END` / `ISMIP7_DT` | end time and timestep (yr). `t=Y.0` is 1 January of year Y, so a run covering 2015 to 2300 ends at `2301` and a historical covering 1850 to 2014 ends at `2015`. Each driver owns its end (historical `2015`, ssp370 `2101`, other projections and control `2301`, OCX `2026`) | driver's own / `1.0` |
+| `ISMIP7_T_END` / `ISMIP7_DT` | end time and timestep (yr). `t=Y.0` is 1 January of year Y, so a run covering 2015 to 2300 ends at `2301` and a historical covering 2003 to 2014 ends at `2015`. Each driver owns its end (historical `2015`, ssp370 `2101`, other projections and control `2301`, OCX `2026`) | driver's own / `1.0` |
+| `ISMIP7_GEOMETRY_BACKDATE` | years of the Smith et al. (2020) mean dH/dt a cold start undoes on grounded ice before it runs (issue #117). Unset: `2015 - ISMIP7_T_START` for a start from 2003 up to 2015 (the historicals and OCX start in 2003), none from 2015 on, and a start before 2003 is refused. The friction anchors stay on the 2015 geometry; floating ice keeps its 2015 thickness. `0` turns it off | driver's start |
 | `ISMIP7_FRICTION` | `budd`, `regularized_coulomb` or `budd_legacy`; selects the MAP. The set is closed, so a misspelling is rejected at startup | `budd` |
 | `ISMIP7_OUTPUT_INTERVAL` | timeseries row every N steps | `10` |
 | `ISMIP7_CHECKPOINT_EVERY_YR` / `ISMIP7_KEEP_CHECKPOINTS` | checkpoint cadence in model years, and how many to keep besides `_final.h5` | `5` / `3` |
-| `ISMIP7_RESTART` | restart checkpoint | `hist_<esm>[_<tag>]_<lc>_final.h5` if present |
+| `ISMIP7_RESTART` | restart checkpoint | `hist_<esm>[_<tag>]_<lc>_final.h5` if present; refused when it is short of the branch year |
 | `ISMIP7_AUTO_RESUME` | resume from this experiment's newest checkpoint when no `ISMIP7_RESTART` is given. An integer flag, `=0` disables it, since the runners export it unconditionally and `--export=ALL` cannot unset. `projection.sbatch` refuses to chain when it is off | unset |
 | `ISMIP7_RUN_TAG` | experiment-name suffix for a parallel method line | unset |
 | `ISMIP7_WALL_STOP_MIN` | wall-clock budget in minutes from process start, checked before each step against the longest step so far, so the run writes its final checkpoint and exits with `t_yr` short of `t_end` for a chained job to resume. `projection.sbatch` derives it from the job's own TimeLimit, holding back 25 minutes. `0` disables | `0` |
@@ -1435,7 +1438,11 @@ Per experiment in `results/`:
   `ISMIP7_KEEP_CHECKPOINTS` most recently written.
 - `<exp>_timeseries.csv`, one row per `OUTPUT_INTERVAL` steps:
   `year, vaf_mm_sle, mass_gt, smb_gtyr, melt_gtyr, outflux_gtyr, calv_gt,
-  clamp_gt, resid_gt, amb_gtyr`. The residual must close to 0.00.
+  clamp_gt, resid_gt, amb_gtyr`. The residual must close to 0.00. SMB and
+  melt are what the advances applied: no forcing acts on open ocean or on
+  cells a front rule holds ice-free (`front.unforced_cells`), so `clamp` is
+  only the positivity limit on thin ice and `calv` only ice that crossed the
+  front. The ISMIP7 `acabf` and `libmassbffl` fields book the same forcing.
 
 VAF is in mm of sea-level equivalent, mass in Gt, both over map-plane area.
 The ISMIP7 scalars of a run with `ISMIP7_OUTPUT=1`
