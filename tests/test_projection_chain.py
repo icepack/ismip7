@@ -371,16 +371,16 @@ def test_the_runner_names_the_production_solver_and_step(sandbox):
     assert "ENV: ISMIP7_DT=0.025" in calls
 
 
-def test_the_runner_and_the_drivers_default_to_one_step():
-    r"""Issue 20 set the production step. The runner exports it so the job log
-    and every link of the chain carry it, and a driver run by hand falls back
-    to runconfig's; the two are one value."""
+def test_the_runner_exports_the_step_the_drivers_fall_back_to(sandbox):
+    r"""Issue 20 set the production step. The runner exports it, so the job
+    log and every link of the chain carry it, and it is the value a driver run
+    by hand falls back to (runconfig.DT_DEFAULT)."""
     from icepack2_tools.runconfig import DT_DEFAULT
-    text = SBATCH.read_text()
-    marker = 'export ISMIP7_DT="${ISMIP7_DT:-'
-    assert text.count(marker) == 1
-    runner_default = text.split(marker, 1)[1].split("}", 1)[0]
-    assert runner_default == DT_DEFAULT == "0.025"
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000")
+    assert rc == 0, log
+    # Whole lines: 0.02 is a prefix of 0.025.
+    assert f"driver: solver=scpc_gamg dt={DT_DEFAULT}" in log.splitlines()
+    assert f"ENV: ISMIP7_DT={DT_DEFAULT}" in calls.splitlines()
 
 
 def test_a_named_solver_and_step_win(sandbox):
