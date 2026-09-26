@@ -178,7 +178,10 @@ to split-step coupling, while the cause was a flux-divergence spike in the
 initial state at a single grounding-zone cell, compounded by a thickness
 roundtrip that smoothed `h` by up to 1.4 km. Falsified along the way, and not
 to be re-proposed without new evidence: smaller `dt` (it blows up faster), a
-larger grounding-line collar, and shelf drag alone.
+larger grounding-line collar, and shelf drag alone. The production step was
+halved to 0.025 yr on separate evidence (issue 20): on the 1 km mesh a
+control at 0.05 grew a two-step grounded/floating oscillation at the Lambert
+confluence and diverged, and the same control at 0.025 ran five years.
 
 Useful habits specific to this codebase:
 

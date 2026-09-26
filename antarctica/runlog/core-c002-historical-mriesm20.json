@@ -11,7 +11,7 @@
   "branch_from": "a steady state",
   "melt": "one toolbox K with the per-basin offset",
   "apparent_mb": "balance",
-  "dt": 0.05,
-  "mesh": "the production mesh, issue #20",
+  "dt": 0.025,
+  "mesh": "antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer",
   "notes": ""
 }

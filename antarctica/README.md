@@ -744,9 +744,9 @@ redeclare those literals.
 | `ISMIP7_GEOMETRY_SPACE` | `dg0` (one thickness for terminus force and mass flux) or `cg1` (legacy, A/B only). Selects the MAP. See `../GEOMETRY_DISCRETIZATION.md` | `dg0` |
 | `ISMIP7_DATA_ROOT` | forcing tree root | `<repo>/ISMIP7/AIS` |
 | `ISMIP7_OBS_DATA_ROOT` | BedMachine, MEaSUREs velocity, RACMO and the dH/dt cache observational-data root; name it in a site file when these files do not live beside the code. Also a write target: with the MIPkit present `obs_dhdt` builds `<root>/dhdt_cache/` here, so staged cache tifs belong under this root, wherever it points | `<repo>/antarctica/data` |
-| `ISMIP7_T_END` / `ISMIP7_DT` | end time and timestep (yr). `t=Y.0` is 1 January of year Y, so a run covering 2015 to 2300 ends at `2301` and a historical covering 1850 to 2014 ends at `2015`. Each driver owns its end (historical `2015`, ssp370 `2101`, other projections and control `2301`, OCX `2026`) | driver's own / `1.0` |
+| `ISMIP7_T_END` / `ISMIP7_DT` | end time and timestep (yr). `t=Y.0` is 1 January of year Y, so a run covering 2015 to 2300 ends at `2301` and a historical covering 1850 to 2014 ends at `2015`. Each driver owns its end (historical `2015`, ssp370 `2101`, other projections and control `2301`, OCX `2026`). The step defaults to `runconfig.DT_DEFAULT`, the production step, which `projection.sbatch` also exports | driver's own / `0.025` |
 | `ISMIP7_FRICTION` | `budd`, `regularized_coulomb` or `budd_legacy`; selects the MAP. The set is closed, so a misspelling is rejected at startup | `budd` |
-| `ISMIP7_OUTPUT_INTERVAL` | timeseries row every N steps | `10` |
+| `ISMIP7_OUTPUT_INTERVAL` | budget log line every N steps; the timeseries gets a row every step | `10` |
 | `ISMIP7_CHECKPOINT_EVERY_YR` / `ISMIP7_KEEP_CHECKPOINTS` | checkpoint cadence in model years, and how many to keep besides `_final.h5` | `5` / `3` |
 | `ISMIP7_RESTART` | restart checkpoint | `hist_<esm>[_<tag>]_<lc>_final.h5` if present |
 | `ISMIP7_AUTO_RESUME` | resume from this experiment's newest checkpoint when no `ISMIP7_RESTART` is given. An integer flag, `=0` disables it, since the runners export it unconditionally and `--export=ALL` cannot unset. `projection.sbatch` refuses to chain when it is off | unset |
@@ -791,9 +791,13 @@ redeclare those literals.
 | `ISMIP7_RC_HVISC_FLOOR` / `ISMIP7_RC_CW0_FLOOR` | RC viscous-thickness and `C_w0` floors, read by `scripts/simulation.py` and `scripts/inversion_icepack2.py` | `10.0` / `0.0` |
 | `ISMIP7_M_SLIDE` | sliding exponent, read by `scripts/inversion_icepack2.py`, `scripts/simulation.py`, `scripts/thermo_prior.py`, `scripts/plot_map.py`, `scripts/run_eigendec.py` | `3.0` |
 
-> **dt guidance.** Production projections on the 1000 m mesh run
-> `ISMIP7_DT=0.05`, the step the timing matrix ran there and the one
-> `projection.sbatch` defaults to. At 2500 m and coarser use `0.1`; `0.25` is
+> **dt guidance.** Production runs on the 1000 m mesh use `ISMIP7_DT=0.025`,
+> the step the group chose with the mesh on 25 September 2026 (issue 20):
+> `runconfig.DT_DEFAULT`, which `projection.sbatch` also exports. The timing
+> matrix ran 0.05 there, and at 0.05 a 1 km control from a transferred 2 km
+> Budd MAP diverged at the Lambert confluence (`MAP_CHECK.md`); at 0.025
+> Rice's 1 km historicals ran 78 and 66 model years with no rescue step.
+> At 2500 m and coarser use `0.1`; `0.25` is
 > acceptable there when 10 steps per year is too costly, under the production
 > closure only: under the matrix's strict contract `0.125` passed and `0.25`
 > ran away at both 2500 m and 5000 m, so the stable step does not grow with
@@ -915,13 +919,20 @@ ISMIP7_CONDENSED_PETSC_OPTIONS="pc_gamg_threshold=0.02" \
 the same campaign from the same caches with every accepted lane under the
 frozen linearization, so they differ in the linear solver alone. They set the
 production forward configuration: the **1000 m / 10 km mesh, `scpc_gamg`, up to
-64 ranks, `dt = 0.05` yr**. Minutes of transient loop per simulated year on
-that mesh (and the 285-year extrapolation):
+64 ranks**, and the group chose the mesh for the submission on 25 September
+2026 with a **step of `0.025` yr** (issue 20), half the matrix's 0.05 (see the
+dt guidance above). Minutes of transient loop per simulated year on that mesh
+at the matrix's 0.05 (and the 285-year extrapolation):
 
 | 1000/10000 | 16 ranks | 32 ranks | 64 ranks |
 |---|---|---|---|
 | `scpc_mumps` | 34.0 (6.7 d) | 23.4 (4.6 d) | 23.2 (4.6 d) |
 | `scpc_gamg` | 32.3 (6.4 d) | 15.7 (3.1 d) | 10.0 (47.5 h) |
+
+At 0.025 a simulated year takes twice the steps. Rice measured 22.5 min per
+simulated year on 32 Cascade Lake ranks under `scpc_gamg`, 62 simulated years
+per 24 h job. The 64-rank Quartz figure at 0.025 is not yet measured; at the
+matrix's 30 s a step it is about 20 min, about 4 days per 285 years.
 
 The factorization stops scaling past 32 ranks and the V-cycles do not. The two
 64-rank lanes take the same nonlinear path (129 Newton iterations and 286
@@ -947,8 +958,16 @@ through that solve, and no setting changes it. That is also why the switch is
 made in the forward runner and not in `solverconfig`'s default, which the
 inversion reads to stamp its MAP.
 
-**Starting state, unsettled.** No MAP has been inverted on the 1000 m mesh, and
-the plan for now is not to invert one: transfer the coarse MAP instead, the way
+**Starting state.** The production MAP is inverted on the production mesh: a
+1 km / 10 km Budd inversion, warm-started from the 2 km Budd snapshot 0241,
+was running at Rice on 25 September (issue #24), on Rice's build of the
+mesh (1,869,252 vertices), which is the submission mesh. A site with its own
+build (IU's on Quartz has 1,869,088 vertices) uses Rice's `.msh` with the MAP:
+the forward interpolates a MAP onto whatever `ISMIP7_MESH` names and does not
+compare the two builds, so a local build turns the MAP into a transfer, and
+only the vertex count in the log shows it.
+
+Until that MAP exists a forward starts from a coarse MAP by transfer, the way
 the matrix's own lanes do. Name the MAP and let the forward interpolate it onto
 the mesh `site_env.sh` exports: `simulation.py` keeps the MAP's own mesh as the
 interpolation source and uses `ISMIP7_MESH` only for the target spaces, which is
@@ -971,9 +990,9 @@ section's default is regularized Coulomb, and the forward aborts on a MAP whose
 recorded law disagrees with the run. Without `ISMIP7_INVERSION` the runner falls
 back to `ISMIP7_MAP_DEFAULT`, which names an RC MAP at the run's own resolution
 that has never been inverted, and warns at submission that the file is absent.
-Re-inverting on the production mesh, and closing the Budd/RC gap, are both
-open under the 2 km inversions; icepack/ismip7#21 was closed as their
-duplicate on 22 September. (issue #24)
+The MAP on the production mesh, and closing the Budd/RC gap, are both open
+under the inversions; icepack/ismip7#21 was closed as a duplicate on
+22 September. (issue #24)
 
 The stages and contracts are:
 
@@ -1234,7 +1253,7 @@ Per experiment in `results/`:
   restart resolve the same sidecar.
 - `<exp>_t<year>.h5`, periodic checkpoints, keeping the
   `ISMIP7_KEEP_CHECKPOINTS` most recently written.
-- `<exp>_timeseries.csv`, one row per `OUTPUT_INTERVAL` steps:
+- `<exp>_timeseries.csv`, one row per step, the year at six decimals:
   `year, vaf_mm_sle, mass_gt, smb_gtyr, melt_gtyr, outflux_gtyr, calv_gt,
   clamp_gt, resid_gt, amb_gtyr`. The residual must close to 0.00.
 

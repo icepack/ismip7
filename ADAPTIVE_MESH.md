@@ -4,6 +4,11 @@ Adaptive remeshing after Gudmundsson et al. (2012), ported to this model in
 September 2026: the desired-element-size field, `Error2EleSize`, the global
 remeshing, and the field transfer between meshes.
 
+The submission runs on the fixed gmsh pair `antarctica_10000_1000_buffered20000`
+at dt 0.025 yr, chosen over the adaptive-preset mesh on 25 September 2026
+(issue 20). The adaptive preset below remains available and is outside the
+production path.
+
 ## Build the mesh first, do not refine mid-run
 
 **Mid-run refinement blows up.** Refining an evolving 32 km state into 8 km

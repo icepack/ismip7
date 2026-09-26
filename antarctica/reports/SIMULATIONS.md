@@ -9,9 +9,9 @@ gitignored, so these records and the per-core reports beside them are
 the trace a run leaves in the repository. A core experiment also gets
 its full report from `core_report.py`; this is the index.
 
-60 records.
+62 records.
 
-Status: 12 planned, 3 running, 3 stopped, 31 done, 11 superseded.
+Status: 12 planned, 3 running, 5 stopped, 31 done, 11 superseded.
 
 ## Inversion
 
@@ -69,17 +69,19 @@ Status: 12 planned, 3 running, 3 stopped, 31 done, 11 superseded.
 
 | Simulation | Status | Mesh | Site | Started | Finished | Headline result |
 |---|---|---|---|---|---|---|
-| C001: historical with CESM2-WACCM | planned | the production mesh, issue #20 | - | - | - | - |
-| C002: historical with MRI-ESM2-0 | planned | the production mesh, issue #20 | - | - | - | - |
+| C001: historical with CESM2-WACCM | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
+| C002: historical with MRI-ESM2-0 | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
 | Core 1: historical with CESM2-WACCM | superseded | antarctica_320000_32000 | - | - | 2026-07-19 | OFF TRACK; the budget residual closes to zero |
 | Core 2: historical with MRI-ESM2-0 | superseded | antarctica_320000_32000 | - | - | 2026-07-19 | OFF TRACK; the budget residual closes to zero |
+| 1 km CESM2-WACCM historical at the production step | stopped | antarctica_10000_1000_buffered20000, 1 km fine, 10 km interior, 20 km buffer | nots, cascadelake | - | - | no rescue step in 78 model years |
+| 1 km MRI-ESM2-0 historical at the production step | stopped | antarctica_10000_1000_buffered20000, 1 km fine, 10 km interior, 20 km buffer | nots, cascadelake | - | - | no rescue step in 66 model years |
 
 ## Control
 
 | Simulation | Status | Mesh | Site | Started | Finished | Headline result |
 |---|---|---|---|---|---|---|
-| C009: ctrl with CESM2-WACCM | planned | the production mesh, issue #20 | - | - | - | - |
-| C010: ctrl with MRI-ESM2-0 | planned | the production mesh, issue #20 | - | - | - | - |
+| C009: ctrl with CESM2-WACCM | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
+| C010: ctrl with MRI-ESM2-0 | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
 | Core 9: CTRL2015 with CESM2-WACCM | superseded | antarctica_320000_32000 | - | - | 2026-07-20 | OFF TRACK; the budget residual closes to zero |
 | Core 10: CTRL2015 with MRI-ESM2-0 | superseded | antarctica_320000_32000 | - | - | 2026-07-20 | ON TRACK; the budget residual closes to zero |
 
@@ -87,12 +89,12 @@ Status: 12 planned, 3 running, 3 stopped, 31 done, 11 superseded.
 
 | Simulation | Status | Mesh | Site | Started | Finished | Headline result |
 |---|---|---|---|---|---|---|
-| C003: ssp370 with CESM2-WACCM | planned | the production mesh, issue #20 | - | - | - | - |
-| C004: ssp370 with MRI-ESM2-0 | planned | the production mesh, issue #20 | - | - | - | - |
-| C005: ssp126 with CESM2-WACCM | planned | the production mesh, issue #20 | - | - | - | - |
-| C006: ssp126 with MRI-ESM2-0 | planned | the production mesh, issue #20 | - | - | - | - |
-| C007: ssp585 with CESM2-WACCM | planned | the production mesh, issue #20 | - | - | - | - |
-| C008: ssp585 with MRI-ESM2-0 | planned | the production mesh, issue #20 | - | - | - | - |
+| C003: ssp370 with CESM2-WACCM | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
+| C004: ssp370 with MRI-ESM2-0 | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
+| C005: ssp126 with CESM2-WACCM | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
+| C006: ssp126 with MRI-ESM2-0 | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
+| C007: ssp585 with CESM2-WACCM | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
+| C008: ssp585 with MRI-ESM2-0 | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
 | Core 3: ssp370 with CESM2-WACCM | superseded | antarctica_320000_32000 | - | - | 2026-07-20 | OFF TRACK; the budget residual closes to zero |
 | Core 4: ssp370 with MRI-ESM2-0 | superseded | antarctica_320000_32000 | - | - | 2026-07-19 | ON TRACK; the budget residual closes to zero |
 | Core 5: ssp126 with CESM2-WACCM | superseded | antarctica_320000_32000 | - | - | 2026-07-20 | OFF TRACK; the budget residual closes to zero |
@@ -104,7 +106,7 @@ Status: 12 planned, 3 running, 3 stopped, 31 done, 11 superseded.
 
 | Simulation | Status | Mesh | Site | Started | Finished | Headline result |
 |---|---|---|---|---|---|---|
-| C011: OCX main with observations | planned | the production mesh, issue #20 | - | - | - | - |
+| C011: OCX main with observations | planned | antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer | - | - | - | - |
 | Core 11: OCX, observation constrained | superseded | antarctica_320000_32000 | - | - | 2026-07-20 | ON TRACK; the budget residual closes to zero |
 
 ## Output
@@ -1138,11 +1140,11 @@ C001: historical with CESM2-WACCM (planned), unassigned.
 - **ESM:** CESM2-WACCM
 - **Scenario:** historical
 - **Period (yr):** 1850, or a steady 1960 or 1975 start, to 2014
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** a steady state
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 - **Notes:** issue #28: every core needs re-running from the new MAPs. The handoff to the projections is at 2015.0, as issue #34 settled
 
 ### core-c002-historical-mriesm20
@@ -1154,11 +1156,11 @@ C002: historical with MRI-ESM2-0 (planned), unassigned.
 - **ESM:** MRI-ESM2-0
 - **Scenario:** historical
 - **Period (yr):** as C001
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** a steady state
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 
 ### core01-32km-hist-cesm2waccm
 
@@ -1200,6 +1202,40 @@ Core 2: historical with MRI-ESM2-0 (superseded), Rice.
 - **Audit:** OFF TRACK; the budget residual closes to zero
 - **Notes:** superseded by the annual-mean atmosphere-forcing fix fa7230c (the reader applied January as the whole year) and by the two August 2026 ice-front fixes, which need a re-inversion as well as a re-run; issue #28. Full record: antarctica/reports/core02_hist_mri_esm2_0_32km.md; status across the matrix: antarctica/reports/MATRIX_STATUS.md
 
+### hist-1km-cesm2waccm-half-step
+
+1 km CESM2-WACCM historical at the production step (stopped), Rice.
+
+- **Task type:** historical
+- **ESM:** CESM2-WACCM
+- **Scenario:** historical
+- **Period (yr):** 1850 to 1927, 78 model years
+- **Mesh:** antarctica_10000_1000_buffered20000, 1 km fine, 10 km interior, 20 km buffer
+- **Calving front, collapse:** held at the initial extent by the legacy fixed front
+- **dt (yr):** 0.025
+- **Site / partition:** nots, cascadelake
+- **Ranks / memory:** 32 ranks
+- **Cost per model year:** about 22.5 minutes a model year on 32 ranks, 62 model years a 24 h job
+- **Audit:** no rescue step in 78 model years
+- **Notes:** the evidence for the production step (issue 20). Stopped for the held front of issue 115, which PR 122 addressed; stable throughout. Written from Rice's report on issue 20, 25 September 2026; jobs, code and initial state are Rice's to add
+
+### hist-1km-mriesm20-half-step
+
+1 km MRI-ESM2-0 historical at the production step (stopped), Rice.
+
+- **Task type:** historical
+- **ESM:** MRI-ESM2-0
+- **Scenario:** historical
+- **Period (yr):** from 1850, 66 model years
+- **Mesh:** antarctica_10000_1000_buffered20000, 1 km fine, 10 km interior, 20 km buffer
+- **Calving front, collapse:** held at the initial extent by the legacy fixed front
+- **dt (yr):** 0.025
+- **Site / partition:** nots, cascadelake
+- **Ranks / memory:** 32 ranks
+- **Cost per model year:** about 22.5 minutes a model year on 32 ranks, 62 model years a 24 h job
+- **Audit:** no rescue step in 66 model years
+- **Notes:** the evidence for the production step (issue 20). Stopped for the held front of issue 115, which PR 122 addressed; stable throughout. Written from Rice's report on issue 20, 25 September 2026; jobs, code and initial state are Rice's to add
+
 ### core-c009-ctrl-cesm2waccm
 
 C009: ctrl with CESM2-WACCM (planned), unassigned.
@@ -1209,11 +1245,11 @@ C009: ctrl with CESM2-WACCM (planned), unassigned.
 - **ESM:** CESM2-WACCM
 - **Scenario:** ctrl, the 2000 to 2029 climatology
 - **Period (yr):** 2015 to 2300
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** the historical endpoint at 2015.0
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 
 ### core-c010-ctrl-mriesm20
 
@@ -1224,11 +1260,11 @@ C010: ctrl with MRI-ESM2-0 (planned), unassigned.
 - **ESM:** MRI-ESM2-0
 - **Scenario:** ctrl
 - **Period (yr):** 2015 to 2300
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** the historical endpoint at 2015.0
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 
 ### core09-32km-ctrl2015-cesm2waccm
 
@@ -1279,11 +1315,11 @@ C003: ssp370 with CESM2-WACCM (planned), unassigned.
 - **ESM:** CESM2-WACCM
 - **Scenario:** ssp370
 - **Period (yr):** 2015 to 2100
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** the historical endpoint at 2015.0
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 
 ### core-c004-ssp370-mriesm20
 
@@ -1294,11 +1330,11 @@ C004: ssp370 with MRI-ESM2-0 (planned), unassigned.
 - **ESM:** MRI-ESM2-0
 - **Scenario:** ssp370
 - **Period (yr):** 2015 to 2100
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** the historical endpoint at 2015.0
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 
 ### core-c005-ssp126-cesm2waccm
 
@@ -1309,11 +1345,11 @@ C005: ssp126 with CESM2-WACCM (planned), unassigned.
 - **ESM:** CESM2-WACCM
 - **Scenario:** ssp126
 - **Period (yr):** 2015 to 2300
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** the historical endpoint at 2015.0
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 
 ### core-c006-ssp126-mriesm20
 
@@ -1324,11 +1360,11 @@ C006: ssp126 with MRI-ESM2-0 (planned), unassigned.
 - **ESM:** MRI-ESM2-0
 - **Scenario:** ssp126
 - **Period (yr):** 2015 to 2300
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** the historical endpoint at 2015.0
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 
 ### core-c007-ssp585-cesm2waccm
 
@@ -1339,11 +1375,11 @@ C007: ssp585 with CESM2-WACCM (planned), unassigned.
 - **ESM:** CESM2-WACCM
 - **Scenario:** ssp585
 - **Period (yr):** 2015 to 2300
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** the historical endpoint at 2015.0
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 - **Notes:** issue #27 holds the full-length run in the NOTS queue as job 1390452. The run ends in 2300, as issue #78 settled: 2300 reads the distributed atmosphere, the 2290 to 2299 mean, and holds the 2299 ocean
 
 ### core-c008-ssp585-mriesm20
@@ -1355,11 +1391,11 @@ C008: ssp585 with MRI-ESM2-0 (planned), unassigned.
 - **ESM:** MRI-ESM2-0
 - **Scenario:** ssp585
 - **Period (yr):** 2015 to 2300
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** the historical endpoint at 2015.0
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 
 ### core03-32km-ssp370-cesm2waccm
 
@@ -1490,11 +1526,11 @@ C011: OCX main with observations (planned), unassigned.
 - **ESM:** observations
 - **Scenario:** OCX main
 - **Period (yr):** 1979 to 2025
-- **Mesh:** the production mesh, issue #20
+- **Mesh:** antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices), 1 km fine, 10 km interior, 20 km buffer
 - **Branch from:** independent of the historical
 - **Melt: K, slope, deltaT:** one toolbox K with the per-basin offset
 - **Apparent MB:** balance
-- **dt (yr):** 0.05
+- **dt (yr):** 0.025
 - **Notes:** issue #11: run check_melt_bound --ocx first. Issue #19: the OCX ocean is being regenerated upstream
 
 ### core11-32km-ocx

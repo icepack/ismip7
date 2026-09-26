@@ -27,9 +27,13 @@ export ISMIP7_DATA_ROOT="${ISMIP7_DATA_ROOT:-$ISMIP7_REPO/ISMIP7/AIS}"
 export ISMIP7_OBS_DATA_ROOT="${ISMIP7_OBS_DATA_ROOT:-$ISMIP7_REPO/antarctica/data}"
 
 # --- model configuration shared by every run ----------------------------
-# The production mesh is 1000 m / 10 km: the finest pair the timing matrix
-# carries through a 285-year run in two days (TIMING_MATRIX_QUARTZ_SCPC_GAMG.md,
-# 10.0 min per simulated year on 64 ranks). The mesh name follows
+# The production mesh is 1000 m / 10 km with a 20 km buffer, the submission
+# mesh since 25 September 2026 (issue 20): the finest pair the timing matrix
+# carries through a 285-year run in two days at dt 0.05
+# (TIMING_MATRIX_QUARTZ_SCPC_GAMG.md, 10.0 min per simulated year on 64
+# ranks), and about four at the production step, 0.025, which
+# projection.sbatch sets. The mesh file is Rice's build, the one the MAP is
+# inverted on (antarctica/README.md, "Starting state"). The mesh name follows
 # mesh_naming.mesh_basename, so naming another pair names its mesh too. The
 # 2500 m configuration this replaces had a mesh outside that rule and is
 # ISMIP7_LC=2500 ISMIP7_LC_COARSE=64000
