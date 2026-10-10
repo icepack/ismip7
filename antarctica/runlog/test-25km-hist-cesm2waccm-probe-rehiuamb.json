@@ -1,0 +1,30 @@
+{
+  "id": "test-25km-hist-cesm2waccm-probe-rehiuamb",
+  "task": "test",
+  "institution": "IU",
+  "title": "25 km IU rehearsal probe: the first ten steps of core 1 with the apparent mass-balance reference",
+  "status": "stopped",
+  "exp_id": "C001",
+  "esm": "CESM2-WACCM",
+  "scenario": "historical",
+  "period": "2003.0 to 2003.25, reached 2003.025",
+  "friction": "budd",
+  "mesh": "antarctica_250000_25000_buffered20000, DG0 geometry",
+  "initial_state": "inversion-25km-budd-rehearsal-iuvf's MAP, backdated 12 years with the Smith dH/dt on 2,992 grounded cells (+566 Gt)",
+  "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
+  "apparent_mb": "balance",
+  "dt": 0.025,
+  "melt": "deltaT_per_basin_25000_K6.500e-05.npz refitted under vertex_front (sha256 385c1f47), 997.8 Gt/yr on the backdated floating cells",
+  "site": "IU Quartz, general partition",
+  "resources": "8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0",
+  "jobs": [
+    "11888669"
+  ],
+  "code": "288382a (PR 163's head), Quartz scratch clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh beside it",
+  "started": "2026-10-09",
+  "finished": "2026-10-09",
+  "cost": "3 min 56 s for the job",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/logs/ismip7_fwd_11888669.out",
+  "audit": "the runaway tripwire (ISMIP7_TRIPWIRE_U_MAX=2e4, as in the September probes) stopped the run at step 1 on a speed of 31,782 m/yr at (-2026.1, 484.6) km, the MAP's unobserved front vertex; the step's direct solve had converged in 1 Newton iteration under scpc_mumps and the transport step closed its mass to about 1e-9 Gt",
+  "notes": "gate G4c of the 25 km rehearsal of IU's Budd line (antarctica/reports/rehearsal_25km_iu.md). The matrix runs with no tripwire, as the September matrix did, and IU went to the matrix without a second probe; the reference here spans -448.3 to +650.7 m/yr, net -131.6 Gt/yr"
+}
