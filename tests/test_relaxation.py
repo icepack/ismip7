@@ -173,11 +173,9 @@ def test_an_observed_warm_start_keeps_this_run_s_own_record():
 
 def test_a_forward_records_which_initial_state_it_started_from():
     relaxed = {"geometry_source_method": GEOMETRY_METHOD_RELAXED}
-    assert init_state(MAP, other_mesh=False) == "observed"
-    assert init_state(MAP, other_mesh=True) == "observed"
-    assert init_state(relaxed, other_mesh=False) == "relaxed"
-    # a 1 km forward from a 2 km relaxed MAP: the controls, on its own geometry
-    assert init_state(relaxed, other_mesh=True) == "relaxed-controls"
+    assert init_state(MAP) == "observed"
+    # a relaxed MAP gives its controls alone, on its own mesh as on any other
+    assert init_state(relaxed) == "relaxed-controls"
 
 
 def test_names():

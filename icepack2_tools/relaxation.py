@@ -6,10 +6,10 @@ production step on OCX's forcing for that year, with the apparent mass
 balance off and the front pinned (``antarctica/scripts/relaxation/run.py``),
 and re-inverted from the state the year ends in (``inversion_icepack2.py``
 with that state as ``ISMIP7_WARM_START``). The MAP that comes out carries the
-relaxed geometry. A forward on that MAP's mesh starts from it; a forward on
-another mesh takes the MAP's controls onto its own BedMachine geometry, as it
-does for any MAP; and the 2003 start of the historicals and OCX backdates
-whichever geometry the forward starts from.
+relaxed geometry, which serves the re-inversion alone: a forward on any mesh,
+the MAP's own included, takes the MAP's controls onto that mesh's BedMachine
+geometry, as it does for any MAP, so every resolution starts from the same
+2015 geometry, which the 2003 start of the historicals and OCX backdates.
 
 The rules the driver, the inversion and the forward share live here, free of
 Firedrake, so the suite tests them directly.
@@ -40,9 +40,11 @@ RELAX_MAP_KEYS = RELAX_KEYS + ("relax_state", "relax_state_sha256")
 
 # init_state, which a forward records in every checkpoint it writes:
 #   observed          a MAP inverted on BedMachine geometry
-#   relaxed           a relaxed MAP on its own mesh, starting from its geometry
-#   relaxed-controls  a relaxed MAP's controls on another mesh's BedMachine
-#                     geometry; the relaxed thickness stays on the MAP's mesh
+#   relaxed           a relaxed MAP on its own mesh, starting from its geometry:
+#                     forwards cold-started before 10 October 2026 record it,
+#                     and their restarts keep it; no cold start takes it now
+#   relaxed-controls  a relaxed MAP's controls on the forward mesh's BedMachine
+#                     geometry, on any mesh
 INIT_STATES = ("observed", "relaxed", "relaxed-controls")
 INIT_STATE_ATTR = "init_state"
 
@@ -269,12 +271,14 @@ def inherited_geometry(warm_attrs, *, geometry_taken, warm_basename, warm_sha256
     return out
 
 
-def init_state(map_attrs, *, other_mesh):
+def init_state(map_attrs):
     r"""The ``INIT_STATES`` entry of a forward cold-started from a MAP with
-    attributes ``map_attrs``, on another mesh when ``other_mesh``."""
+    attributes ``map_attrs``. A relaxed MAP gives its controls alone, on its
+    own mesh as on any other, so its forwards start from the geometry a
+    forward from the MAP it was relaxed from starts from."""
     if str(_value(map_attrs.get("geometry_source_method", ""))) != GEOMETRY_METHOD_RELAXED:
         return "observed"
-    return "relaxed-controls" if other_mesh else "relaxed"
+    return "relaxed-controls"
 
 
 def describe_relaxation(attrs):

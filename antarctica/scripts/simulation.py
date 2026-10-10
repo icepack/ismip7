@@ -624,6 +624,12 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
              or os.path.basename(mesh_fn) != source_mesh_basename))
     chk_raster_sample = _forward_raster_sample(
         map_raster_sample, geometry_transfer, source=source_chk)
+    # A relaxed MAP gives its controls alone (icepack2_tools.relaxation
+    # .init_state): on its own mesh too the cold start rebuilds the geometry
+    # from BedMachine, sampled as the MAP was, so every resolution starts from
+    # the same 2015 geometry rewound to 2003.
+    relaxed_controls = bool(
+        not is_restart and _init_state(checkpoint_metadata) == "relaxed-controls")
     PETSc.Sys.Print(
         f"  Geometry space: {geometry_space.upper()}"
         + (" (h, s, b cell-wise; one thickness for force and mass)" if geom_dg
@@ -726,12 +732,13 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         # RC/Budd on the MAP's own mesh replace this sample with the MAP's
         # geometry below, so a front sampling's ice mask is read only where
         # its cells are kept.
+        _bedmachine_kept = geometry_transfer or relaxed_controls or not use_rc
         _sample_method = (
-            chk_raster_sample if (geometry_transfer or not use_rc)
+            chk_raster_sample if _bedmachine_kept
             else _raster_base_method(chk_raster_sample))
         PETSc.Sys.Print(
             f"  Raster sampling onto geometry cells: {_sample_method}"
-            + ("" if (geometry_transfer or not use_rc) else
+            + ("" if _bedmachine_kept else
                f" (a placeholder: the MAP's own geometry, sampled "
                f"{chk_raster_sample}, replaces it)"))
         b, H, _front_counts = sample_bed_thickness(
@@ -1023,7 +1030,7 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                     or os.path.basename(mesh_fn) != source_mesh_basename
                 )
             )
-            if target_mesh_differs:
+            if target_mesh_differs or relaxed_controls:
                 PETSc.Sys.Print(
                     "  Target-mesh geometry: cell-averaged BedMachine "
                     f"({os.path.basename(geometry_source)})"
@@ -1035,10 +1042,13 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 geometry_source = os.path.realpath(source_chk)
                 geometry_source_method = "checkpoint-native-v1"
                 map_geometry_taken = True
+            if not target_mesh_differs:
                 # The mixed state the MAP was accepted at (a final MAP's
                 # velocity/membrane_stress/basal_stress, a periodic
                 # checkpoint's ckpt_* copies) seeds the cold-start solve
-                # below in place of 0.1 u_obs.
+                # below in place of 0.1 u_obs. On a relaxed MAP's own mesh
+                # it is solved on the relaxed geometry, so from BedMachine's
+                # it is a perturbation, as the backdate is.
                 for _pre in ("", "ckpt_"):
                     _u = load_checkpoint_field(chk, f"{_pre}velocity", V, optional=True)
                     _M = load_checkpoint_field(chk, f"{_pre}membrane_stress", Sigma, optional=True)
@@ -1057,24 +1067,20 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 s.interpolate(max_value(b + H, (Constant(1.0) - rho_ratio) * H))
 
     # The initial state the chain began from (icepack2_tools.relaxation):
-    # a relaxed MAP starts from its own geometry on its own mesh, and gives
-    # only its controls to a forward on another mesh, which builds its
-    # geometry from BedMachine as it does for any MAP. A restart keeps the
-    # record of the run it continues.
+    # a relaxed MAP gives only its controls, on any mesh, and the forward
+    # builds its geometry from BedMachine as it does for any MAP. A restart
+    # keeps the record of the run it continues.
     relax_record = {k: checkpoint_metadata[k] for k in RELAX_MAP_KEYS
                     if k in checkpoint_metadata}
     if is_restart:
         init_state = checkpoint_metadata.get(INIT_STATE_ATTR, "observed")
         init_state = init_state.decode() if isinstance(init_state, bytes) else str(init_state)
     else:
-        init_state = _init_state(checkpoint_metadata, other_mesh=not map_geometry_taken)
-        if init_state == "relaxed":
-            PETSc.Sys.Print("  Initial state: the relaxed MAP's own geometry ("
-                            + describe_relaxation(relax_record) + ")")
-        elif init_state == "relaxed-controls":
+        init_state = _init_state(checkpoint_metadata)
+        if init_state == "relaxed-controls":
             PETSc.Sys.Print("  Initial state: the relaxed MAP's controls on this mesh's "
-                            "BedMachine geometry; the relaxed thickness stays on the "
-                            "MAP's mesh (" + describe_relaxation(relax_record) + ")")
+                            "BedMachine geometry; the relaxed thickness served only the "
+                            "re-inversion (" + describe_relaxation(relax_record) + ")")
 
     _filled = {k: v for k, v in transfer_fill.items()
                if v["missing"] or v["clamped"]}

@@ -126,6 +126,8 @@ without reading the linked rationale and stating why.
   geometry is part of its controls too: it is named `_relax<year>`, records
   `geometry_source_method = relaxed-forward-v1`, and an inversion warm-started
   from it stops unless it takes that geometry (`icepack2_tools/relaxation.py`).
+  A forward takes only its controls, onto BedMachine's 2015 geometry on any
+  mesh, its own included, so every resolution starts from the same state.
 - **The zero-valued `M_s[0,0] * tau_s[0]` term in the SCPC path is structural.**
   Membrane and basal stress are physically uncoupled local fields, so UFL
   normally omits their two zero Jacobian blocks. Firedrake's three-field SCPC
