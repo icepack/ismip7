@@ -7,9 +7,14 @@ rule (run record `inversion-2km-budd-b20k-ef2-vf`), on that MAP's own
 objective and PR 163's code, then the melt refit, the MAP checks, all eleven
 cores without and with the apparent mass-balance reference (issue #104), the
 track audit, the core reports, the ISMIP7 writer, the compliance checker and
-the scalar tool. September's rehearsal started from Rice's 0241 snapshot under
-Rice's objective, so the two rehearsals compare the two MAP lines through the
-same pipeline at the same resolution.
+the scalar tool. The two rehearsals share the mesh, the recipe and the
+post-processing and differ in more than the MAP. September's ran `b554238`
+with scpc_gamg and no FSSA (two cores resumed under scpc_mumps), from Rice's
+0241 snapshot under Rice's objective (sigma 0.3). This one ran `288382a` with
+vertex_front sampling, exact_front 2, the vertex drag gate, the 2.5 m membrane
+floor, FSSA theta 1 and scpc_mumps throughout, from IU's vf MAP under IU's
+objective. A difference between IU's rehearsal and September's belongs to the
+whole configuration.
 
 Everything the rehearsal wrote is kept on Quartz project storage under
 `antarctica/results/rehearsal_25km_iu/`, with `MANIFEST.md` and `SHA256SUMS`.
@@ -25,7 +30,7 @@ own mesh, without and with the reference (The 2 km historicals, below).
 | warm start | IU's Budd MAP `inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf.h5`, sha256 `d0ff592e` |
 | MAP | 25 km Budd, 300 iterations on IU's objective; sha256 `551f0370` |
 | melt | K 6.5e-5 with per-basin offsets refitted on this mesh under `ISMIP7_RASTER_SAMPLE=vertex_front`; sha256 `385c1f47` |
-| forward | dt 0.025, scpc_mumps on 8 ranks, `ISMIP7_MAP_CLIP=0`, fixed front, no collapse, ISMIP7 output on, SMB-elevation feedback on, FSSA at its default, 2003 start; exact_front 2, the vertex drag gate, the 2.5 m membrane floor and the vertex_front sampling from the MAP |
+| forward | dt 0.025, scpc_mumps on 8 ranks, `ISMIP7_MAP_CLIP=0`, fixed front, no collapse, ISMIP7 output on, SMB-elevation feedback on, FSSA at its default (theta 1, with the `auto` reference resolving to `step` in attempt A and `start` in attempt B), 2003 start; exact_front 2, the vertex drag gate, the 2.5 m membrane floor and the vertex_front sampling from the MAP |
 | attempt A | `ISMIP7_APPARENT_MB=0`, tag `rehiunoamb` |
 | attempt B | `ISMIP7_APPARENT_MB=1`, tag `rehiuamb` |
 
@@ -164,7 +169,8 @@ fixed front, for both rehearsals and both attempts.
    ssp585 response -104 and +2 against -209 and -87; ssp126 stays within
    13 mm. Without the reference IU's MAP drifts more than September's
    (controls +1,138 and +1,147 mm against +869 and +870); with it less (+82
-   and +41 against +127 and +100).
+   and +41 against +127 and +100). These differences belong to the
+   configuration as a whole: code, front treatment, FSSA, solver and MAP.
 4. **The 25 km MAP's controls are wide, and its fastest vertices are
    unobserved front vertices.** IU's prior (sigma 30, rho 7.5 km) is about a
    hundred times weaker than the sigma 0.3 of September's MAP, and at 25 km
@@ -180,10 +186,12 @@ fixed front, for both rehearsals and both attempts.
    peaks at 7.8 MPa against the checker's accepted 1 MPa, on 0.05 percent of
    its values, and the long runs add velocity range warnings from the spikes
    (2 to 15 checker warnings a core, none of them errors).
-5. **scpc_mumps from the start needed no rescue to speak of.** At most 4
-   rescued steps a core (September: up to 118), no solver switch, and 54 to
-   92 min a 286-year core on 8 ranks (September: 77 to 421 min, with two cores
-   resumed under scpc_mumps after scpc_gamg stalled).
+5. **This configuration needed no rescue to speak of.** At most 4 rescued
+   steps a core (September: up to 118), no solver switch, and 54 to 92 min a
+   286-year core on 8 ranks (September: 77 to 421 min, with two cores resumed
+   under scpc_mumps after scpc_gamg stalled). scpc_mumps ran together with
+   FSSA, the front treatment and IU's MAP, so the drop in rescues belongs to
+   all of them together.
 6. **The late ssp585 melt is still mostly demand on cells that hold too little
    ice** (issue 136, September's finding 5): the CESM2-WACCM ssp585 run
    without the reference melts -39,132 Gt/yr at 2186 while the positivity
