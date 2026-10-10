@@ -349,10 +349,12 @@ Choices, IU's on 6 October:
   structure the bi-Laplacian prior penalises. Under the exp and sqrt
   friction controls the friction has no anchor and the two are the same.
   The re-inversion logs the distribution of `ln R` over grounded dofs.
-* **The re-inversion runs on the MAP's mesh** (2 km), and a 1 km forward
-  takes its controls through the usual transfer onto its own BedMachine
-  geometry (`init_state` `relaxed-controls`); the relaxed thickness stays on
-  the 2 km mesh.
+* **The re-inversion runs on the MAP's mesh** (2 km), and every forward takes
+  only its controls, onto its own mesh's BedMachine geometry (`init_state`
+  `relaxed-controls`): a 1 km forward through the usual transfer, a 2 km one
+  directly. The relaxed thickness serves the re-inversion alone, so every
+  resolution starts from the 2015 geometry the unrelaxed MAP's forwards start
+  from.
 
 The record: the end state carries `relaxation_end_state`, the source MAP and
 its sha256, the year, the step, the forcing and the free-surface

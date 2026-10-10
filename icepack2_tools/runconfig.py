@@ -451,9 +451,11 @@ def target_mesh_geometry_method(method):
 def forward_raster_sample(recorded, transfer, source="the MAP"):
     r"""The raster sampling a forward builds its geometry with.
 
-    On the MAP's own mesh the geometry is the MAP's, so the sampling is the
-    one it records (``vertex`` for a MAP older than the record), which an
-    explicitly set ``ISMIP7_RASTER_SAMPLE`` may repeat and may not change. A
+    On the MAP's own mesh the sampling is the one the MAP records (``vertex``
+    for a MAP older than the record), which an explicitly set
+    ``ISMIP7_RASTER_SAMPLE`` may repeat and may not change: the geometry is
+    the MAP's, or for a relaxed MAP BedMachine's rebuilt with that sampling,
+    and the controls and the melt calibration follow it. A
     forward on another mesh (``transfer``) rebuilds the geometry from
     BedMachine there, with ``ISMIP7_RASTER_SAMPLE`` or its default: a MAP's
     controls carry over, and the front its new mesh holds is that mesh's own
@@ -466,8 +468,8 @@ def forward_raster_sample(recorded, transfer, source="the MAP"):
     if env and env.lower() != method:
         raise RuntimeError(
             f"ISMIP7_RASTER_SAMPLE={env} but {source} was sampled with "
-            f"{method} and its geometry is used as is: a forward on its "
-            f"MAP's mesh follows the MAP")
+            f"{method}: a forward on its MAP's mesh follows the MAP's "
+            f"sampling, which its controls and melt calibration were fitted under")
     return method
 
 

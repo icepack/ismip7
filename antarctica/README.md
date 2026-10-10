@@ -1469,13 +1469,17 @@ checkpoint it writes:
 
 | forward | geometry | controls | `init_state` |
 |---|---|---|---|
-| on the MAP's mesh | the relaxed geometry | the re-inverted ones | `relaxed` |
+| on the MAP's mesh | that mesh's BedMachine sample, with the MAP's raster sampling | the re-inverted ones | `relaxed-controls` |
 | on another mesh (1 km from a 2 km MAP) | that mesh's BedMachine sample | the re-inverted ones, transferred | `relaxed-controls` |
 
-Either way the 2003 start backdates the geometry it starts from by 12 years.
-The relaxed thickness stays on the MAP's mesh: carried across meshes it would
-arrive as a DG0 staircase, which `../ADAPTIVE_MESH.md` measured driving the
-thickness clamp from 119,000 to 256,000 Gt/yr within a few steps.
+So every resolution starts from the same 2015 geometry, the one a forward from
+the unrelaxed MAP starts from, and the 2003 start backdates it by 12 years.
+The relaxed thickness serves the re-inversion alone. Carried across meshes it
+would arrive as a DG0 staircase, which `../ADAPTIVE_MESH.md` measured driving
+the thickness clamp from 119,000 to 256,000 Gt/yr within a few steps. On the
+MAP's own mesh the MAP's velocity state still seeds the first solve. Forwards
+cold-started before 10 October 2026 took the relaxed geometry on the MAP's
+mesh and record `relaxed`; their restarts keep it.
 
 ### Environment knobs (inversion)
 
