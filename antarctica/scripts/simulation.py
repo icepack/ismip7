@@ -1046,13 +1046,16 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 geometry_source = os.path.realpath(source_chk)
                 geometry_source_method = "checkpoint-native-v1"
                 map_geometry_taken = True
-            if not target_mesh_differs:
+            _geometry_ramp = relaxed_controls and _geometry_ramp_steps() > 0
+            if not target_mesh_differs or _geometry_ramp:
                 # The mixed state the MAP was accepted at (a final MAP's
                 # velocity/membrane_stress/basal_stress, a periodic
                 # checkpoint's ckpt_* copies) seeds the cold-start solve
                 # below in place of 0.1 u_obs. On a relaxed MAP's own mesh
                 # it is solved on the relaxed geometry, so from BedMachine's
-                # it is a perturbation, as the backdate is.
+                # it is a perturbation, as the backdate is. Under
+                # ISMIP7_GEOMETRY_RAMP another mesh takes it too,
+                # interpolated with that geometry, and the ramp starts there.
                 for _pre in ("", "ckpt_"):
                     _u = load_checkpoint_field(chk, f"{_pre}velocity", V, optional=True)
                     _M = load_checkpoint_field(chk, f"{_pre}membrane_stress", Sigma, optional=True)
@@ -1061,8 +1064,7 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                         u_guess, M_guess, tau_guess = _u, _M, _tau
                         map_state_name = f"{_pre}velocity"
                         break
-                if (map_state_name is not None and relaxed_controls
-                        and _geometry_ramp_steps() > 0):
+                if map_state_name is not None and _geometry_ramp:
                     geometry_ramp_from = tuple(
                         load_checkpoint_field(chk, _name, Q_g)
                         for _name in ("thickness", "bed", "surface"))

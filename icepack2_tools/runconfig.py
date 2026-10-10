@@ -373,11 +373,13 @@ def ramp_slide_fixed():
 
 
 def geometry_ramp_steps():
-    r"""``ISMIP7_GEOMETRY_RAMP=N``: a cold start on a relaxed MAP's own mesh
-    carries the MAP's mixed state from the relaxed geometry it was solved on
-    to the forward's BedMachine geometry in ``N`` steps, each solved at the
-    full exponents from the last, in place of one solve on the BedMachine
-    geometry from that state. Thickness and bed move linearly and the surface
+    r"""``ISMIP7_GEOMETRY_RAMP=N``: a cold start from a relaxed MAP carries
+    the MAP's mixed state from the relaxed geometry it was solved on to the
+    forward's BedMachine geometry in ``N`` steps, each solved at the full
+    exponents from the last, in place of one solve on the BedMachine geometry
+    from that state on the MAP's own mesh, and of the continuation from
+    0.1 u_obs on another, which takes the state and the relaxed geometry
+    interpolated onto its own mesh. Thickness and bed move linearly and the surface
     follows them by flotation; the last step is the forward's own geometry.
     ``0``, the default, is the one solve. RC's relaxed MAP on the 2 km mesh
     failed that solve (50 iterations to ||F|| 5.7e8, jobs 11899765 and
