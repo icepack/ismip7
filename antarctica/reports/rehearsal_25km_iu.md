@@ -173,7 +173,7 @@ fixed front, for both rehearsals and both attempts.
    (-2026, 485) km, which tripped both probes. In the matrix the same kind of
    single-vertex spike recurs and passes, as in September (finding 6 there):
    with the reference the controls and ssp126 runs peak at 1.1e5 to 2.3e5 m/yr
-   near (-1888, 1023) km and the ssp585 runs at 4.6e6 and 1.5e6 m/yr near
+   near (-1888, 1023) km and the ssp585 runs at 4.5e6 and 1.5e6 m/yr near
    (-2140, 660) km; without it the ssp585 runs peak at 3.3e7 and 8.4e7 m/yr
    near (2690, -497) and (2607, -440) km. The budget closes through each.
    The friction control reaches the submission too: every core's `strbasemag`
@@ -236,10 +236,13 @@ geometry, which raises the grounding-line flux by about 200 Gt/yr.
    run, 7.7 and 8.7 Newton iterations on average and 17 at most, no rescue or
    subcycle, scpc_mumps with no clip of the controls from the 12-year
    backdated start.
-2. **At 2 km the MAP's velocity is close to observed at the front.** Grounded
-   ice within 5 km of the front moves at 53 m/yr against 38 observed (25 km:
-   195 against 19), and the floating bands lie within 3 percent of observed.
-   The t=0 front carries 1.38 times the observed-velocity flux (25 km: 1.49).
+2. **At 2 km the MAP's velocity near the front is far closer to observed than
+   at 25 km.** Grounded ice within 5 km of the front moves at 53 m/yr against
+   38 observed (25 km: 195 against 19). The floating speed bands lie within 2
+   percent of observed from 5 km in and 3 percent above it in the outer 5 km
+   (432 against 419 m/yr). The floating front's own u.n is 219.5 against
+   166.0 m/yr, 32 percent above, and the t=0 front carries 1.38 times the
+   observed-velocity flux (25 km: 1.49).
 3. **Without the reference the 2 km run drifts half as fast as the 25 km run**
    (+15.4 against +30.3 mm SLE in 12 years; dM/dt +338 against +835 Gt/yr in
    2014) and passes the track audit. Its calving falls 12 percent from step 2
