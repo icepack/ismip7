@@ -158,6 +158,7 @@ from icepack2_tools.solverconfig import (
     direct_forward_parameters,
     diagnostic_solver_mode,
     diagnostic_solver_parameters,
+    mumps_analysis,
     final_solve_bounds,
     final_solve_parameters,
     inversion_adjoint_parameters,
@@ -728,6 +729,14 @@ def main():
     # mixed-Jacobian MUMPS LU, scpc_mumps and scpc_gamg (the default) the
     # transient's condensed modes (icepack2_tools/taped_solve.py). The MAP records it as
     # state_solver_mode beside the lane contract diagnostic_solver_mode.
+    # The condensed factorizations (scpc_mumps, and schur_mumps's velocity
+    # block) run MUMPS's own sequential analysis unless the environment names
+    # one (solverconfig.mumps_analysis): under the distributed PT-Scotch
+    # analysis the adjoint factorizations aborted the 2 km chains in
+    # MUMPS_LOAD_RECV_MSGS. Set before the first solver options are resolved
+    # below, and read now so an invalid value fails here.
+    os.environ.setdefault("ISMIP7_MUMPS_ANALYSIS", "sequential")
+    mumps_analysis()
     state_solver_mode = inversion_solver_mode()
     sparams = inversion_state_parameters(state_solver_mode)
     state_solver_parameters = json.dumps(sparams, sort_keys=True)

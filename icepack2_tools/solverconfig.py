@@ -345,14 +345,40 @@ def _condensed_gamg_options(prefix):
     return params
 
 
+def _have_ptscotch():
+    from petsc4py import PETSc
+    return bool(PETSc.Sys.hasExternalPackage("ptscotch"))
+
+
+def mumps_analysis():
+    r"""``ISMIP7_MUMPS_ANALYSIS``: ``parallel`` (PT-Scotch distributed
+    analysis, where PETSc has it) or ``sequential`` (MUMPS's own). The
+    inversion selects ``sequential`` for its condensed factorizations: under
+    the distributed analysis the per-solve adjoint factorizations aborted the
+    2 km chains in MUMPS_LOAD_RECV_MSGS (7 of 17 links on 6 Oct, none of the
+    links run sequentially)."""
+    value = _env("ISMIP7_MUMPS_ANALYSIS", "parallel").strip().lower()
+    if value not in ("parallel", "sequential"):
+        raise ValueError("ISMIP7_MUMPS_ANALYSIS must be parallel or sequential")
+    return value
+
+
 def _mumps_options(prefix=""):
-    return {
+    opts = {
         f"{prefix}pc_type": "lu",
         f"{prefix}pc_factor_mat_solver_type": "mumps",
-        # Distributed analysis with PT-Scotch nested dissection.
-        f"{prefix}mat_mumps_icntl_28": 2,
-        f"{prefix}mat_mumps_icntl_29": 1,
     }
+    # Read the knob first, so a bad value fails on every build.
+    analysis = mumps_analysis()
+    if analysis == "parallel" and _have_ptscotch():
+        # Distributed analysis with PT-Scotch nested dissection.
+        opts[f"{prefix}mat_mumps_icntl_28"] = 2
+        opts[f"{prefix}mat_mumps_icntl_29"] = 1
+    # Without PT-Scotch the distributed analysis cannot run: MUMPS fails the
+    # factorization and the condensed preconditioner returns NaN at its first
+    # application (DIVERGED_NANORINF on a PETSc built without it). MUMPS's own
+    # sequential analysis and ordering is then the right default.
+    return opts
 
 
 def diagnostic_solver_parameters(mode=None):

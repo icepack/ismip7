@@ -113,11 +113,14 @@ def test_a_misspelt_knob_is_refused(monkeypatch, name, value):
 
 def test_no_gamg_knob_moves_the_cache_solver_s_fingerprint(monkeypatch):
     before = tc.solver_configuration_fingerprint(solver_provenance("scpc_mumps"))
-    assert condensed("scpc_mumps") == {
+    from icepack2_tools.solverconfig import _have_ptscotch
+    expected = {
         "mat_type": "aij", "ksp_type": "preonly", "pc_type": "lu",
         "pc_factor_mat_solver_type": "mumps",
-        "mat_mumps_icntl_28": 2, "mat_mumps_icntl_29": 1,
     }
+    if _have_ptscotch():
+        expected.update({"mat_mumps_icntl_28": 2, "mat_mumps_icntl_29": 1})
+    assert condensed("scpc_mumps") == expected
     monkeypatch.setenv("ISMIP7_CONDENSED_KSP_TYPE", "gmres")
     monkeypatch.setenv("ISMIP7_CONDENSED_KSP_RTOL", "1e-9")
     monkeypatch.setenv("ISMIP7_CONDENSED_NEAR_NULLSPACE", "none")

@@ -194,5 +194,6 @@ def global_rss_mib(comm):
     return {
         "mean": comm.allreduce(rss, op=MPI.SUM) / comm.size * mib if readable else None,
         "max": comm.allreduce(rss, op=MPI.MAX) * mib if readable else None,
-        "peak_max": comm.allreduce(float(_peak_rss_bytes()), op=MPI.MAX) * mib,
+        # ru_maxrss is updated lazily and can lag the current RSS
+        "peak_max": comm.allreduce(max(float(_peak_rss_bytes()), rss), op=MPI.MAX) * mib,
     }

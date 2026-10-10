@@ -48,7 +48,7 @@ import numpy as np
 import firedrake as fd
 from firedrake import (Constant, Function, FunctionSpace,
                        SpatialCoordinate, TestFunction, VectorFunctionSpace,
-                       assemble, conditional, dS, dx, ge, inner, sqrt)
+                       assemble, conditional, dS, dx, ge, gt, inner, sqrt)
 
 _SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(_SCRIPTS)))
@@ -147,7 +147,10 @@ def edge_cell_ratio(mesh, f, h_ice):
     Q0 = FunctionSpace(mesh, "DG", 0)
     phi = TestFunction(Q0)
     ice = conditional(ge(H, h_ice), 1.0, 0.0)
+    # only the CHANGED classes, a bed above the base: elsewhere the two
+    # versions agree and their difference is roundoff
     change = sum(ice(p) * (1.0 - ice(q)) * phi(p)
+                 * conditional(gt(b(q), s(p) - H(p) + TOL), 1.0, 0.0)
                  * abs(cliff_push(H(p), s(p), version=2, b_other=b(q))
                        - cliff_push(H(p), s(p), version=1))
                  for p, q in (("+", "-"), ("-", "+")))
