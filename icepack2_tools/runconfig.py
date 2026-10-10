@@ -372,6 +372,23 @@ def ramp_slide_fixed():
     return os.environ.get("ISMIP7_RAMP_SLIDE_FIXED", "0").strip() not in ("", "0")
 
 
+def geometry_ramp_steps():
+    r"""``ISMIP7_GEOMETRY_RAMP=N``: a cold start on a relaxed MAP's own mesh
+    carries the MAP's mixed state from the relaxed geometry it was solved on
+    to the forward's BedMachine geometry in ``N`` steps, each solved at the
+    full exponents from the last, in place of one solve on the BedMachine
+    geometry from that state. Thickness and bed move linearly and the surface
+    follows them by flotation; the last step is the forward's own geometry.
+    ``0``, the default, is the one solve. RC's relaxed MAP on the 2 km mesh
+    failed that solve (50 iterations to ||F|| 5.7e8, jobs 11899765 and
+    11899767) and then the n = m = 1 continuation in all three rungs."""
+    raw = os.environ.get("ISMIP7_GEOMETRY_RAMP", "0").strip() or "0"
+    steps = int(raw)
+    if steps < 0:
+        raise ValueError(f"ISMIP7_GEOMETRY_RAMP is a step count, not {raw}")
+    return steps
+
+
 def warm_start_state(*, geometry_taken, same_mesh):
     r"""Whether an inversion loads its warm start's mixed state, and whether
     it is only a first guess: ``(load, guess)``.
