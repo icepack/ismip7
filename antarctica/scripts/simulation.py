@@ -616,8 +616,9 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     # A cold start on another mesh than its MAP's rebuilds the cell-wise
     # geometry from BedMachine there (below), with this run's raster sampling,
     # so a transferred MAP gets the front its new mesh holds (issue #167).
-    # Otherwise the checkpoint's geometry is used as is and the sampling it
-    # records stands; an ISMIP7_RASTER_SAMPLE that differs is refused.
+    # Otherwise the sampling the MAP records stands, for its own geometry or,
+    # under a relaxed MAP, for the BedMachine geometry rebuilt on its mesh; an
+    # ISMIP7_RASTER_SAMPLE that differs is refused.
     geometry_transfer = bool(
         not is_restart and mesh_fn and geom_dg
         and (not source_mesh_basename
@@ -718,9 +719,10 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                                                  else f"grounded driving stress over {map_anchor_length / 1e3:g} km")
         + f"; lake ice base {'on' if map_lake_ice_base else 'off'}")
     if not is_restart:
-        # Cold start: geometry from BedMachine (RC/Budd overwrites it with the
-        # inversion-time geometry from the MAP only when no target-mesh
-        # override is active; target timing meshes retain this cell average).
+        # Cold start: geometry from BedMachine. RC/Budd on the MAP's own mesh
+        # overwrites it with the inversion-time geometry from the MAP, unless
+        # the MAP is relaxed; target timing meshes and relaxed MAPs retain
+        # this cell average.
         bm_fn = find_file(os.path.join(DATA_DIR, "bedmachine"), "*.nc")
         geometry_source = os.path.realpath(bm_fn)
         geometry_source_method = (
@@ -730,8 +732,8 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         # Cell average onto the geometry space, NOT a centroid point sample --
         # see geometry.sample_to_geometry for the measurements behind that.
         # RC/Budd on the MAP's own mesh replace this sample with the MAP's
-        # geometry below, so a front sampling's ice mask is read only where
-        # its cells are kept.
+        # geometry below, unless the MAP is relaxed, so a front sampling's
+        # ice mask is read only where its cells are kept.
         _bedmachine_kept = geometry_transfer or relaxed_controls or not use_rc
         _sample_method = (
             chk_raster_sample if _bedmachine_kept
@@ -1013,11 +1015,14 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 f"(t_yr={t_restart}, friction={friction})"
             )
         elif use_rc:
-            # Cold RC/Budd normally uses the inversion-time MAP geometry. A
-            # timing mesh override is different: interpolating a discontinuous
-            # source DG0 field directly onto target DG0 samples one source cell
-            # at each target centroid. The resulting aliasing is read as
-            # driving stress because DG0 surface slope lives in facet jumps.
+            # Cold RC/Budd on the MAP's own mesh uses the inversion-time MAP
+            # geometry, unless the MAP is relaxed: a relaxed MAP gives its
+            # controls alone and keeps the BedMachine cell averages built
+            # above. A timing mesh override keeps them too: interpolating a
+            # discontinuous source DG0 field directly onto target DG0 samples
+            # one source cell at each target centroid. The resulting aliasing
+            # is read as driving stress because DG0 surface slope lives in
+            # facet jumps.
             # Retain the target-native BedMachine cell averages constructed
             # above; C_w0, N_ref, phi_eff, and H_init are then built from this
             # exact target geometry below. Continuous controls and u_obs still
@@ -1342,7 +1347,8 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     # Issue #117: a cold start dated before the 2015 geometry starts from that
     # geometry with the Smith et al. (2020) mean thinning undone on grounded
     # ice. It comes after the anchors above, so C_w0 and N_ref stay those of
-    # the 2015 geometry the MAP was inverted on, and before the prognostic
+    # the 2015 geometry (the MAP's own, or BedMachine's on this mesh for a
+    # relaxed MAP or a transfer), and before the prognostic
     # thickness is copied from H below, so the initial solve, the transport,
     # H_init and the apparent-MB reference all start from the earlier ice.
     if backdate_years > 0.0 and not is_restart:
