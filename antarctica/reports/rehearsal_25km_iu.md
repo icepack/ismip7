@@ -172,8 +172,9 @@ fixed front, for both rehearsals and both attempts.
    and +41 against +127 and +100). These differences belong to the
    configuration as a whole: code, front treatment, FSSA, solver and MAP.
 4. **The 25 km MAP's controls are wide, and its fastest vertices are
-   unobserved front vertices.** IU's prior (sigma 30, rho 7.5 km) is about a
-   hundred times weaker than the sigma 0.3 of September's MAP, and at 25 km
+   unobserved front vertices.** IU's prior (sigma 30, rho 7.5 km) allows about a
+   hundred times the deviation of September's sigma 0.3 at the same rho, a
+   penalty about 1e4 times weaker (it scales as 1/sigma^2), and at 25 km
    the bilaplacian's 7.5 km length is well under a cell. theta reaches -23 and
    phi -27 on ice, and the MAP runs 3.1e4 m/yr at a front vertex near
    (-2026, 485) km, which tripped both probes. In the matrix the same kind of
