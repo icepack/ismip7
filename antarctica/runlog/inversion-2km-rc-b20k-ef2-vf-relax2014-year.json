@@ -1,0 +1,24 @@
+{
+ "id": "inversion-2km-rc-b20k-ef2-vf-relax2014-year",
+ "task": "inversion",
+ "institution": "IU",
+ "status": "done",
+ "friction": "regularized_coulomb",
+ "title": "RC relaxation year from the front-cell refit: 2014 to 2015 on OCX's 2014 forcing",
+ "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint), front cells by geometry.front_cells",
+ "site": "IU Quartz, general partition",
+ "period": "2014.0 to 2015.0 at dt 0.0125 (80 steps)",
+ "initial_state": "inversion-2km-rc-b20k-ef2-vf's MAP, rewound 1 yr with the Smith dH/dt on grounded ice",
+ "forcing": "OCX protocol forcing for 2014 (ISMIP7_EXPERIMENT=relax), apparent MB off, front pinned",
+ "resources": "32 ranks, 360G, 6 h (projection.sbatch, ISMIP7_EXPERIMENT=relax); ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=full_mumps, ISMIP7_MAP_CLIP=0",
+ "jobs": [
+  "11891808"
+ ],
+ "code": "f910b3a (PR 163's gated head, as Budd's year); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell relax_vf_rc of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, submitted by the trigger vf_rc_trigger.sh (stage relax, job 11887831) once the refit's done marker existed",
+ "started": "2026-10-09",
+ "finished": "2026-10-10",
+ "cost": "4 h 02 min of 32 ranks",
+ "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_s16/antarctica/results/relax_inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_2000_final.h5",
+ "audit": "reached 2015.0 in one link, resid 0.00 every step; 81 diagnostic solves at 15 Newton iterations on average (52 at most), 89 s each on average; the MAP's state converged at ||F|| 9.4 in 47 iterations and 703 s; backdate +77 Gt over 1,287,008 grounded cells; the melt provenance line names the vertex_front calibration (sha256 2ef9fad4). Mass budget [Gt/yr]: SMB +2380, melt -1045 falling to -1025, flux out of the pinned front -2015 at the first step, then -1520 falling to -1431, dM/dt -686, -185, then rising to -78. Budd's year from its refit (inversion-2km-budd-b20k-ef2-vf-relax2014-year) carried 1,420 falling to 1,317 Gt/yr out of the front with dM/dt reaching +42.",
+ "notes": "issue #162 and issue #167: the relaxed initial state's relaxation year from RC's refit under the front-cell rule. The front carries about 110 Gt/yr more than Budd's at the year's end and the ice still loses 78 Gt/yr."
+}

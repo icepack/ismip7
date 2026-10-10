@@ -2,7 +2,7 @@
  "id": "inversion-2km-budd-b20k-ef2-vf-relax2014",
  "task": "inversion",
  "institution": "IU",
- "status": "running",
+ "status": "done",
  "friction": "budd",
  "title": "Budd re-inversion on the relaxed geometry from the front-cell refit, 250 iterations",
  "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint), front cells by geometry.front_cells",
@@ -10,12 +10,15 @@
  "period": "2015 state",
  "initial_state": "inversion-2km-budd-b20k-ef2-vf-relax2014-year's end state (t 2015, not stalled, raster_sample vertex_front, residual 2.0e-3); theta kept",
  "forcing": "inversion-2km-budd-b20k-ef2-vf's objective (ISMIP7_EXACT_FRONT=2, ISMIP7_RASTER_SAMPLE=vertex_front, the Budd log-velocity weight 85,380), carried by the end state and held by the strict handoff",
- "resources": "32 ranks, 240G, 6 h, one link; scpc_mumps (the refit took 31 s an evaluation over 311, so about 2.2 h for 260); ISMIP7_MAXITER=250, ISMIP7_CHAIN_MAX=0",
+ "resources": "32 ranks, 240G, 6 h links; scpc_mumps; ISMIP7_MAXITER=250 and ISMIP7_CHAIN_MAX=0 for 11885313, then ISMIP7_MAXITER=176 and ISMIP7_CHECKPOINT_EVERY_IT=25 for 11886338, which resumed its checkpoint",
  "jobs": [
-  "11885313"
+  "11885313",
+  "11886338"
  ],
  "code": "f910b3a (PR 163's gated head, which wrote the end state); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell reinv_relax_vf_budd of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh",
  "started": "2026-10-09",
- "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_relax2014.h5 beside the refit's MAP, which is read only",
- "notes": "issue #162 and issue #167: the relaxed initial state from the refit under the front-cell rule, whose relaxation year carried 1,420 falling to 1,317 Gt/yr out of the pinned front with dM/dt near zero; it replaces inversion-2km-budd-b20k-ef2-relax2014, stopped on 8 Oct when the ef2 MAP's year carried 343 to 551 Gt/yr. The end state records the refit's objective total, 1,592.3, on the unrelaxed geometry. Submitted by IU on 9 Oct. First iteration (11885313): the objective settings matched the end state under the strict handoff; the end state's mixed state was accepted at full n, with warm-start residual 2.7e9 against the 2.0e-3 recorded; the first objective was 1,849.5 (misfit 1,527.6) on the relaxed geometry, against the refit's 1,592.3 on its own; the first evaluation took 152 s."
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_relax2014.h5 beside the refit's MAP, which is read only; released as maps-2km-iu-frontcell-2026-10-10 (the MAP's md5 0d9315d5171667ee81d8e28e4e27056c), with its 2 km EPSG:3031 raster, whose ice has a median speed error of 4.4 %, 71 % within 10 %",
+ "notes": "issue #162 and issue #167: the relaxed initial state from the refit under the front-cell rule, whose relaxation year carried 1,420 falling to 1,317 Gt/yr out of the pinned front with dM/dt near zero; it replaces inversion-2km-budd-b20k-ef2-relax2014, stopped on 8 Oct when the ef2 MAP's year carried 343 to 551 Gt/yr. The end state records the refit's objective total, 1,592.3, on the unrelaxed geometry. Submitted by IU on 9 Oct. First iteration (11885313): the objective settings matched the end state under the strict handoff; the end state's mixed state was accepted at full n, with warm-start residual 2.7e9 against the 2.0e-3 recorded; the first objective was 1,849.5 (misfit 1,527.6) on the relaxed geometry, against the refit's 1,592.3 on its own; the first evaluation took 152 s. Each periodic checkpoint wrote the 840 MB MAP to /N/project, and during the IU HPFS trouble of 9 October those writes took 27 to 123 s an iteration, more than the 31 s an evaluation took, so IU cancelled 11885313 right after its checkpoint at evaluation 74 (total 1,592.0) and resumed it as 11886338 with a checkpoint every 25 iterations and the remaining 176. The resumed first objective was 1,592.59 against 1,592.01 recorded (relative gap 3.7e-4). Under the HPFS trouble the resumed link took about 45 min to start and 24 min for its first evaluation, and three later evaluations ran 5 to 7 times slower at the same 3 or 4 Newton iterations a forward; the last 40 took a median of 31 s. It finished at 18:53 on 9 Oct after 260 evaluations in all: total 1,582.65, misfit 1,263.5, |grad| 0.39, against the refit's 1,592.3, 1,274.8 and 0.62 on the unrelaxed geometry.",
+ "finished": "2026-10-09",
+ "cost": "6 h 35 min of 32 ranks (2 h 11 min and 4 h 24 min)"
 }

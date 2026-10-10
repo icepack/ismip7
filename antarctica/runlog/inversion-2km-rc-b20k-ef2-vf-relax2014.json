@@ -1,0 +1,24 @@
+{
+ "id": "inversion-2km-rc-b20k-ef2-vf-relax2014",
+ "task": "inversion",
+ "institution": "IU",
+ "status": "done",
+ "friction": "regularized_coulomb",
+ "title": "RC re-inversion on the relaxed geometry from the front-cell refit, 250 iterations",
+ "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint), front cells by geometry.front_cells",
+ "site": "IU Quartz, general partition",
+ "period": "2015 state",
+ "initial_state": "inversion-2km-rc-b20k-ef2-vf-relax2014-year's end state; theta kept",
+ "forcing": "inversion-2km-rc-b20k-ef2-vf's objective (ISMIP7_EXACT_FRONT=2, ISMIP7_RASTER_SAMPLE=vertex_front, the RC log-velocity weight 69,946), carried by the end state and held by the strict handoff",
+ "resources": "32 ranks, 240G, 16 h links; full_mumps with ISMIP7_DIRECT_FORWARD_MAXIT=100; ISMIP7_MAXITER=250, ISMIP7_CHECKPOINT_EVERY_IT=10, ISMIP7_CHAIN_MAX=1",
+ "jobs": [
+  "11894820",
+  "11894821"
+ ],
+ "code": "f910b3a (PR 163's gated head, as the year); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell reinv_relax_vf_rc of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, submitted by the trigger vf_rc_trigger.sh (stage reinv, job 11891809) once the year had reached 2015",
+ "started": "2026-10-10",
+ "finished": "2026-10-10",
+ "cost": "10 h 12 min of 32 ranks",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_relax2014.h5 beside the refit's MAP, which is read only; released as maps-2km-iu-frontcell-2026-10-10 (the MAP's md5 42b9ff715b78678769a500514cbd8137), with its 2 km EPSG:3031 raster, whose ice has a median speed error of 4.8 %, 70 % within 10 %",
+ "notes": "issue #162 and issue #167: the relaxed initial state from RC's refit under the front-cell rule. The objective settings matched the end state under the strict handoff. The first objective was 2,101.2 (misfit 1,715.0) on the relaxed geometry, against the refit's 1,908.5 on its own. It finished at 12:20 on 10 Oct after 256 evaluations: total 1,586.83, misfit 1,246.0, |grad| 0.33, at a median of 134 s an evaluation over the last 30; the successor 11894821 exited on the done marker. Budd's relaxed re-inversion (inversion-2km-budd-b20k-ef2-vf-relax2014) ended at total 1,582.65 and misfit 1,263.5."
+}

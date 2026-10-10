@@ -17,7 +17,7 @@
  ],
  "code": "9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s15; cell refit_vf_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh",
  "started": "2026-10-08",
- "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf.h5 beside the ef2 MAP, which is read only",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf.h5 beside the ef2 MAP, which is read only; released as maps-2km-iu-frontcell-2026-10-10 (the MAP's md5 b2e6b73901e953e404fb3d45bf222f19), with its 2 km EPSG:3031 raster, whose ice has a median speed error of 4.5 %, 71 % within 10 %",
  "notes": "issue #167: IU chose the front-cell rule on the current meshes (8 Oct)",
  "finished": "2026-10-09",
  "cost": "3 h 57 min of 32 ranks (11869834; its successor 11869837 exited at once on the .done marker)",
