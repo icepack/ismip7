@@ -121,6 +121,7 @@ from icepack2_tools.runconfig import (
     GEOMETRY_YEAR,
     mesh_build_check,
     geometry_ramp_steps as _geometry_ramp_steps,
+    seed_state as _seed_state,
 )
 DATA_DIR = obs_data_root()
 from icepack2_tools.solverconfig import (
@@ -1076,6 +1077,38 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
             if h_clamp_init > 0.0:
                 H.interpolate(max_value(H, Constant(h_clamp_init)))
                 s.interpolate(max_value(b + H, (Constant(1.0) - rho_ratio) * H))
+
+    # ISMIP7_SEED_STATE: another forward's checkpoint seeds the cold start
+    # in place of the MAP's state, and starts the geometry ramp from its own
+    # geometry. RC's controls on BedMachine geometry would not converge from
+    # the relaxed MAP's state interpolated onto the 1 km mesh (job
+    # 11904915), nor ramp from 0.1 u_obs; RC's 2 km refit converged from
+    # Budd's state. The momentum balance is a convex minimization, so the
+    # seed moves only the iterations, not the solution the ramp ends on.
+    _seed_path = _seed_state()
+    if _seed_path and not is_restart:
+        with fd.CheckpointFile(_seed_path, "r") as _seed_chk:
+            _seed_mesh = _seed_chk.load_mesh()
+
+            def _seed_field(name, space):
+                target = Function(space, name=name)
+                interpolate_with_fill(
+                    target, _seed_chk.load_function(_seed_mesh, name=name),
+                    0.0, mesh.comm)
+                return target
+
+            u_guess = _seed_field("velocity", V)
+            M_guess = _seed_field("membrane_stress", Sigma)
+            tau_guess = _seed_field("basal_stress", T)
+            map_state_name = "seed velocity"
+            geometry_ramp_from = (
+                tuple(_seed_field(_name, Q_g)
+                      for _name in ("thickness", "bed", "surface"))
+                if _geometry_ramp_steps() > 0 else None)
+        PETSc.Sys.Print(
+            f"  First guess: the mixed state of {_seed_path} (ISMIP7_SEED_STATE)"
+            + (", and its geometry as the geometry ramp's start"
+               if geometry_ramp_from is not None else ""))
 
     # The initial state the chain began from (icepack2_tools.relaxation):
     # a relaxed MAP gives only its controls, on any mesh, and the forward

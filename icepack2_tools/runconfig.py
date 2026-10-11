@@ -391,6 +391,16 @@ def geometry_ramp_steps():
     return steps
 
 
+def seed_state():
+    r"""``ISMIP7_SEED_STATE``: a forward checkpoint whose mixed state
+    (velocity, membrane and basal stress) a cold start takes as its first
+    guess, interpolated onto this mesh, in place of the MAP's; under
+    ``ISMIP7_GEOMETRY_RAMP`` the ramp starts from that checkpoint's geometry.
+    Only the first guess changes: the solve that ends the ramp is this run's
+    own problem. Unset or empty, the MAP's state seeds as before."""
+    return os.environ.get("ISMIP7_SEED_STATE", "").strip() or None
+
+
 def warm_start_state(*, geometry_taken, same_mesh):
     r"""Whether an inversion loads its warm start's mixed state, and whether
     it is only a first guess: ``(load, guess)``.

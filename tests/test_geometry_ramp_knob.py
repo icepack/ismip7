@@ -22,3 +22,13 @@ def test_a_bad_count_stops_the_run(monkeypatch, raw):
     monkeypatch.setenv("ISMIP7_GEOMETRY_RAMP", raw)
     with pytest.raises(ValueError):
         geometry_ramp_steps()
+
+
+def test_the_seed_is_unset_by_default(monkeypatch):
+    from icepack2_tools.runconfig import seed_state
+    monkeypatch.delenv("ISMIP7_SEED_STATE", raising=False)
+    assert seed_state() is None
+    monkeypatch.setenv("ISMIP7_SEED_STATE", "  ")
+    assert seed_state() is None
+    monkeypatch.setenv("ISMIP7_SEED_STATE", " /x/run_1000_t2004.0.h5 ")
+    assert seed_state() == "/x/run_1000_t2004.0.h5"
