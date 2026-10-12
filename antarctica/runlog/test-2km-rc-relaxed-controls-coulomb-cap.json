@@ -1,0 +1,22 @@
+{
+  "id": "test-2km-rc-relaxed-controls-coulomb-cap",
+  "task": "test",
+  "institution": "IU",
+  "title": "Why RC's relaxed controls run away on BedMachine geometry: the Coulomb cap at a Transantarctic trough",
+  "status": "done",
+  "friction": "regularized_coulomb",
+  "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry; the 1 km comparison on antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices)",
+  "initial_state": "inversion-2km-rc-b20k-ef2-vf-relax2014's MAP (sha256 12ccec7c) under the relaxed-controls rule (c4c9eb8: the MAP's controls on BedMachine 2015 geometry rewound 12 yr to 2003), against the same MAP on its relaxed geometry and inversion-2km-rc-b20k-ef2-vf's MAP",
+  "site": "IU Quartz, debug partition",
+  "resources": "1 rank, 48 to 64 GiB, 10 and 6 min (serial read-only extraction from checkpoints)",
+  "jobs": [
+    "11912047",
+    "11912090"
+  ],
+  "code": "c4c9eb8 + a2feaa2 (ISMIP7_GEOMETRY_RAMP), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kcg; the extraction scripts site_cells.py and cap_screen.py beside it",
+  "started": "2026-10-11",
+  "finished": "2026-10-11",
+  "results": "logs ant_r25iu_py_11912047.txt and ant_r25iu_py_11912090.txt in the Quartz worktree's antarctica/ directory",
+  "audit": "The runaway of the 2 km RC relaxed-controls historicals (jobs 11903957, 11903958 and their successors 11907610, 11907712) sits at a trough in the Transantarctic Mountains near (161.5, -715) km: beds of -500 to -3100 m under 1 to 3.5 km of ice, beside ice 50 to 250 m thick on beds of +200 to +1400 m, observed speeds 13 to 30 m/yr. RC caps the basal stress at tau_c = c0 N, c0 = 0.5, N = rho_i g max(HAF, 0) (dual_friction.py), independent of the friction control. On the relaxed geometry RC's state sits on that cap in the trough (tau_b 0.916 against a cap of 0.965 MPa at (156.54, -715.41) km; 0.810 against 0.822 at (155.44, -715.06)). The relaxed trough is 150 to 280 m thicker than BedMachine's (HAF 183 to 401 m against -5 to 119 m), so on BedMachine geometry the cap there falls to 0 to 0.53 MPa, two to five times below the stress the relaxed balance carries. Over the whole ice sheet 2,888 grounded cells (5,100 km2) carry more basal stress in the relaxed state than BedMachine's cap allows, 582 of them afloat on BedMachine geometry; the trough's 25 km bin holds 21.5 MPa km2 of that deficit, 2.4 times the next bin (-1600, -275) km. The trough is the product of the relaxation year: the RC refit's own state already ran 5e3 to 6.3e4 m/yr there on BedMachine geometry (theta near 6.9), and the relaxation year (job 11891808) peaked there at 6.9e4 to 7.8e4 m/yr through its first two months, moving ice into the trough until the cap held. Under Budd, which has no cap, the same cells run 5 to 40 m/yr on both geometries (r2kiurlcnoamb, jobs 11899766 and 11899769, 2003 to 2015 at a peak of 1.1e4 m/yr at Pine Island). At 1 km BedMachine's 2003 geometry resolves the trough into 177 cells with bed below -500 m within 8 km of the site, 62 of them afloat, against 47 and 8 at 2 km.",
+  "notes": "issue #162: the relaxed initial state. The 2 km forwards started (an ISMIP7_GEOMETRY_RAMP of 10 steps from the relaxed geometry converged at 9 to 27 Newton iterations a step) and ran away from their first step: peak speed 4.2e5 m/yr at (160939, -716806) at 2003.03, 1.0e9 m/yr at (161545, -714900) by 2004.1, thickness to 6.2 km at (160.09, -717.58) km, where the BedMachine cell starts afloat; job 11907712 stopped at 2004.4 on the transport mass residual (2.3e-4 Gt). The 1 km forwards from the same MAP diverged in their first solve from every first guess tried (0.1 u_obs, the MAP's state from 2 km, Budd's 1 km state, the 2 km RC state). That the trough is the 1 km blocker is likely and unproven: no 1 km RC state exists to inspect. Since the cap does not depend on theta, no refit of RC's controls on BedMachine geometry can carry the trough's driving stress; RC there needs its relaxed geometry, a change to the cap (c0 or a floor on N), or a geometry decision. The front-cell count rebuilt_thicker reads 42501 on 32 ranks and 42503 on 64 for the same 1 km mesh and MAP: the count compares BedMachine's mean HI with the vertex sample h0 (geometry.front_cells), every rebuilt cell takes HI whatever the comparison, and rebuilt, water and emptied agree, so the difference is a tie at roundoff in the count and leaves the geometry as it is (read from the code; unmeasured)."
+}
