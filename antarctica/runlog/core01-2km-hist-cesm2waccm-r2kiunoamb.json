@@ -1,0 +1,32 @@
+{
+  "id": "core01-2km-hist-cesm2waccm-r2kiunoamb",
+  "task": "test",
+  "institution": "IU",
+  "title": "Core 1 at 2 km from IU's non-relaxed vf MAP on its own mesh, without the apparent mass-balance reference",
+  "status": "done",
+  "exp_id": "C001",
+  "esm": "CESM2-WACCM",
+  "scenario": "historical",
+  "period": "2003 to 2015, reached 2015.0",
+  "friction": "budd",
+  "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices, md5 a1e1febd), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint)",
+  "initial_state": "inversion-2km-budd-b20k-ef2-vf's MAP (sha256 d0ff592e), backdated 12 years with the Smith dH/dt on 1,287,008 grounded cells (+928 Gt)",
+  "branch_from": "cold start from the MAP",
+  "forcing": "atmosphere acabf-anomaly, acabf and dacabfdz CESM2-WACCM historical SDBN1-8000m v2; ocean tf and so CESM2-WACCM historical ocean v3",
+  "melt": "deltaT_per_basin_2000_K6.500e-05.npz refitted under vertex_front (sha256 3d2e5348; calibration-melt-refit-2km-vertex-front), 999 Gt/yr at the start",
+  "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
+  "apparent_mb": "off",
+  "dt": 0.025,
+  "site": "IU Quartz, general partition",
+  "resources": "32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept",
+  "jobs": [
+    "11890197"
+  ],
+  "code": "288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it",
+  "started": "2026-10-09",
+  "finished": "2026-10-10",
+  "cost": "8 h 18 min of wall time for 12 model years, 60.6 s a diagnostic solve on average",
+  "results": "Quartz antarctica/results/rehearsal_2km_iu/results/hist_cesm2_waccm_r2kiunoamb_2000_*",
+  "audit": "ON TRACK; resid at most 0.0000 Gt on 480 rows; 480 of 480 steps converged on their first direct solve, 8.7 Newton iterations on average and 17 at the most, no rescue or subcycle; VAF +15.4 mm SLE and mass +1,560 Gt over the run, dM/dt +338 Gt/yr in 2014; calving out of the fixed front 1,668 at step 1, 1,428 at step 2, 1,306 in 2004 and 1,263 in 2014 Gt/yr; peak speed 3.0e4 m/yr at step 1 on the Shirase front patch (1385.9, 1755.9) km, falling to 1.6e4 by step 3; 1.1e4 m/yr at 2015 near (-1527.6, -484.4) km",
+  "notes": "run beside the 25 km rehearsal of IU's Budd line (antarctica/reports/rehearsal_25km_iu.md, section 'The 2 km historicals'), on its forward settings at 2 km. From front_flux_check.py (job 11896233): against the run with the reference (1,531 Gt/yr in 2004), the t=0 front flux falls to 1,323 in 2004 and 1,264 in 2015, the floating front from 224 to 201 m/yr u.n (166 observed) and the floating ice 0 to 5 km in from 446 to 385 m/yr (419 observed); the grounding-line flux rises from 2,300 to 2,355 Gt/yr and the front band holds its mass (6,792 to 6,784 Gt). Final state sha256 beb4a92edf6d6c48af134518dc6917ecee34416c8c5d4bfb4017acf8df5b098a. Report: antarctica/reports/core01_hist_cesm2_waccm_2km_r2kiunoamb.md."
+}

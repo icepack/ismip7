@@ -1,0 +1,32 @@
+{
+  "id": "core01-2km-hist-cesm2waccm-r2kiurlxamb",
+  "task": "test",
+  "institution": "IU",
+  "title": "Core 1 at 2 km from IU's relaxed Budd MAP on its relaxed geometry, with the apparent mass-balance reference",
+  "status": "done",
+  "exp_id": "C001",
+  "esm": "CESM2-WACCM",
+  "scenario": "historical",
+  "period": "2003 to 2015, reached 2015.0",
+  "friction": "budd",
+  "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint)",
+  "initial_state": "inversion-2km-budd-b20k-ef2-vf-relax2014's MAP (inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_relax2014.h5, md5 0d9315d5); the relaxed MAP's own geometry (its 2014 to 2015 relaxation year on OCX forcing), backdated 12 years with the Smith dH/dt on 1,285,850 grounded cells (+928 Gt); VAF at the start +0.85 mm SLE and mass +72 Gt against the relaxed-controls start",
+  "branch_from": "cold start from the MAP",
+  "forcing": "atmosphere acabf-anomaly, acabf and dacabfdz CESM2-WACCM historical SDBN1-8000m v2; ocean tf and so CESM2-WACCM historical ocean v3",
+  "melt": "deltaT_per_basin_2000_K6.500e-05.npz refitted under vertex_front (sha256 3d2e5348; calibration-melt-refit-2km-vertex-front)",
+  "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
+  "apparent_mb": "balance",
+  "dt": 0.025,
+  "site": "IU Quartz, general partition",
+  "resources": "32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept",
+  "jobs": [
+    "11896512"
+  ],
+  "code": "288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it",
+  "started": "2026-10-10",
+  "finished": "2026-10-10",
+  "cost": "5 h 55 min of wall time on 32 ranks for 12 model years, 42.8 s a diagnostic solve on average",
+  "results": "Quartz antarctica/results/rehearsal_2km_iu/results/hist_cesm2_waccm_r2kiurlxamb_2000_*",
+  "audit": "resid at most 0.0000 Gt on 480 rows; 480 of 480 steps converged on their first direct solve, 6.4 Newton iterations on average and 19 at the most, no rescue, no subcycle; VAF +2.4 mm SLE and mass -756 Gt over the run, dM/dt +84 Gt/yr in 2014; calving out of the fixed front 1,447 at step 1, 1,436 at step 2, 1,437 in 2004 and 1,429 in 2014 Gt/yr; apparent-MB reference net +25 Gt/yr; peak speed 6.2e3 m/yr at t = 2013.95, (-1,519.6, -459.5) km",
+  "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'); evidence for issue #104. The reference starts the geometry from a balanced tendency, so the 2015 calving stays at the relaxed MAP's 1,429 Gt/yr. Final state sha256 e90505ce5f201c24c2f923a2ed2ce8f14c1808fab9261b92117dd5a61b752eca."
+}

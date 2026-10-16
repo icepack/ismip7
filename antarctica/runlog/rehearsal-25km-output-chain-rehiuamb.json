@@ -1,0 +1,33 @@
+{
+  "id": "rehearsal-25km-output-chain-rehiuamb",
+  "task": "output",
+  "institution": "IU",
+  "title": "IU Budd rehearsal at 25 km, attempt B: the eleven cores through the writer, the checker and the scalar tool",
+  "status": "done",
+  "exp_id": "C001 to C011",
+  "mesh": "antarctica_250000_25000_buffered20000",
+  "site": "IU Quartz, general partition",
+  "resources": "serial; 1 h 32 min for the writer and the checker over all eleven cores, 1 to 5 min a core for the scalar tool",
+  "jobs": [
+    "11891175",
+    "11891190",
+    "11891191",
+    "11891192",
+    "11891193",
+    "11891194",
+    "11891195",
+    "11891196",
+    "11891197",
+    "11891198",
+    "11891199",
+    "11891200"
+  ],
+  "code": "288382a (PR 163's head), which carries PR 139's OCX writer and isschecker_ocx.py",
+  "started": "2026-10-09",
+  "finished": "2026-10-09",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/rehiuamb/submission, rehiuamb/checker, rehiuamb/scalars",
+  "ismip7_output": "31 files a core on the 8 km grid, AIS/RICE/icepack2/CORE/C001 to C011, with params.nc (917, 1024, 1000)",
+  "checker": "isschecker 0.5.1: 0 errors on every core (core 11 through isschecker_ocx.py); 2 warnings on each, the non-mandatory variables the model does not write and strbasemag above the accepted 1 MPa (7.8 MPa on 0.05 percent of values), and more where fast cells pass the velocity bounds (C005 6, C006 9, C007 15, C008 13, C009 7, C010 9)",
+  "scalars": "ismip7-scalars 0.1.0 sla20, slg20 and slvaf for every core, the historicals and core 11 their own reference (2004), the others paired with their ESM's historical; compare_scalars.py exit 0 on all eleven",
+  "notes": "the 25 km rehearsal of IU's Budd line (antarctica/reports/rehearsal_25km_iu.md), attempt B (ISMIP7_APPARENT_MB=1). The ids are the writer's defaults (issue 38); this tree is rehearsal evidence only"
+}

@@ -1,0 +1,32 @@
+{
+  "id": "core01-1km-hist-cesm2waccm-r1kiurlxnoamb",
+  "task": "test",
+  "institution": "IU",
+  "title": "Core 1 at 1 km from IU's relaxed Budd MAP's controls on the 1 km mesh's BedMachine geometry, without the apparent mass-balance reference",
+  "status": "done",
+  "exp_id": "C001",
+  "esm": "CESM2-WACCM",
+  "scenario": "historical",
+  "period": "2003 to 2015, reached 2015.0",
+  "friction": "budd",
+  "mesh": "antarctica_10000_1000_buffered20000 (Rice's build, 1,869,252 vertices, 3,716,587 cells, sha256 9e2ed33f, the tracked 1 km vertex_front calibration's mesh), DG0 geometry",
+  "initial_state": "inversion-2km-budd-b20k-ef2-vf-relax2014's MAP (inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_relax2014.h5, md5 0d9315d5), its controls transferred onto the 1 km mesh's own BedMachine 2015 geometry (the driver's relaxed-controls start on another mesh), backdated 12 years with the Smith dH/dt on 1,125,834 grounded cells (+642 Gt)",
+  "branch_from": "cold start from the MAP",
+  "forcing": "atmosphere acabf-anomaly, acabf and dacabfdz CESM2-WACCM historical SDBN1-8000m v2; ocean tf and so CESM2-WACCM historical ocean v3",
+  "melt": "the tracked 1 km vertex_front calibration deltaT_per_basin_1000_K6.500e-05_vertex_front.npz (sha256 2ef9fad4)",
+  "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
+  "apparent_mb": "off",
+  "dt": 0.025,
+  "site": "IU Quartz, general partition",
+  "resources": "64 ranks, 400 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=0",
+  "jobs": [
+    "11899511"
+  ],
+  "code": "288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it",
+  "started": "2026-10-10",
+  "finished": "2026-10-10",
+  "cost": "5 h 37 min of wall time on 64 ranks for 12 model years, 39.9 s a diagnostic solve on average",
+  "results": "Quartz antarctica/results/rehearsal_2km_iu/results/hist_cesm2_waccm_r1kiurlxnoamb_1000_*",
+  "audit": "resid at most 0.0000 Gt on 480 rows; 480 of 480 steps converged on their first direct solve, 8.2 Newton iterations on average and 23 at the most, no rescue, no subcycle; VAF +15.7 mm SLE and mass +378 Gt over the run, dM/dt +219 Gt/yr in 2014; calving out of the fixed front 1,889 at step 1, 1,474 at step 2, 1,354 in 2004 and 1,363 in 2014 Gt/yr; peak speed 9.4e5 m/yr at t = 2003.50, (346.9, -1,797.1) km",
+  "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'). No 1 km relaxed state exists, so this is the 2 km relaxed MAP's controls on the 1 km mesh. Job 11899473 started the same core from the non-relaxed vf MAP and was cancelled after 12 min, before its first step, when IU chose the relaxed MAP. The step-1 calving drop (1,889 to 1,474 Gt/yr) appears in every start on BedMachine geometry and in none from the relaxed geometry (1,447 to 1,432 at 2 km). The 9.4e5 m/yr peak is one step (step 20) at (346.9, -1,797.1) km; the steps either side peak at 2.0e4 m/yr elsewhere. Initial velocity misfit 6.26e3. Final state sha256 bbacbbd89eaca67a4e8d951684ab5eec524ec338ff9ef3b986bd605b687034df."
+}

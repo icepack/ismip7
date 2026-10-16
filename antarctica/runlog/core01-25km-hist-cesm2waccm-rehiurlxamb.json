@@ -1,0 +1,32 @@
+{
+  "id": "core01-25km-hist-cesm2waccm-rehiurlxamb",
+  "task": "test",
+  "institution": "IU",
+  "title": "Core 1 at 25 km from the IU rehearsal's relaxed MAP on its relaxed geometry, with the apparent mass-balance reference",
+  "status": "done",
+  "exp_id": "C001",
+  "esm": "CESM2-WACCM",
+  "scenario": "historical",
+  "period": "2003 to 2015, reached 2015.0",
+  "friction": "budd",
+  "mesh": "antarctica_250000_25000_buffered20000 (IU's build, 4,509 vertices), DG0 geometry",
+  "initial_state": "inversion-25km-budd-rehearsal-iuvf-relax2014's MAP (sha256 9fcf10dc) on its relaxed geometry, backdated 12 years with the Smith dH/dt on 2,997 grounded cells (+558 Gt)",
+  "branch_from": "cold start from the MAP",
+  "forcing": "atmosphere acabf-anomaly, acabf and dacabfdz CESM2-WACCM historical SDBN1-8000m v2; ocean tf and so CESM2-WACCM historical ocean v3",
+  "melt": "deltaT_per_basin_25000_K6.500e-05.npz refitted under vertex_front (sha256 385c1f47; calibration-melt-refit-25km-vertex-front)",
+  "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
+  "apparent_mb": "balance",
+  "dt": 0.025,
+  "site": "IU Quartz, general partition",
+  "resources": "8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0",
+  "jobs": [
+    "11896517"
+  ],
+  "code": "288382a (PR 163's head), Quartz clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh hist",
+  "started": "2026-10-10",
+  "finished": "2026-10-10",
+  "cost": "3 min 05 s",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/results/hist_cesm2_waccm_rehiurlxamb_25000_*",
+  "audit": "resid at most 0.0000 Gt on 480 rows; 480 of 480 steps converged on their first direct solve, 2.0 Newton iterations on average and 7 at the most, no rescue, no subcycle; VAF +2.3 mm SLE and mass -906 Gt over the run, dM/dt +61 Gt/yr in 2014; calving out of the fixed front 1,002 at step 1, 1,002 at step 2, 1,002 in 2004 and 1,005 in 2014 Gt/yr; apparent-MB reference net -401 Gt/yr; peak speed 3.8e3 m/yr at t = 2009.00, (-1,601.3, -271.0) km",
+  "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'). Against the non-relaxed rehearsal (core01-25km-hist-cesm2waccm-rehiuamb: +2.6 mm, dM/dt +75 in 2014) the reference carries more: it nets -401 Gt/yr on average against the non-relaxed run's -132. Final state sha256 76bdac14."
+}

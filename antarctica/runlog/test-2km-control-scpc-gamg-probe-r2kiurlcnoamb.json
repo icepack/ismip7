@@ -1,0 +1,33 @@
+{
+  "id": "test-2km-control-scpc-gamg-probe-r2kiurlcnoamb",
+  "task": "test",
+  "institution": "IU",
+  "title": "scpc_gamg against scpc_mumps on the first step of the 2 km Budd production control (CESM2-WACCM), 32 and 64 ranks",
+  "status": "stopped",
+  "exp_id": "C009",
+  "esm": "CESM2-WACCM",
+  "scenario": "ctrl",
+  "period": "2015.0 to 2016.0 planned, one step taken",
+  "friction": "budd",
+  "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint)",
+  "initial_state": "core01-2km-hist-cesm2waccm-r2kiurlcnoamb's 2015 state (explicit ISMIP7_RESTART)",
+  "branch_from": "core01-2km-hist-cesm2waccm-r2kiurlcnoamb at 2015.0",
+  "forcing": "atmosphere dacabfdz CESM2-WACCM ctrl SDBN1-8000m v2; ocean tf and so CESM2-WACCM ctrl ocean v3",
+  "melt": "deltaT_per_basin_2000_K6.500e-05.npz refitted under vertex_front (sha256 3d2e5348; calibration-melt-refit-2km-vertex-front)",
+  "front": "held fixed, ice-shelf collapse ISMIP7_FRACTURE=none",
+  "apparent_mb": "off",
+  "dt": 0.025,
+  "site": "IU Quartz, general partition",
+  "resources": "ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg on 32 ranks, 96 GiB (11912202) and on 64 ranks, 160 GiB (11912203); ISMIP7_OUTPUT=0, ISMIP7_CHAIN=0",
+  "jobs": [
+    "11912202",
+    "11912203"
+  ],
+  "code": "c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; tags r2kiugamg32 and r2kiugamg64",
+  "started": "2026-10-11",
+  "finished": "2026-10-11",
+  "cost": "31 min each, cancelled after step 1",
+  "results": "the step-1 rows of Quartz /N/scratch/dlilien/ismip7_prod2kiu/results/ctrl2015_cesm2_waccm_r2kiugamg{32,64}_2000_timeseries.csv",
+  "audit": "step 1 converged in 9 Newton iterations on both, as on scpc_mumps (11912182), with the same budget to the Gt/yr (SMB +2,457, melt -1,038, calving -1,292, dM/dt +127, resid 0.00). The step took 1,533 s on 32 ranks (31 condensed solves, 27,704 Krylov iterations) and 1,804 s on 64 (57 condensed solves, 51,593 iterations), against 76 s on scpc_mumps at 32 ranks (19 condensed solves of one iteration each)",
+  "notes": "IU's check before the production suite (antarctica/reports/rehearsal_25km_iu.md, section 'The 2 km production suite'). At about 20 times the step cost IU cancelled both and kept scpc_mumps for every production core."
+}

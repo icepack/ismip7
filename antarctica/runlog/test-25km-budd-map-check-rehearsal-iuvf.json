@@ -1,0 +1,25 @@
+{
+  "id": "test-25km-budd-map-check-rehearsal-iuvf",
+  "task": "test",
+  "institution": "IU",
+  "title": "25 km IU rehearsal MAP: t=0 discharge, shelf-gate census, forward self-consistency and the front flux",
+  "status": "done",
+  "friction": "budd",
+  "mesh": "antarctica_250000_25000_buffered20000, DG0 geometry",
+  "initial_state": "inversion-25km-budd-rehearsal-iuvf's MAP (sha256 551f0370)",
+  "site": "IU Quartz, general partition",
+  "resources": "8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; about 1.5 min each",
+  "jobs": [
+    "11888665",
+    "11888666",
+    "11888667",
+    "11888753",
+    "11888754"
+  ],
+  "code": "288382a (PR 163's head), Quartz scratch clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh beside it",
+  "started": "2026-10-09",
+  "finished": "2026-10-09",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/mapcheck/score_native.json, census_native.txt, front_flux_map.json and the job logs",
+  "audit": "grounding-line discharge 2058 Gt/yr against 1803 with the observed velocity (ratio 1.14; observed 2050 plus or minus 100), by observed speed of the source cell 1.73 under 100 m/yr, 1.12 in 100 to 500, 0.73 in 500 to 1500 and 0.57 above 1500; the fluidity prior spans 1.0 to 472.3. Under the production HAF gate 0 of 1,919 floating cells carry friction (the old sign test would have put it on 253). The forward re-solve at the MAP's controls matches the MAP's velocity to rel L2 2.5e-16. front_flux_check.py at the MAP's state: floating front 12,713 km, model u.n 262.1 m/yr (158.9 observed), 860.6 Gt/yr out of it (581.2 under velocity_obs), 0 of 792 band cells at or below 1 m, grounding-line flux 1,687.7 Gt/yr. The MAP's speed peaks at 31,354 m/yr on one front vertex at (-2026.1, 484.6) km with no velocity observation (theta -3.45, phi -0.48, cells around it 89 m thick on average, 400 m at most); all twelve fastest vertices are unobserved front vertices (fast_cell_r25iu.py, job 11888753)",
+  "notes": "the 25 km rehearsal of IU's Budd line (antarctica/reports/rehearsal_25km_iu.md). The front-cell rule had not been measured at 25 km; at 2 km IU's vf MAP carries 1,312.7 Gt/yr out of a 24,224 km front, and BedMachine's own front 1,138 to 1,297. The same diagnostic on the 2 km warm start (job 11888754) finds its speed peaking at 139,970 m/yr on unobserved floating front vertices near Shirase Glacier, (1385.9, 1755.9) km, and phi reaching -34.2 on ice (1,466 vertices with |phi| above 10)"
+}

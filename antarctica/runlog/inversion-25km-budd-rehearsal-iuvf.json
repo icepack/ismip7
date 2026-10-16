@@ -1,0 +1,23 @@
+{
+  "id": "inversion-25km-budd-rehearsal-iuvf",
+  "task": "inversion",
+  "institution": "IU",
+  "title": "25 km Budd re-inversion for the IU rehearsal, warm-started across meshes from IU's non-relaxed vf MAP on IU's objective",
+  "status": "done",
+  "friction": "budd",
+  "mesh": "antarctica_250000_25000_buffered20000 (IU's build, 4,509 vertices, 7,615 cells, md5 3e8b44b0), DG0 geometry, ISMIP7_RASTER_SAMPLE=vertex_front",
+  "initial_state": "warm start from inversion-2km-budd-b20k-ef2-vf's MAP (inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf.h5, sha256 d0ff592e64b44faa), not strict: its log friction, log fluidity and fluidity prior by point location with the harmonic extension (ISMIP7_TRANSFER_FILL=extend); geometry and velocity_obs are this mesh's own samples. The transferred controls span theta -7.2 to 9.5 and phi -29.1 to 5.1",
+  "forcing": "MEaSUREs velocity; no dH/dt term (ISMIP7_DHDT_WEIGHT=0)",
+  "site": "IU Quartz, general partition",
+  "resources": "8 ranks, 64 GiB, scpc_mumps",
+  "jobs": [
+    "11888050"
+  ],
+  "code": "288382a (PR 163's head), Quartz scratch clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh beside it",
+  "started": "2026-10-09",
+  "finished": "2026-10-09",
+  "cost": "1 h 26 min: 13 min loading the 2 km warm start, 203 s for the first ramp step and 705 s for the first evaluation (compilation), then 3 to 18 s an evaluation",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/maps/inversion_icepack2_budd_n3_dg0_logvel_25000_int250000_b20k_rho7500_floating_ef2_vf_wsiu.h5 (sha256 551f0370), the full mixed state, with inversion_timing.json",
+  "audit": "the startup ramp converged on its first rung (8 steps). 300 L-BFGS-B iterations (310 evaluations) to the iteration limit with no failed trial: misfit 5.279e5 at the first evaluation to 3.736e3, total 5.280e5 to 4.231e3 (reg theta 270, reg phi 225), |grad| 3.1e5 to about 90 and still falling about 0.1 percent an iteration. Every recorded objective key matches the warm start's (sigma 30, rho 7.5 km, log-velocity weight 85380.44865839917 held, issue 68). theta on ice spans -23.3 to 17.9 and phi -27.0 to 9.9; 61 vertices carry |theta| above 10 and 64 carry |phi| above 10, all on ice. phi is held at 0 on 863 of 4,509 nodes (grounded). Published-state residual 6.2e-2",
+  "notes": "the 25 km rehearsal of IU's Budd line (antarctica/reports/rehearsal_25km_iu.md): IU's refit_vf_budd objective (bilaplacian sigma 30 and rho 7.5 km on both controls, L-BFGS-B without a metric, ISMIP7_FLUIDITY_CONTROL=floating, ISMIP7_EXACT_FRONT=2, ISMIP7_DRAG_GATE=vertex, ISMIP7_RC_HVISC_FLOOR=2.5, ISMIP7_LAKE_ICE_BASE=1). rho 7.5 km lies well under the 25 km cells, and the September rehearsal's MAP (inversion-25km-budd-rehearsal, Rice's objective with sigma 0.3) spanned theta -0.9 to 4.5 and phi -2.6 to 0.4. 1,857 of 4,509 vertices carry no velocity observation"
+}

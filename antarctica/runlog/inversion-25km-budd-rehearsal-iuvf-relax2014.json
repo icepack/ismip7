@@ -1,0 +1,24 @@
+{
+  "id": "inversion-25km-budd-rehearsal-iuvf-relax2014",
+  "task": "inversion",
+  "institution": "IU",
+  "status": "done",
+  "friction": "budd",
+  "title": "25 km Budd re-inversion on the relaxed geometry from the IU rehearsal MAP, 250 iterations",
+  "mesh": "antarctica_250000_25000_buffered20000 (IU's build, 4,509 vertices), DG0 geometry, the MAP's own mesh, ISMIP7_RASTER_SAMPLE=vertex_front",
+  "site": "IU Quartz, general partition",
+  "period": "2015 state",
+  "initial_state": "inversion-25km-budd-rehearsal-iuvf-relax2014-year's end state, strict warm start (ISMIP7_WARM_START_STRICT=1); the load bounds 61 nodes to |theta| <= 10 (ISMIP7_MAP_CLIP, as a forward does)",
+  "forcing": "inversion-25km-budd-rehearsal-iuvf's objective (bilaplacian sigma 30 and rho 7.5 km, the log-velocity weight 85,380.4 held), carried by the end state and held by the strict handoff",
+  "resources": "8 ranks, 32 GiB, scpc_mumps; ISMIP7_MAXITER=250, ISMIP7_CHAIN_MAX=0",
+  "jobs": [
+    "11896514"
+  ],
+  "code": "288382a (PR 163's head), Quartz clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh reinvrelax",
+  "started": "2026-10-10",
+  "finished": "2026-10-10",
+  "cost": "18 min 17 s on 8 ranks",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/maps/inversion_icepack2_budd_n3_dg0_logvel_25000_int250000_b20k_rho7500_floating_ef2_vf_wsiu_relax2014.h5 (sha256 9fcf10dc), with inversion_timing_relax2014.json",
+  "audit": "the objective settings matched the end state under the strict handoff; first objective 5,356.5 (misfit 4,891.8) on the relaxed geometry against the source MAP's 4,231.3 on its own. 250 L-BFGS-B iterations (270 evaluations) to the limit: total 3,551.2, misfit 3,023.1 (vel 249.5), |grad| 55; theta spans -32.8 to 20.7 and phi -26.6 to 9.5; published-state residual 1.6e-2",
+  "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'); its historicals are core01-25km-hist-cesm2waccm-rehiurlx{noamb,amb}"
+}

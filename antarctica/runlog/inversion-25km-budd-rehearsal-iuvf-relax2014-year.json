@@ -1,0 +1,24 @@
+{
+  "id": "inversion-25km-budd-rehearsal-iuvf-relax2014-year",
+  "task": "inversion",
+  "institution": "IU",
+  "status": "done",
+  "friction": "budd",
+  "title": "25 km Budd relaxation year from the IU rehearsal MAP: 2014 to 2015 on OCX's 2014 forcing",
+  "mesh": "antarctica_250000_25000_buffered20000 (IU's build, 4,509 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint)",
+  "site": "IU Quartz, general partition",
+  "period": "2014.0 to 2015.0 at dt 0.0125",
+  "initial_state": "inversion-25km-budd-rehearsal-iuvf's MAP (sha256 551f0370), rewound 1 yr with the Smith dH/dt on 2,992 grounded cells (+47 Gt)",
+  "forcing": "OCX protocol forcing for 2014 (ISMIP7_EXPERIMENT=relax), apparent MB off, front pinned",
+  "resources": "8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0",
+  "jobs": [
+    "11896513"
+  ],
+  "code": "288382a (PR 163's head), Quartz clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh relax",
+  "started": "2026-10-10",
+  "finished": "2026-10-10",
+  "cost": "1 min 31 s",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/results/relax_inversion_icepack2_budd_n3_dg0_logvel_25000_int250000_b20k_rho7500_floating_ef2_vf_wsiu_25000_final.h5",
+  "audit": "reached 2015.0 in one link, resid 0.00 every step. Mass budget [Gt/yr]: SMB +2,386, melt -1,050 falling to -1,028, flux out of the pinned front -1,264 at the first step falling to -982, dM/dt +69 rising to +374; VAF +1.07 mm SLE over the year",
+  "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'): the 25 km counterpart of inversion-2km-budd-b20k-ef2-vf-relax2014-year, whose re-inversion is inversion-25km-budd-rehearsal-iuvf-relax2014"
+}
