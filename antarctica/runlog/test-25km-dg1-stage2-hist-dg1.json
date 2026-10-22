@@ -26,9 +26,9 @@
   "12249603"
  ],
  "cost": "4 min 10 s",
- "results": "Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg1_25000_*",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg1_25000_*",
  "audit": "resid 0 at every one of 480 steps; clamp +2.25 Gt in total; VAF +28.14 mm, mass +6,250 Gt; first year SMB 2,382, melt 984, calving 1,040 Gt/yr, last year 2,595, 1,011, 741; backdate 2,992 grounded cells, +566 Gt, and t = 0 melt 997.8 Gt/yr, both DG0's",
- "ismip7_output": "2003 to 2014, regridded by write_ismip7_output.py (job 12249611) into Quartz /N/scratch/dlilien/ismip7_dg1/stage2/s2dg1/submission",
+ "ismip7_output": "2003 to 2014, regridded by write_ismip7_output.py (job 12249611) into Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/s2dg1/submission",
  "notes": "the DG1 and DG0 MAPs differ (misfit 4,475 against 3,339), so the VAF difference is not DG1's alone",
  "checker": "isschecker 0.5.1 on C001: 0 errors, 2 warnings"
 }

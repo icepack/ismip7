@@ -12,8 +12,8 @@
   "jobs": [
     "12261774"
   ],
-  "code": "0220ece (code-identical to PR 170's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runfymg; wrapper submit_fymg.sh proj ssp126_cesm_waccm dg1 cell_mean",
+  "code": "0220ece (code-identical to PR 170's head), Quartz worktree ismip7_rehearsal25iu/runfymg, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/runfymg and its HEAD 0220ece in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/runfymg_HEAD_0220ece.bundle; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_fymg.sh proj ssp126_cesm_waccm dg1 cell_mean",
   "started": "2026-10-15",
-  "results": "/N/scratch/dlilien/ismip7_fymg/results/ssp126_cesm2_waccm_fymg2kmdg1cellmean_2000_*; Quartz antarctica/results/first_year_mass_gain_iu/figs/fymg_vaf_ssp126_to2018.png, csv/ssp126_cesm2_waccm_fymg2kmdg1cellmean_2000_timeseries_to2018.7.csv, scripts/plot_fymg_ext.py",
+  "results": "/N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_fymg/results/ssp126_cesm2_waccm_fymg2kmdg1cellmean_2000_*; Quartz antarctica/results/first_year_mass_gain_iu/figs/fymg_vaf_ssp126_to2018.png, csv/ssp126_cesm2_waccm_fymg2kmdg1cellmean_2000_timeseries_to2018.7.csv, scripts/plot_fymg_ext.py",
   "notes": "Section 10 of antarctica/reports/first_year_mass_gain_iu.md. The production ssp126's settings (job 11912183, ISMIP7_FRACTURE=none, no apparent MB, SMB-elevation feedback, the 2 km vertex_front deltaT file at K 6.5e-5) but for ISMIP7_GEOMETRY_SPACE=dg1 and the DG1 cell_mean MAP, to the driver's 2301. The restart's first solve converged in 2 Newton iterations. Over 2015 to 2017: VAF change in 2015, 2016 and 2017 of +0.05, +0.25 and +0.24 mm against +1.07, +1.30 and +1.32 for the production ssp126; grounding-line flux 1,930 to 1,963 against 1,545 to 1,558 Gt/yr; resid 0.00"
 }

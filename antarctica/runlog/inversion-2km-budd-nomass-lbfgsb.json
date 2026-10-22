@@ -14,7 +14,7 @@
   "jobs": [
     "10953318"
   ],
-  "code": "9683007 (PR #155 head: PR #148 and PR #158 in main, plus ISMIP7_MESH=checkpoint, the direct forward under scpc_gamg, solver reuse and the factored prior); icepack_tools e7b923e; Quartz scratch clone /N/scratch/dlilien/ismip7_reinvert",
+  "code": "9683007 (PR #155 head: PR #148 and PR #158 in main, plus ISMIP7_MESH=checkpoint, the direct forward under scpc_gamg, solver reuse and the factored prior); icepack_tools e7b923e; Quartz scratch clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert",
   "started": "2026-10-03",
   "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_nomass_ws0948.h5 (sha256 a03b432931b92f32, the full mixed state, published-state residual 0.187) and inversion_timing_budd_2000_int5000_nomass_ws0948.json beside it",
   "audit": "ended at ITERATIONS REACHED LIMIT, 1000 iterations, 24 line-search trials that did not lower the objective, no failed forward. Evaluation 1 reproduces the stopped run's start to every printed digit. From evaluation 1 to 1031: misfit 3.302e4 to 2.454e3, velocity chi2 1.98e4 to 32.8, the log term 0.154 to 0.0284, smoothness 87 and 400 to 206 and 103, total 3.351e4 to 2.763e3. phi spans [-13.2, 2.3] (the warm start [-17.5, 0.16]); its 1st percentile fell from -0.76 to -3.9. theta spans [-3.3, 4.6], 127 nodes above 3",

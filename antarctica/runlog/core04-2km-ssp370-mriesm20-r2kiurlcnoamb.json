@@ -22,7 +22,7 @@
   "jobs": [
     "11912188"
   ],
-  "code": "c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb ssp370_mri_esm2 (CORE=c02)",
+  "code": "c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb ssp370_mri_esm2 (CORE=c02)",
   "started": "2026-10-11",
   "finished": "2026-10-14",
   "cost": "61 h 10 min of wall time on 32 ranks for 86 model years in 1 link, 62.2 s a diagnostic solve on average",

@@ -26,7 +26,7 @@
   "12249604"
  ],
  "cost": "3 min 28 s",
- "results": "Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg1amb_25000_*",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg1amb_25000_*",
  "audit": "resid 0 at every one of 480 steps; clamp +3.50 Gt in total; a_ref in [-226, +314] m/yr, net -312 Gt/yr; VAF +1.96 mm, mass -822 Gt; last year melt 1,140, calving 1,071 Gt/yr",
  "ismip7_output": "2003 to 2014, annual files and scalars",
  "notes": "the September 25 km rehearsal's DG0 historical with the reference (core01-25km-hist-cesm2waccm-rehamb, another MAP and code) gained +2.9 mm and lost 763 Gt"

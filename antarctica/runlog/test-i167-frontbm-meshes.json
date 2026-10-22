@@ -14,11 +14,11 @@
   "11850365",
   "11850366"
  ],
- "code": "47429e8 (issue #167 front cells and meshes, on PR 164's branch); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s14",
+ "code": "47429e8 (issue #167 front cells and meshes, on PR 164's branch); Quartz worktree ismip7_reinvert_s14 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s14.tar.gz)",
  "started": "2026-10-08",
  "finished": "2026-10-08",
  "cost": "7 min (2 km) and 9 min (1 km); 11850254 and 11850255 stopped at a ring of ice with no marine edge, fixed in 47429e8",
- "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_s14/antarctica/mesh/ (the two .msh, their boundary-id sidecars and *_front.npz)",
+ "results": "the two .msh, their boundary-id sidecars and *_front.npz, members antarctica/mesh/antarctica_{5000_2000,10000_1000}_buffered20000_frontbm{.msh,_front.npz} and antarctica/mesh/boundary_ids_antarctica_{5000_2000,10000_1000}_buffered20000_frontbm.json of /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s14.tar.gz (the worktree was removed on 22 October 2026)",
  "audit": "mesh_antarctica.py --front bm: 66 front curves (14,868 points) at 2 km and 170 (31,101) at 1 km, every front point a mesh node. 6 % (2 km) and 8 % (1 km) more cells than the current buffered meshes (1,928,285 and 3,716,587).",
  "notes": "issue #167: IU chose the front-cell rule (ISMIP7_RASTER_SAMPLE=vertex_front) on the current meshes over these (8 Oct): under the rule both carry the same t = 0 front flux within 3 % (test-i167-front-probes), and the current 2 km mesh starts the refit closer to its optimum (test-2km-budd-ef2-vertex-front-eval1). The mesh code stays (ISMIP7_MESH_FRONT=bm, default none)."
 }

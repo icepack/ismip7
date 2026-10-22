@@ -23,10 +23,10 @@
     "12252781",
     "12252803"
   ],
-  "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs",
+  "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)",
   "started": "2026-10-13",
   "finished": "2026-10-14",
-  "results": "Quartz antarctica/results/first_year_mass_gain_iu/json/gn_2km_*.json, json/vsdiff_2km.json, vsflux_2km.json, ff_vs2km.json, ffacets_2km.json, figs/vsdiff_2km.png; the MAPs and forward states on /N/scratch/dlilien/ismip7_vs",
+  "results": "Quartz antarctica/results/first_year_mass_gain_iu/json/gn_2km_*.json, json/vsdiff_2km.json, vsflux_2km.json, ff_vs2km.json, ffacets_2km.json, figs/vsdiff_2km.png; the MAPs and forward states in /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_vs",
   "audit": "Unobserved nodes 50,220 and 38,693 of 969,764; misfit 1,271 and 1,960, |grad| 0.40 and 1.36. Tendency nb 1.45 and 1.40, bin 1.94 and 1.92 m/yr; year-1 VAF gain +0.53 and +0.06 mm; grounding-line flux over the year 1,775 and 1,949, calving 1,378 and 1,590 Gt/yr. The VAF difference (-0.48 mm, -185 Gt grounded) lies within 20 km of the 2003 grounding line (0 to 5 km -0.24, 5 to 20 km -0.21, 20 to 50 km -0.06 mm). front_flux_check at t=0: grounding line 2,256 and 2,396 against 2,156 (point target) and 2,167 (cell-mean target); floating front 1,320 and 1,518 against 998 and 1,282; grounded front 261 and 1,277 against 81 and 132, of which 151 and 1,101 Gt/yr cross three thin unobserved front facets at Shirase Glacier near (1,385, 1,750) km at up to 2.4e5 and 1.9e6 m/yr",
   "notes": "Sections 2 and 5 of antarctica/reports/first_year_mass_gain_iu.md; calibrated melt from results/rehearsal_2km_iu/calibration/deltaT_per_basin_2000_K6.500e-05.npz"
 }

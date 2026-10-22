@@ -523,7 +523,7 @@ Status: 12 planned, 5 running, 41 stopped, 345 done, 21 superseded.
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 64 GiB, scpc_mumps
 - **Job ids:** 11888050
-- **Code:** 288382a (PR 163's head), Quartz scratch clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz scratch clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-09
 - **Cost per model year:** 1 h 26 min: 13 min loading the 2 km warm start, 203 s for the first ramp step and 705 s for the first evaluation (compilation), then 3 to 18 s an evaluation
@@ -544,7 +544,7 @@ Status: 12 planned, 5 running, 41 stopped, 345 done, 21 superseded.
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 32 GiB, scpc_mumps; ISMIP7_MAXITER=250, ISMIP7_CHAIN_MAX=0
 - **Job ids:** 11896514
-- **Code:** 288382a (PR 163's head), Quartz clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh reinvrelax
+- **Code:** 288382a (PR 163's head), Quartz clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh reinvrelax
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 18 min 17 s on 8 ranks
@@ -565,7 +565,7 @@ Status: 12 planned, 5 running, 41 stopped, 345 done, 21 superseded.
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11896513
-- **Code:** 288382a (PR 163's head), Quartz clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh relax
+- **Code:** 288382a (PR 163's head), Quartz clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh relax
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 1 min 31 s
@@ -627,7 +627,7 @@ Budd final MAP refitted under the front-cell rule (ISMIP7_RASTER_SAMPLE=vertex_f
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 8 h links; scpc_mumps, ISMIP7_MAXITER=300, ISMIP7_CHAIN_MAX=2
 - **Job ids:** 11869834 11869837
-- **Code:** 9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s15; cell refit_vf_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh
+- **Code:** 9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree ismip7_reinvert_s15 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s15.tar.gz); cell refit_vf_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-09
 - **Cost per model year:** 3 h 57 min of 32 ranks (11869834; its successor 11869837 exited at once on the .done marker)
@@ -726,7 +726,7 @@ Budd final-product inversion on the 20 km buffered 2 km mesh: gamma x0.01, fluid
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, ISMIP7_MAXITER=500, ISMIP7_CHAIN_MAX=2, 8 h links; link 1 at 480G, later links at 240G (scontrol on the queued link, which its successors copy)
 - **Job ids:** 11452513 11452520 11461567 11461579
-- **Code:** aa06dc8; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s6
+- **Code:** aa06dc8; Quartz worktree ismip7_reinvert_s6 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s6.tar.gz)
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-07
 - **Cost per model year:** 7 h 16 min (job 11461567: 515 evaluations, 500 iterations, about 37 s an evaluation late on); link 11461579 4 s
@@ -747,7 +747,7 @@ IU's final Budd MAP refitted under exact_front version 2 (the push of the face a
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, ISMIP7_MAXITER=300, ISMIP7_CHAIN_MAX=2, 8 h links
 - **Job ids:** 11828591 11828663
-- **Code:** 4426372; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s10
+- **Code:** 4426372; Quartz worktree ismip7_reinvert_s10 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s10.tar.gz)
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 3 h 50 min on 32 ranks for 300 iterations (311 evaluations), 31 to 50 s an evaluation; link 2 (11828663) cancelled before it started, the MAP carrying its marker
@@ -810,7 +810,7 @@ IU's final Budd MAP refitted under exact_front version 2 (the push of the face a
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks on one node (c92, shared with the RC link), 160G, one 48 h link; peak RSS 3.2 GB a rank (sacct MaxRSS); the queued successor 10953322 was cancelled once the first link was certain to finish inside its wall
 - **Job ids:** 10953318
-- **Code:** 9683007 (PR #155 head: PR #148 and PR #158 in main, plus ISMIP7_MESH=checkpoint, the direct forward under scpc_gamg, solver reuse and the factored prior); icepack_tools e7b923e; Quartz scratch clone /N/scratch/dlilien/ismip7_reinvert
+- **Code:** 9683007 (PR #155 head: PR #148 and PR #158 in main, plus ISMIP7_MESH=checkpoint, the direct forward under scpc_gamg, solver reuse and the factored prior); icepack_tools e7b923e; Quartz scratch clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps under full_mumps; 1031 evaluations for 1000 L-BFGS-B iterations in 30.8 h; 81 s an evaluation (median: the forward 65 s, the adjoint 15 s), plus 26 s for the checkpoint each accepted iterate writes; the stopped TAO run took 260 to 320 s an iteration
@@ -870,7 +870,7 @@ RC final MAP refitted under the front-cell rule (ISMIP7_RASTER_SAMPLE=vertex_fro
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 8 h links; full_mumps with ISMIP7_DIRECT_FORWARD_MAXIT=100, ISMIP7_MAXITER=120, ISMIP7_CHAIN_MAX=1; ISMIP7_WARM_START_STATE=1 for 11883148 and 11883149 (a4c79c6); ISMIP7_RAMP_SLIDE_FIXED=1 for 11884073 (2400acc); the one-evaluation probes on 1 h debug links (11884774 on general); ISMIP7_WARM_START_FLUIDITY with ISMIP7_WARM_START_STATE=fluidity for 11885140 and its successor 11885148, which IU cancelled; its replacement 11885372 resumes with ISMIP7_WARM_START_STATE=0 and ISMIP7_CHAIN_DEPTH=1; IU cancelled 11885140 and 11885372 and resumed the checkpoint as 11886352 with ISMIP7_CHECKPOINT_EVERY_IT=10, ISMIP7_MAXITER=104, ISMIP7_WARM_START_STATE=0 and ISMIP7_CHAIN_MAX=2 (successor 11886674)
 - **Job ids:** 11869835 11869838 11883148 11883149 11883518 11883519 11884073 11884074 11884485 11884486 11884749 11884750 11884774 11885140 11885148 11885372 11886352 11886674
-- **Code:** 9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s15; cell refit_vf_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh; from 9 Oct a4c79c6, then 2400acc for 11884073, in /N/scratch/dlilien/ismip7_reinvert_s17; from 11884485 the scratch branch tmp/rc-front-extend (52ba7cb, then 9f945b4 and 6f6a992 for 11884749 onwards, 6f6a992 for 11885140 and its hand-queued successor 11885372, both in /N/scratch/dlilien/ismip7_reinvert_s17 with that worktree's inversion.sbatch, where ISMIP7_WARM_START_STATE=0 makes the resume of 11885372 correct), whose fluidity knobs PR 163 carries as aacb5b0 and fc7f601 and its front-band continuation as a cherry-pick of 52ba7cb; 11886352 and 11886674 also ran 6f6a992 in /N/scratch/dlilien/ismip7_reinvert_s17
+- **Code:** 9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree ismip7_reinvert_s15 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s15.tar.gz); cell refit_vf_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh; from 9 Oct a4c79c6, then 2400acc for 11884073, in worktree ismip7_reinvert_s17 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s17.tar.gz); from 11884485 the scratch branch tmp/rc-front-extend (kept as archive/wt-reinvert_s17 in the bundle /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert/git/archive_wt-reinvert_s17.bundle: 52ba7cb, then 9f945b4 and 6f6a992 for 11884749 onwards, 6f6a992 for 11885140 and its hand-queued successor 11885372, both in ismip7_reinvert_s17 with that worktree's inversion.sbatch, where ISMIP7_WARM_START_STATE=0 makes the resume of 11885372 correct), whose fluidity knobs PR 163 carries as aacb5b0 and fc7f601 and its front-band continuation as a cherry-pick of 52ba7cb; 11886352 and 11886674 also ran 6f6a992 in ismip7_reinvert_s17
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-09
 - **Cost per model year:** 2 h 41 min (11885140) and 7 h 05 min (11886352) of 32 ranks for the refit, beside the probes listed in the notes
@@ -990,7 +990,7 @@ RC final-product inversion under exact_front version 2 (issue #166), beside its 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 8 h; ISMIP7_MAXITER=120 so the link ends inside its wall and writes the full MAP, ISMIP7_CHAIN_MAX=1 as insurance, ISMIP7_DIRECT_FORWARD_MAXIT=100; a copy job saves the link's timing JSON (..._floating_ef2_11832709.json)
 - **Job ids:** 11832320 11832359 11832570 11832709 11832710 11832955
-- **Code:** 9575a74; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s11
+- **Code:** 9575a74; Quartz worktree ismip7_reinvert_s11 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s11.tar.gz)
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-08
 - **Cost per model year:** 6 h 34 min (job 11832709: 124 evaluations, 120 iterations, about 140 s an evaluation once settled); its insurance link 11832955 exited on the marker in 1 s
@@ -1011,7 +1011,7 @@ One more 8 h link of RC's version 2 final-product inversion, written beside its 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 8 h; ISMIP7_MAXITER=150 so the link ends inside its wall at about 140 s an evaluation and writes the full MAP, ISMIP7_CHAIN_MAX=0
 - **Job ids:** 11837469
-- **Code:** 9575a74; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s11
+- **Code:** 9575a74; Quartz worktree ismip7_reinvert_s11 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s11.tar.gz)
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 2 h 35 min on 32 ranks (cancelled at 11:57)
@@ -1074,7 +1074,7 @@ One more 8 h link of RC's version 2 final-product inversion, written beside its 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks on node c92, 160G, one 24 h link; peak RSS 3.8 GB a rank (sacct MaxRSS)
 - **Job ids:** 10966868
-- **Code:** 3490914 (PR #155's head plus the run records and ISMIP7_TRANSFER_FILL); icepack_tools e7b923e; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914 (PR #155's head plus the run records and ISMIP7_TRANSFER_FILL); icepack_tools e7b923e; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps; 311 evaluations for 300 L-BFGS-B iterations in 4.3 h; 41 s an evaluation (median: the forward 32 s, the adjoint 8 s) plus 8 s for the checkpoint. Its linear solves took half the Krylov iterations of stage 1's on Rice's mesh (68 to 85 a condensed solve against 116 to 187; a fresh solver on Rice's mesh took 152, job 10968526)
@@ -1095,7 +1095,7 @@ One more 8 h link of RC's version 2 final-product inversion, written beside its 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks on one node (c92, shared with the Budd link), 160G, one 48 h link; peak RSS 3.5 GB a rank (sacct MaxRSS); the queued successor 10953321 was cancelled once the first link was certain to finish inside its wall
 - **Job ids:** 10953319
-- **Code:** 9683007 (PR #155 head: PR #148 and PR #158 in main, plus ISMIP7_MESH=checkpoint, the direct forward under scpc_gamg, solver reuse and the factored prior); icepack_tools e7b923e; Quartz scratch clone /N/scratch/dlilien/ismip7_reinvert
+- **Code:** 9683007 (PR #155 head: PR #148 and PR #158 in main, plus ISMIP7_MESH=checkpoint, the direct forward under scpc_gamg, solver reuse and the factored prior); icepack_tools e7b923e; Quartz scratch clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps under full_mumps; 1036 evaluations for 1000 L-BFGS-B iterations in 25.1 h; 67 s an evaluation (median: the forward 55 s, the adjoint 11 s), plus 19 s for the checkpoint each accepted iterate writes; the stopped TAO run took 260 to 320 s an iteration
@@ -1173,7 +1173,7 @@ Melt offsets at K 6.5e-5 refitted under the front-cell rule on the 1 km producti
 - **Forcing versions:** OI climatology 30_sep; observed melt from the Paolo, Davison and Adusumilli table, 1067.4 Gt/yr integrated (sha256 ccea556e)
 - **Site / partition:** IU Quartz, debug partition, serial
 - **Job ids:** 11869836 11871318 11869845
-- **Code:** 9dfb499 (fit and check); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s15 (calibrate_deltaT.script, DELTAT_K=6.5e-5; check_melt_bound.py)
+- **Code:** 9dfb499 (fit and check); Quartz worktree ismip7_reinvert_s15 (calibrate_deltaT.script, DELTAT_K=6.5e-5; check_melt_bound.py), removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s15.tar.gz
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** serial, 4 min 15 s for the fit (11869836) and 3 min 52 s for the check (11871318); a 3 h backup of the fit on the general partition (11869845) was cancelled once the debug fit finished
@@ -1235,7 +1235,7 @@ Ocean melt: the forward's own callback against the K50 calibration on IU's build
 - **Code:** eee634f, rerun at 65c870a
 - **Started:** 2026-09-25
 - **Finished:** 2026-09-25
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue26/antarctica/ant_melt_bound_10644378.txt and ant_melt_bound_10644547.txt, the per-basin tables
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/melt_calibration_iu/scratch_results/ismip7_issue26/antarctica/ant_melt_bound_10644378.txt and ant_melt_bound_10644547.txt, the per-basin tables
 - **Audit:** check_melt_bound.py exit 0 at both commits, with the same table: the forward melts 1067.390 Gt/yr against the 1067.386 its offsets were fitted to, every basin at ratio 1.0000 and the largest difference 0.006 Gt/yr (basin 14, its fit residual); 1 548 666 km2 floating over 1 398 387 cells, maximum 41.7 m/yr, 99th percentile 16.2, area mean 0.75, no cell past the libmassbffl bound. The callbacks' earlier melt set also covered 257 687 ice-free open-ocean cells, where they booked 156.3 Gt/yr of melt and 23.1 Gt/yr of refreezing, 1200.6 Gt/yr in all, and 6 666 cells of bare land, where the climatology melts nothing
 - **Notes:** issue #30: the DG0 melt total measured against the table the calibration targets, through the forward's own callback; issue #26: the calibration chosen on 25 September. Run from a scratch clone of claude/issue-26-k50-default. The tracked calibration is now the same K refitted on Rice's build, the submission mesh (calibration-melt-refit-1km-rice-k50)
 
@@ -1255,7 +1255,7 @@ Ocean melt: the K50 offsets refitted on Rice's build of the production mesh, the
 - **Code:** b0c53c4 (the fit, job 10649427, and the check of its file, job 10649438); e80f1e6 (the check of the IU-build file on this build, job 10649416); 1ec6aee (the check with nothing named, which reads this file as the tracked default, job 10649455)
 - **Started:** 2026-09-26
 - **Finished:** 2026-09-26
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue26/refit_rice/deltaT_per_basin_1000_K6.500e-05.npz, tracked as antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz (sha256 4f525009)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/melt_calibration_iu/scratch_results/ismip7_issue26/refit_rice/deltaT_per_basin_1000_K6.500e-05.npz, tracked as antarctica/calibration/deltaT_per_basin_1000_K6.500e-05.npz (sha256 4f525009)
 - **Audit:** every basin roots inside 3 K and the thermal forcing rule admits the K; the offsets run from -0.684 to +1.200 K and differ from the fit on IU's build by at most 0.0008 K (basin 1). The IU-build offsets on this build missed basin 1 by +0.18 percent and basin 7 by -0.17 percent, 1067.355 Gt/yr in all (job 10649416). With the refit the forward's own callback melts 1067.389 Gt/yr against the 1067.386 fitted, every basin at ratio 1.0000 (job 10649438): 1 548 707 km2 floating over 1 399 171 cells, maximum 41.7 m/yr, no cell past the libmassbffl bound. The callbacks' earlier melt set covered 257 836 ice-free open-ocean cells here (156.2 Gt/yr of melt, 23.1 of refreezing) and 6 805 cells of bare land (none). Read as the tracked default with nothing named, the check gives the same table and the provenance line names the file, its sha256, K50 and Rice's build (job 10649455)
 - **Notes:** issues #26, #30 and #20: the submission mesh is Rice's build of the production mesh (issue 20), and the offsets at the chosen K are refitted there. The file it replaces as the tracked calibration is calibration-melt-toolbox-1km-rule's K50 file (sha256 64eb824a), fitted on IU's build. Run from a scratch clone of claude/issue-26-k50-default
 
@@ -1292,7 +1292,7 @@ Ocean melt: the K50 offsets refitted on the 25 km rehearsal mesh under the front
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** serial; 8 min 56 s for the fit job, 1 min 25 s and 1 min 31 s for the two checks
 - **Job ids:** 11888047 11888663 11888664
-- **Code:** 288382a (PR 163's head), Quartz scratch clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz scratch clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-09
 - **Results path:** Quartz antarctica/results/rehearsal_25km_iu/calibration/deltaT_per_basin_25000_K6.500e-05.npz (sha256 385c1f47) with its .source.json
@@ -1312,7 +1312,7 @@ Ocean melt: the K50 offsets refitted on IU's 2 km buffered mesh under the front-
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** serial; 2 min 54 s for the fit job, 2 min 48 s for the check
 - **Job ids:** 11890195 11890196
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-09
 - **Results path:** Quartz antarctica/results/rehearsal_2km_iu/calibration/deltaT_per_basin_2000_K6.500e-05.npz (sha256 3d2e5348) with its .source.json
@@ -1335,7 +1335,7 @@ Ocean melt: the K50 offsets refitted on the 25 km rehearsal mesh by a fit that w
 - **Code:** 37c68f2 (branch claude/plan-issue-145-c69ef6: origin/main ecaac86 with the sidecar writer), run from a scratch clone
 - **Started:** 2026-09-28
 - **Finished:** 2026-09-28
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue145/refit/deltaT_per_basin_25000_K6.500e-05.npz (sha256 384f8c5c) and the .source.json the fit wrote beside it
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/melt_calibration_iu/scratch_results/ismip7_issue145/refit/deltaT_per_basin_25000_K6.500e-05.npz (sha256 384f8c5c) and the .source.json the fit wrote beside it
 - **Audit:** the fit reproduced the rehearsal's offsets file bit for bit (sha256 384f8c5c, the file of calibration-melt-refit-25km-rehearsal-k50), and the sidecar it wrote matches that file's hand-written one in every field a fit can know: the mesh, 4,509 vertices, 7,615 cells, 2,923 floating cells, vertex sampling, the slope law and constant, dg0, the 30_sep climatology, the density, the offset window, the thermal forcing rule and its verdict (admits), the melt at the offsets (1067.382 Gt/yr), the sha256 of the mesh file, the observation table and the three inputs, and selected_as K50. It differs in the job, the commit and the spelling of the site, and carries no purpose, run_record or mesh_build, which a person adds. check_melt_bound.py with the refit named (job 10742031) exits 0: every basin at ratio 1.0000 or 0.9999, 1067.382 Gt/yr against the 1067.386 fitted, no cell past the libmassbffl bound, and its provenance line reads K 6.500e-05 (K50), fitted on antarctica_250000_25000_buffered20000, which the rehearsal's run needed a hand-written sidecar to say
 - **Notes:** issue 145. Run at 37c68f2, where the sidecar named its two totals melt_fitted_gtyr and melt_dT0_gtyr; the commit after it names them melt_total_gtyr and melt_total_dT0_gtyr, the hand-written sidecars' keys, since this check shows they hold the same quantities (1067.382 and 1436.58 Gt/yr against the hand-written 1067.382 and 1436.6). The refit stays in scratch, and the rehearsal's own files are unchanged
 
@@ -1539,7 +1539,7 @@ Core 1 at 1 km from IU's relaxed Budd MAP's controls on the 1 km mesh's BedMachi
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 64 ranks, 400 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=0
 - **Job ids:** 11899511
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 5 h 37 min of wall time on 64 ranks for 12 model years, 39.9 s a diagnostic solve on average
@@ -1664,7 +1664,7 @@ Core 1 at 25 km from the IU rehearsal's relaxed MAP on its relaxed geometry, wit
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11896517
-- **Code:** 288382a (PR 163's head), Quartz clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh hist
+- **Code:** 288382a (PR 163's head), Quartz clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh hist
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 3 min 05 s
@@ -1693,7 +1693,7 @@ Core 1 at 25 km from the IU rehearsal's relaxed MAP on its relaxed geometry, wit
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11896515
-- **Code:** 288382a (PR 163's head), Quartz clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh hist
+- **Code:** 288382a (PR 163's head), Quartz clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh hist
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 3 min 56 s
@@ -1754,7 +1754,7 @@ Core 1 at 2 km from IU's non-relaxed vf MAP on its own mesh, with the apparent m
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11890198
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-10
 - **Cost per model year:** 5 h 20 min of wall time for 12 model years, 38.5 s a diagnostic solve on average
@@ -1783,7 +1783,7 @@ Core 1 at 2 km from IU's non-relaxed vf MAP on its own mesh, without the apparen
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11890197
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-10
 - **Cost per model year:** 8 h 18 min of wall time for 12 model years, 60.6 s a diagnostic solve on average
@@ -1812,7 +1812,7 @@ Core 1 at 2 km from IU's relaxed regularized Coulomb MAP's controls on BedMachin
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360 GiB, full_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11899765
-- **Code:** c4c9eb8 (this PR: a relaxed MAP gives its controls alone), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kc; wrapper submit_r2kiu.sh beside it
+- **Code:** c4c9eb8 (this PR: a relaxed MAP gives its controls alone), Quartz worktree ismip7_rehearsal25iu/run2kc (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kc.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 2 h 12 min on 32 ranks
@@ -1841,7 +1841,7 @@ Core 1 at 2 km from IU's relaxed regularized Coulomb MAP on its relaxed geometry
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360 GiB, full_mumps (as RC's relaxation year, where scpc_mumps took 36 to 84 Newton iterations a solve), ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11899126
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 5 h 13 min of wall time on 32 ranks for 12 model years, 37.0 s a diagnostic solve on average
@@ -1870,7 +1870,7 @@ Core 1 at 2 km from IU's relaxed regularized Coulomb MAP on its relaxed geometry
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360 GiB, full_mumps (as RC's relaxation year, where scpc_mumps took 36 to 84 Newton iterations a solve), ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11899125 11907666 11918903
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-12
 - **Cost per model year:** 34 h 49 min of wall time on 32 ranks for 12 model years, 258.3 s a diagnostic solve on average
@@ -1899,7 +1899,7 @@ Core 1 at 2 km from IU's relaxed Budd MAP on its relaxed geometry, with the appa
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11896512
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 5 h 55 min of wall time on 32 ranks for 12 model years, 42.8 s a diagnostic solve on average
@@ -1928,7 +1928,7 @@ Core 1 at 2 km from IU's relaxed Budd MAP on its relaxed geometry, without the a
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11896511
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 7 h 07 min of wall time on 32 ranks for 12 model years, 51.8 s a diagnostic solve on average
@@ -2153,7 +2153,7 @@ Core 2 at 1 km from IU's relaxed Budd MAP's controls on the 1 km mesh's BedMachi
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 64 ranks, 400 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=0
 - **Job ids:** 11899512
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 6 h 37 min of wall time on 64 ranks for 12 model years, 47.3 s a diagnostic solve on average
@@ -2310,7 +2310,7 @@ Core 2 at 2 km from IU's relaxed regularized Coulomb MAP's controls on BedMachin
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360 GiB, full_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11899767
-- **Code:** c4c9eb8 (this PR: a relaxed MAP gives its controls alone), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kc; wrapper submit_r2kiu.sh beside it
+- **Code:** c4c9eb8 (this PR: a relaxed MAP gives its controls alone), Quartz worktree ismip7_rehearsal25iu/run2kc (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kc.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 2 h 12 min on 32 ranks
@@ -2339,7 +2339,7 @@ Core 2 at 2 km from IU's relaxed regularized Coulomb MAP on its relaxed geometry
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360 GiB, full_mumps (as RC's relaxation year, where scpc_mumps took 36 to 84 Newton iterations a solve), ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11899490 11907711 11915497
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-12
 - **Cost per model year:** 33 h 40 min of wall time on 32 ranks for 12 model years, 250.0 s a diagnostic solve on average
@@ -2368,7 +2368,7 @@ Core 2 at 2 km from IU's relaxed Budd MAP on its relaxed geometry, without the a
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11899491
-- **Code:** 288382a (PR 163's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2k; wrapper submit_r2kiu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz worktree ismip7_rehearsal25iu/run2k (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2k.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 8 h 25 min of wall time on 32 ranks for 12 model years, 61.5 s a diagnostic solve on average
@@ -4891,7 +4891,7 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-01
 - **Cost per model year:** 35 min wall; 189 s forward, 118 s adjoint, 334 s an evaluation
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/1km_full_p32.h5 (scratch, purged after 30 days); timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/1km_full_p32.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** 3 L-BFGS-B iterations, 4 evaluations, objective 8.06337e4 to 4.179544e4 (the prior terms carry most of it after the transfer); published residual 6.5e-5
 - **Notes:** cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)
 
@@ -4911,7 +4911,7 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-01
 - **Cost per model year:** 16 min wall; 21 s forward, 8.5 s adjoint, 58 s an evaluation (27 s of it outside the forward and adjoint, as under full_mumps); 4.0 Newton iterations and 31 V-cycles a condensed solve
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/1km_gamg_p32.h5 (scratch, purged after 30 days); timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/1km_gamg_p32.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** every evaluation's objective within 4.3e-9 of test-1km-inversion-cost-full-mumps-p32, final 4.179544e4; no forward failed; published residual 2.7e-4
 - **Notes:** cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)
 
@@ -4931,7 +4931,7 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-01
 - **Cost per model year:** 18 min wall; 11.5 s forward, 4.1 s adjoint, 43 s an evaluation, of which 27 s outside the forward and adjoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/1km_gamg_p64.h5 (scratch, purged after 30 days); timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/1km_gamg_p64.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** objective within 3.8e-5 of the 32-rank runs at every evaluation, 2e-5 at the first (the ramp's state follows the partition; startup scalars identical), final 4.179385e4; no forward failed
 - **Notes:** cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)
 
@@ -4947,11 +4947,11 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 64 ranks, 480G, a job each, both on node c76 one after the other; MaxRSS 3.9 GiB (base) and 3.8 GiB (fix) a rank
 - **Job ids:** 10937657 10937658
-- **Code:** 10937657 at 2626c71 (the spans only), 10937658 at 4e45164 (the factored prior solve), from worktrees /N/scratch/dlilien/ismip7_evalspans_{base,fix} of the scratch clone; icepack_tools e7b923e
+- **Code:** 10937657 at 2626c71 (the spans only), 10937658 at 4e45164 (the factored prior solve), from worktrees ismip7_evalspans_{base,fix} of the scratch clone (removed on 22 October 2026; their loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_evalspans_{base,fix}.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-02
 - **Finished:** 2026-10-02
 - **Cost per model year:** 13 min (base) and 11 min (fix) wall. Seconds an evaluation, medians over evaluations 2 to 4: base 54.0 (forward 22.0, adjoint 5.3, outside both 26.8, of it prior_solve 26.2); fix 27.9 (22.0, 5.4, 0.73, of it prior_solve 0.17). The fix's first prior solve, which factors M, took 14.8 s once
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/spans1km_{base,fix}_p64.h5 (sha256 31b963a3, 165899b0; scratch, purged after 30 days) and timing/spans1km_*; timing records, logs and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_eval_overhead/quartz; submit script /N/scratch/dlilien/q156d_submit.sh, copy in /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_eval_overhead/quartz/../scripts
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/spans1km_{base,fix}_p64.h5 (sha256 31b963a3, 165899b0) and timing/spans1km_*; timing records, logs and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_eval_overhead/quartz; submit script /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/q156d_submit.sh, copy in /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_eval_overhead/quartz/../scripts
 - **Audit:** objective within 7.0e-16 and \|grad\| within 2.2e-15 at every evaluation, final 4.179385e4 in both, the same as 10818449; published \|\|F\|\| 2.394e-4 in both; no forward failed. prior_solve was 98 % of the time outside the forward and adjoint at 2626c71. At 4e45164 the largest remaining spans are gather_gradient 0.34 s, set_controls 0.10 s and residual_norm 0.07 s, and L-BFGS-B's own step between evaluations takes 1.0 to 1.2 s
 - **Notes:** Attributes the 27 s of a 1 km evaluation outside the forward and adjoint (issue #156): the bi-Laplacian prior's per-call MUMPS LU. Since 10818449 the scpc_gamg taped forward moved from bt to NLEQ-ERR at Krylov rtol 1e-8 (PR 155), so forward times are not comparable with it; base and fix are
 
@@ -4967,11 +4967,11 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c11); peak RSS 5.1 GB a rank (sacct MaxRSS)
 - **Job ids:** 10952185
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 25 min wall; ramp 399 s; 69.0 s an evaluation with its checkpoint (median after the first), of it 41.6 s the forward, 10.4 s the adjoint and 12.7 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/1km_none_gamg.h5 (sha256 12c5ff6f) and timing/1km_none_gamg.json; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh (1km_none)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/1km_none_gamg.h5 (sha256 12c5ff6f) and timing/1km_none_gamg.json; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh (1km_none)
 - **Audit:** 10 iterations, 13 evaluations, objective 6.209388e5 (the TAO arm's first evaluation exactly) to 1.496636e5; every direct forward converged, no lost trial, no rescue; published residual 3.3e-2. After 7 evaluations, the whole of test-1km-inversion-final-tao-scpc-gamg in the same 499 s, 2.5535e5 against TAO's 3.1563e5; TAO's final objective reached at evaluation 6 (425 s)
 - **Notes:** issue #157, the final round: L-BFGS-B without a metric at 1 km, against test-1km-inversion-final-tao-scpc-gamg; run on request after the 2 km arms
 
@@ -4987,11 +4987,11 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c8); peak RSS 8.3 GB a rank (sacct MaxRSS)
 - **Job ids:** 10950104
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 48 min wall; ramp 438 s; first evaluation 446 s; 324 s a TAO iteration (median), of it 71.6 s the forward, 230.4 s the adjoint and TAO's own work and 12.6 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/1km_tao_full.h5 (sha256 0a772519) and timing/1km_tao_full.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/1km_tao_full.h5 (sha256 0a772519) and timing/1km_tao_full.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
 - **Audit:** 5 iterations, 7 evaluations, objective 6.209388e5 to 3.156258e5; every direct forward converged, no lost trial, no rescue; published residual 1.2e-2; every iterate within 1.1e-12 (objective) and 5.0e-12 (gradient norm) of the other solver's, the same Newton iterations in every direct solve
 - **Notes:** issues #156 and #157, the final round on the production settings: the solver pair at 1 km (test-1km-inversion-final-tao-scpc-gamg)
 
@@ -5007,11 +5007,11 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c57); peak RSS 4.2 GB a rank (sacct MaxRSS)
 - **Job ids:** 10950105
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 16 min wall; ramp 360 s; first evaluation 84 s; 70 s a TAO iteration (median), of it 44.5 s the forward, 10.9 s the adjoint and TAO's own work and 12.6 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/1km_tao_gamg.h5 (sha256 87502e9f) and timing/1km_tao_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/1km_tao_gamg.h5 (sha256 87502e9f) and timing/1km_tao_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
 - **Audit:** 5 iterations, 7 evaluations, objective 6.209388e5 to 3.156258e5; every direct forward converged, no lost trial, no rescue; published residual 1.2e-2; every iterate within 1.1e-12 (objective) and 5.0e-12 (gradient norm) of the other solver's, the same Newton iterations in every direct solve
 - **Notes:** issues #156 and #157, the final round on the production settings: the solver pair at 1 km (test-1km-inversion-final-tao-full-mumps)
 
@@ -5031,7 +5031,7 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** 40 min wall; 347 s a TAO iteration
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/ec0_1km_full_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/ec0_1km_full_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** 3 TAO iterations, objective 8.110678e4 to 6.209233e4; no forward failed; published residual 7.0e-5
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -5051,7 +5051,7 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** 1 h 51 min wall; 1463 s a TAO iteration
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/prod1km_full_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/prod1km_full_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** 3 TAO iterations, objective 8.110641e4 to 6.209196e4; no forward failed; published residual 12.3
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -5071,7 +5071,7 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** 37 min wall; 343 s a TAO iteration; 2.8 Newton iterations and 125 V-cycles a condensed solve
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/ec0_1km_gamg_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/ec0_1km_gamg_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** every iterate within 2.1e-9 of test-1km-inversion-prod-full-mumps-ec0, final 6.209233e4; no forward failed; every recorded solve confirmed with no step; the same cost per iteration as full_mumps
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -5091,7 +5091,7 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** cancelled after 4 h 52 min, still in its first evaluation (computing, no output since the ramp)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/prod1km_gamg_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** none: the job was cancelled in its first evaluation, before it wrote maps/prod1km_gamg_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** no evaluation finished; the n = 1 restart steps under GAMG at 1 km dominate, as on 64 ranks
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -5111,7 +5111,7 @@ Core 11 at 32 km without the apparent-MB reference, a cold start on the OCX prot
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** cancelled after 3 h 29 min and 2 iterations: 2451 s the first, 4023 s the second; 403 V-cycles a condensed solve
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/prod1km_gamg_p64.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** none: the job was cancelled after 2 iterations, before it wrote maps/prod1km_gamg_p64.h5; its timing record is Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/timing/prod1km_gamg_p64.json; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** first objective 8.110449e4 (2.4e-5 off the 32-rank full_mumps run: the ramp's state follows the partition); no forward failed; 2.7 times slower per iteration than full_mumps on 32 ranks, with twice the ranks
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -5326,7 +5326,7 @@ One OCX step on the 1 km production mesh from transferred MAPs under the front-c
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; about 1.5 min each
 - **Job ids:** 11888665 11888666 11888667 11888753 11888754
-- **Code:** 288382a (PR 163's head), Quartz scratch clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz scratch clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-09
 - **Results path:** Quartz antarctica/results/rehearsal_25km_iu/mapcheck/score_native.json, census_native.txt, front_flux_map.json and the job logs
@@ -5358,9 +5358,9 @@ DG1 stage 2, forced check: the CESM2-WACCM historical at 25 km under DG0 (the re
 - **Started:** 2026-10-14
 - **Finished:** 2026-10-14
 - **Cost per model year:** 5 min 26 s
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg0_25000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg0_25000_*
 - **Audit:** resid 0 at every one of 480 steps; clamp +0.22 Gt in total; VAF +30.78 mm, mass +6,905 Gt; first year SMB 2,382, melt 985, calving 1,024 Gt/yr, last year 2,595, 982, 753; backdate 2,992 grounded cells, +566 Gt; t = 0 melt 997.8 Gt/yr
-- **ISMIP7 output written:** 2003 to 2014, regridded by write_ismip7_output.py (job 12249610) into Quartz /N/scratch/dlilien/ismip7_dg1/stage2/s2dg0/submission
+- **ISMIP7 output written:** 2003 to 2014, regridded by write_ismip7_output.py (job 12249610) into Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/s2dg0/submission
 - **Regridded, isschecker:** isschecker 0.5.1 on C001: 0 errors, 2 warnings
 
 ### test-25km-dg1-stage2-hist-dg1
@@ -5388,9 +5388,9 @@ DG1 stage 2, forced check: the CESM2-WACCM historical at 25 km under DG1 (done),
 - **Started:** 2026-10-14
 - **Finished:** 2026-10-14
 - **Cost per model year:** 4 min 10 s
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg1_25000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg1_25000_*
 - **Audit:** resid 0 at every one of 480 steps; clamp +2.25 Gt in total; VAF +28.14 mm, mass +6,250 Gt; first year SMB 2,382, melt 984, calving 1,040 Gt/yr, last year 2,595, 1,011, 741; backdate 2,992 grounded cells, +566 Gt, and t = 0 melt 997.8 Gt/yr, both DG0's
-- **ISMIP7 output written:** 2003 to 2014, regridded by write_ismip7_output.py (job 12249611) into Quartz /N/scratch/dlilien/ismip7_dg1/stage2/s2dg1/submission
+- **ISMIP7 output written:** 2003 to 2014, regridded by write_ismip7_output.py (job 12249611) into Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/s2dg1/submission
 - **Regridded, isschecker:** isschecker 0.5.1 on C001: 0 errors, 2 warnings
 - **Notes:** the DG1 and DG0 MAPs differ (misfit 4,475 against 3,339), so the VAF difference is not DG1's alone
 
@@ -5419,7 +5419,7 @@ DG1 stage 2, forced check: the CESM2-WACCM historical at 25 km under DG1 with th
 - **Started:** 2026-10-14
 - **Finished:** 2026-10-14
 - **Cost per model year:** 3 min 28 s
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg1amb_25000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg1amb_25000_*
 - **Audit:** resid 0 at every one of 480 steps; clamp +3.50 Gt in total; a_ref in [-226, +314] m/yr, net -312 Gt/yr; VAF +1.96 mm, mass -822 Gt; last year melt 1,140, calving 1,071 Gt/yr
 - **ISMIP7 output written:** 2003 to 2014, annual files and scalars
 - **Notes:** the September 25 km rehearsal's DG0 historical with the reference (core01-25km-hist-cesm2waccm-rehamb, another MAP and code) gained +2.9 mm and lost 763 Gt
@@ -5449,9 +5449,9 @@ DG1 stage 2, forced check: CESM2-WACCM ssp585 to 2100 at 25 km under DG0 with th
 - **Started:** 2026-10-14
 - **Finished:** 2026-10-14
 - **Cost per model year:** 19 min 12 s; output and checker 6 min 33 s
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/ssp585_cesm2_waccm_s2dg0_25000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/ssp585_cesm2_waccm_s2dg0_25000_*
 - **Audit:** resid 0 at every one of 3,400 steps, no rescue; clamp +1,263 Gt in total; VAF +54.8, +137.3, +229.6, +387.6 mm by 2030, 2050, 2070, 2100; mass -83,119 Gt; last year melt 5,251, calving 612 Gt/yr; collapse flagged 417, removed 328, held 89 cells at 2100
-- **ISMIP7 output written:** 2015 to 2099, regridded into Quartz /N/scratch/dlilien/ismip7_dg1/stage2/s2dg0/submission
+- **ISMIP7 output written:** 2015 to 2099, regridded into Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/s2dg0/submission
 - **Regridded, isschecker:** isschecker 0.5.1 on C007: 93 errors, all on the time axis (the run stops at 2100, the experiment at 2300: 31 variables x 3); naming, numerical and spatial tests 0 errors
 
 ### test-25km-dg1-stage2-ssp585-dg1
@@ -5479,9 +5479,9 @@ DG1 stage 2, forced check: CESM2-WACCM ssp585 to 2100 at 25 km under DG1 with th
 - **Started:** 2026-10-14
 - **Finished:** 2026-10-14
 - **Cost per model year:** 16 min 33 s; output and checker 6 min 23 s
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/ssp585_cesm2_waccm_s2dg1_25000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/ssp585_cesm2_waccm_s2dg1_25000_*
 - **Audit:** resid 0 at every one of 3,400 steps, no rescue; clamp +1,227 Gt in total; VAF +48.2, +120.8, +199.7, +334.8 mm by 2030, 2050, 2070, 2100; mass -111,953 Gt; last year melt 5,683, calving 914 Gt/yr; collapse flagged 433, removed 377, held 56 cells at 2100
-- **ISMIP7 output written:** 2015 to 2099, regridded into Quartz /N/scratch/dlilien/ismip7_dg1/stage2/s2dg1/submission
+- **ISMIP7 output written:** 2015 to 2099, regridded into Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/s2dg1/submission
 - **Regridded, isschecker:** isschecker 0.5.1 on C007: 93 errors, all on the time axis (the run stops at 2100, the experiment at 2300: 31 variables x 3); naming, numerical and spatial tests 0 errors
 - **Notes:** the DG1 and DG0 historicals start from different MAPs, so the difference is not DG1's alone
 
@@ -5496,10 +5496,10 @@ DG1 stage 2, forced check: CESM2-WACCM ssp585 to 2100 at 25 km under DG1 with th
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** filter 1 task 48 GiB 5 min; inversions 8 ranks 64 GiB 11 to 12 min; forwards 8 ranks 32 GiB 2 min
 - **Job ids:** 12202111 12202114 12202115 12206210 12206343 12206802 12206803 12207229 12207230 12207231 12207232
-- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs; filter bm_gauss.py in Quartz antarctica/results/first_year_mass_gain_iu/scripts
+- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle); filter bm_gauss.py in Quartz antarctica/results/first_year_mass_gain_iu/scripts
 - **Started:** 2026-10-13
 - **Finished:** 2026-10-13
-- **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_vs_budd_25km_*_bmg12k.h5, json/gn_vs25km*bmg12k*.json, csv/; the smoothed raster and its obs root on /N/scratch/dlilien/ismip7_vs/obs_bmg12k
+- **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_vs_budd_25km_*_bmg12k.h5, json/gn_vs25km*bmg12k*.json, csv/; the smoothed raster and its obs root in /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_vs/obs_bmg12k (the obs root's links into antarctica/data are listed in /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_vs/SYMLINKS)
 - **Audit:** Filter: thickness changed 165 m RMS over ice pixels (bed 186, surface 68), ice mean thickness 1,940.4 to 1,941.0 m. Misfit 3,382 (point) and 4,876 (cell_mean). Tendency (nb) 1.67 and 1.14 m/yr calibrated, 1.67 and 1.13 uniform K, against 1.76 / 1.72 and 1.21 / 1.20 unsmoothed. Cell-scale RMS of the sampled thickness 150.6 to 129.9 m and of the surface 104.6 to 97.7 m. Year-1 VAF gain +1.18 / +1.19 (point) and +0.35 / +0.40 mm (cell_mean). The smoothed geometry holds 312 mm more VAF and 33,000 Gt less ice; calibrated melt 897 against 998 Gt/yr
 - **Notes:** Section 3 of antarctica/reports/first_year_mass_gain_iu.md. A normalized convolution inside BedMachine's ice mask (mask 2, 3, 4) for thickness, bed and surface, and outside it for the bed; the mask unchanged
 
@@ -5532,7 +5532,7 @@ DG1 stage 2, forced check: CESM2-WACCM ssp585 to 2100 at 25 km under DG1 with th
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 64 GiB, 4.5 min
 - **Job ids:** 12197819 12200304
-- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs
+- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)
 - **Started:** 2026-10-13
 - **Finished:** 2026-10-13
 - **Results path:** the job log in Quartz antarctica/results/first_year_mass_gain_iu/logs/ismip7_inv_12197819.out
@@ -5550,7 +5550,7 @@ DG1 stage 2, forced check: CESM2-WACCM ssp585 to 2100 at 25 km under DG1 with th
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 64 GiB inversions (12 min), 32 GiB forwards (2 min); gridnoise serial
 - **Job ids:** 12187138 12187140 12192699 12192700 12194681 12194682 12197820 12197821 12200302 12200303 12207506
-- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs
+- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)
 - **Started:** 2026-10-13
 - **Finished:** 2026-10-13
 - **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_vs_budd_25km_{point,cell_mean}.h5, json/gn_25km_*.json, json/gn_vs25km*u.json, csv/
@@ -5568,7 +5568,7 @@ DG1 stage 2, forced check: CESM2-WACCM ssp585 to 2100 at 25 km under DG1 with th
 - **Site / partition:** IU Quartz, general partition (niced)
 - **Ranks / memory:** 8 ranks; inversions 64 GiB, 17 to 22 min a stage; forwards 32 GiB, 2 min; front_flux_check 8 ranks
 - **Job ids:** 12249665-12249700 12252153
-- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs
+- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)
 - **Started:** 2026-10-14
 - **Finished:** 2026-10-14
 - **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_cv_budd_25km_*, json/gn_cv25km*.json, json/ff_cv25km_s6.json, scripts/cv_jobs.txt
@@ -5621,7 +5621,7 @@ DG1 stage 2, forced check: CESM2-WACCM ssp585 to 2100 at 25 km under DG1 with th
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11888669
-- **Code:** 288382a (PR 163's head), Quartz scratch clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz scratch clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-09
 - **Cost per model year:** 3 min 56 s for the job
@@ -5648,7 +5648,7 @@ DG1 stage 2, forced check: CESM2-WACCM ssp585 to 2100 at 25 km under DG1 with th
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 8 ranks, 32 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11888668
-- **Code:** 288382a (PR 163's head), Quartz scratch clone /N/scratch/dlilien/ismip7_rehearsal25iu/run; wrapper submit_r25iu.sh beside it
+- **Code:** 288382a (PR 163's head), Quartz scratch clone ismip7_rehearsal25iu/run, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/run; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r25iu.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-09
 - **Cost per model year:** 3 min 15 s for the job
@@ -5696,7 +5696,7 @@ Budd's final MAP at its own controls under exact_front version 1 (the free-cliff
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360G, up to 1 h
 - **Job ids:** 11825453
-- **Code:** 4426372; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s10
+- **Code:** 4426372; Quartz worktree ismip7_reinvert_s10 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s10.tar.gz)
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 10 min; ISMIP7_MAXITER=1
@@ -5717,7 +5717,7 @@ Budd's final MAP through the forward's t = 0 solve under exact_front version 1 (
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, up to 1 h
 - **Job ids:** 11825457
-- **Code:** 4426372; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s10
+- **Code:** 4426372; Quartz worktree ismip7_reinvert_s10 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s10.tar.gz)
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 3 min; the solve 104 s
@@ -5738,7 +5738,7 @@ Budd's final MAP at its own controls under exact_front version 2 (the push of th
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360G, up to 1 h
 - **Job ids:** 11825454
-- **Code:** 4426372; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s10
+- **Code:** 4426372; Quartz worktree ismip7_reinvert_s10 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s10.tar.gz)
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 11 min; ISMIP7_MAXITER=1
@@ -5759,7 +5759,7 @@ Budd's final MAP through the forward's t = 0 solve under exact_front version 2 (
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, up to 1 h
 - **Job ids:** 11825458 11825459
-- **Code:** 4426372; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s10
+- **Code:** 4426372; Quartz worktree ismip7_reinvert_s10 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s10.tar.gz)
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 3 min; the solve 121 s; the comparison (check_cliff_facets.py --compare, 16 ranks) 1.5 min
@@ -5801,7 +5801,7 @@ Stage-2 path smoke on the 20 km buffered mesh from Budd's stage-1 checkpoint, co
 - **Site / partition:** IU Quartz, debug partition
 - **Ranks / memory:** 32 ranks, 160G
 - **Job ids:** 10963952
-- **Code:** 9683007 with the stage-2 cells; Quartz clone /N/scratch/dlilien/ismip7_reinvert
+- **Code:** 9683007 with the stage-2 cells; Quartz clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** 16 min: load, ramp of 8 steps, 4 evaluations of 34 to 41 s
@@ -5822,7 +5822,7 @@ Stage-2 path smoke on the 20 km buffered mesh from Budd's stage-1 checkpoint, sm
 - **Site / partition:** IU Quartz, debug partition
 - **Ranks / memory:** 32 ranks, 160G
 - **Job ids:** 10964148
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** 16 min: load, ramp of 8 steps, 3 evaluations of 32 to 54 s
@@ -5842,7 +5842,7 @@ IU's final Budd controls under the front-cell rule: one evaluation on the curren
 - **Forcing versions:** the ef2 production option set with ISMIP7_RASTER_SAMPLE=vertex_front, ISMIP7_MAXITER=1
 - **Site / partition:** IU Quartz
 - **Job ids:** 11852446 11850403 11850404 11852986 11855202
-- **Code:** 47429e8 (issue #167 front cells and meshes, on PR 164's branch); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s14
+- **Code:** 47429e8 (issue #167 front cells and meshes, on PR 164's branch); Quartz worktree ismip7_reinvert_s14 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s14.tar.gz)
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 21 min each (Budd); RC (11850404) reached debug's 1 h wall before its first evaluation, as its state ramps from n = 1 under full_mumps
@@ -5923,11 +5923,11 @@ scpc_gamg against scpc_mumps on the first step of the 2 km Budd production contr
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg on 32 ranks, 96 GiB (11912202) and on 64 ranks, 160 GiB (11912203); ISMIP7_OUTPUT=0, ISMIP7_CHAIN=0
 - **Job ids:** 11912202 11912203
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; tags r2kiugamg32 and r2kiugamg64
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); tags r2kiugamg32 and r2kiugamg64
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-11
 - **Cost per model year:** 31 min each, cancelled after step 1
-- **Results path:** the step-1 rows of Quartz /N/scratch/dlilien/ismip7_prod2kiu/results/ctrl2015_cesm2_waccm_r2kiugamg{32,64}_2000_timeseries.csv
+- **Results path:** the step-1 rows of Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/prod_2km_iu/scratch_results/ismip7_prod2kiu/results/ctrl2015_cesm2_waccm_r2kiugamg{32,64}_2000_timeseries.csv
 - **Audit:** step 1 converged in 9 Newton iterations on both, as on scpc_mumps (11912182), with the same budget to the Gt/yr (SMB +2,457, melt -1,038, calving -1,292, dM/dt +127, resid 0.00). The step took 1,533 s on 32 ranks (31 condensed solves, 27,704 Krylov iterations) and 1,804 s on 64 (57 condensed solves, 51,593 iterations), against 76 s on scpc_mumps at 32 ranks (19 condensed solves of one iteration each)
 - **Notes:** IU's check before the production suite (antarctica/reports/rehearsal_25km_iu.md, section 'The 2 km production suite'). At about 20 times the step cost IU cancelled both and kept scpc_mumps for every production core.
 
@@ -5981,10 +5981,10 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks; the DG1 point refit 240 GiB, 1 h 23; the DG1 cell_mean inversion 240 GiB, 1 h 47; historicals 128 GiB, 6.1 h DG0 point, 5.4 h DG0 cell_mean, 8.2 h DG1 point, 6.2 h DG1 cell_mean
 - **Job ids:** 12204198 12253651 12253652 12253653 12253654 12253655 12261931 12262067
-- **Code:** 0220ece (this PR at 32b378d merged with main 92b6598, which carries PR 169's DG1 forcing; code-identical to PR 170's head 47bdfcc, which differs by one README line), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runfymg; wrapper submit_fymg.sh and collector fymg_collect.py; the DG1 point refit ran on 3654503 (PR 169), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/rundg1, wrapper submit_dg1.sh inv
+- **Code:** 0220ece (this PR at 32b378d merged with main 92b6598, which carries PR 169's DG1 forcing; code-identical to PR 170's head 47bdfcc, which differs by one README line), Quartz worktree ismip7_rehearsal25iu/runfymg, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/runfymg and its HEAD 0220ece in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/runfymg_HEAD_0220ece.bundle; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_fymg.sh and collector fymg_collect.py; the DG1 point refit ran on 3654503 (PR 169), Quartz worktree ismip7_rehearsal25iu/rundg1, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/rundg1, wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_dg1.sh inv
 - **Started:** 2026-10-14
 - **Finished:** 2026-10-15
-- **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/json/fymg_hist2km.json, figs/fymg_hist2km.png, csv/hist_cesm2_waccm_fymg2km*, logs/ismip7_{inv_12253651,fwd_12253652..5}.out, scripts/{submit_fymg.sh,fymg_collect.py,plot_fymg.py}; the DG1 cell_mean MAP and the forward states on /N/scratch/dlilien/ismip7_fymg; the DG1 point refit's MAP /N/scratch/dlilien/ismip7_dg1/maps/inversion_icepack2_budd_n3_dg1_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_vfcontrols.h5 and its log rundg1/logs/ismip7_inv_12204198.out; sections 9 and 10's analyses (jobs 12261931 and 12262067, serial, debug partition): json/dh_basins_dg1cm_vs_prod.json, json/shelf_coupling_2km.json, figs/dh_maps_dg1cm_vs_prod.png, figs/shelf_coupling_2km.png, scripts/{dh_maps_fymg.py,shelf_coupling_fymg.py,plot_shelf_coupling.py}
+- **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/json/fymg_hist2km.json, figs/fymg_hist2km.png, csv/hist_cesm2_waccm_fymg2km*, logs/ismip7_{inv_12253651,fwd_12253652..5}.out, scripts/{submit_fymg.sh,fymg_collect.py,plot_fymg.py}; the DG1 cell_mean MAP and the forward states in /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_fymg; the DG1 point refit's MAP /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/maps/inversion_icepack2_budd_n3_dg1_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_vfcontrols.h5 and its log rundg1/logs/ismip7_inv_12204198.out; sections 9 and 10's analyses (jobs 12261931 and 12262067, serial, debug partition): json/dh_basins_dg1cm_vs_prod.json, json/shelf_coupling_2km.json, figs/dh_maps_dg1cm_vs_prod.png, figs/shelf_coupling_2km.png, scripts/{dh_maps_fymg.py,shelf_coupling_fymg.py,plot_shelf_coupling.py}
 - **Audit:** DG1 point refit (12204198): 154 evaluations, misfit 2,130 to 1,275, \|grad\| 0.52, 50,220 unobserved nodes. All four reached 2015, resid 0.00. MAP misfit 1,271 / 1,960 / 1,275 / 1,984 (DG0 point, DG0 cell_mean, DG1 point, DG1 cell_mean). VAF change from 2003.025 to 2015: +15.55, +11.08, +7.65, +4.22 mm (production historical +15.46); by 2004 +0.53, +0.06, +0.39, -0.05. Grounding-line flux 2003 1,775, 1,949, 1,887, 2,061 Gt/yr, mean of 2012 to 2014 1,530, 1,644, 1,881, 1,948. Grounded area 2003 to 2014 +10,900, +11,100, -1,500, -1,700 km². Total mass change by 2015 +1,616, +268, -573, -1,579 Gt. SMB 2,453 Gt/yr in all; melt 1,043 (DG0) and 1,085 (DG1). Against Smith et al. (2020) over 2003 to 2015, grounded ice on observed cells: DG1 cell_mean +530 Gt, production +3,990, Smith -936; floating ice -1,734 and -3,741 Gt. Over 639 grounding-line segments the correlation of shelf and grounded thickness change within 20 km is +0.08 (production), +0.18 / +0.17 (DG0 point / cell_mean), +0.10 / +0.12 (DG1 point / cell_mean), +0.62 (Smith); behind shelves thinning more than 5 m the grounded ice thins in 40, 39, 47, 55 and 61 % of segments (Smith 89 %)
 - **Notes:** The historicals differ only in the geometry space and the MAP: CESM2-WACCM 2003 to 2015 with the 12-year Smith dH/dt backdate, ISMIP7_APPARENT_MB=0, ISMIP7_FIXED_FRONT=1, ISMIP7_FRACTURE=none, ISMIP7_DT=0.025, scpc_mumps, ISMIP7_MAP_CLIP=0, SMB-elevation feedback on, the 2 km vertex_front deltaT file at K 6.5e-5. Reference: the production historical r2kiurlcnoamb gains 15.46 mm of VAF by 2015. Section 8 of antarctica/reports/first_year_mass_gain_iu.md; sections 9 and 10 read the same runs
 
@@ -5999,9 +5999,9 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 128 GiB, 3.5-day chain links; 0.52 h a model year to 2018.7
 - **Job ids:** 12261774
-- **Code:** 0220ece (code-identical to PR 170's head), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runfymg; wrapper submit_fymg.sh proj ssp126_cesm_waccm dg1 cell_mean
+- **Code:** 0220ece (code-identical to PR 170's head), Quartz worktree ismip7_rehearsal25iu/runfymg, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/runfymg and its HEAD 0220ece in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/runfymg_HEAD_0220ece.bundle; wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_fymg.sh proj ssp126_cesm_waccm dg1 cell_mean
 - **Started:** 2026-10-15
-- **Results path:** /N/scratch/dlilien/ismip7_fymg/results/ssp126_cesm2_waccm_fymg2kmdg1cellmean_2000_*; Quartz antarctica/results/first_year_mass_gain_iu/figs/fymg_vaf_ssp126_to2018.png, csv/ssp126_cesm2_waccm_fymg2kmdg1cellmean_2000_timeseries_to2018.7.csv, scripts/plot_fymg_ext.py
+- **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_fymg/results/ssp126_cesm2_waccm_fymg2kmdg1cellmean_2000_*; Quartz antarctica/results/first_year_mass_gain_iu/figs/fymg_vaf_ssp126_to2018.png, csv/ssp126_cesm2_waccm_fymg2kmdg1cellmean_2000_timeseries_to2018.7.csv, scripts/plot_fymg_ext.py
 - **Notes:** Section 10 of antarctica/reports/first_year_mass_gain_iu.md. The production ssp126's settings (job 11912183, ISMIP7_FRACTURE=none, no apparent MB, SMB-elevation feedback, the 2 km vertex_front deltaT file at K 6.5e-5) but for ISMIP7_GEOMETRY_SPACE=dg1 and the DG1 cell_mean MAP, to the driver's 2301. The restart's first solve converged in 2 Newton iterations. Over 2015 to 2017: VAF change in 2015, 2016 and 2017 of +0.05, +0.25 and +0.24 mm against +1.07, +1.30 and +1.32 for the production ssp126; grounding-line flux 1,930 to 1,963 against 1,545 to 1,558 Gt/yr; resid 0.00
 
 ### test-2km-first-year-velocity-sample
@@ -6015,10 +6015,10 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks: inversions 240 GiB (1 h 38 and 2 h 15), forwards 96 GiB (38 min); analyses serial (8 to 14 min) and front_flux_check on 2 ranks
 - **Job ids:** 12187141 12187142 12242353 12242798 12242802 12242805 12242957 12242958 12243533 12243574 12252781 12252803
-- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs
+- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)
 - **Started:** 2026-10-13
 - **Finished:** 2026-10-14
-- **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/json/gn_2km_*.json, json/vsdiff_2km.json, vsflux_2km.json, ff_vs2km.json, ffacets_2km.json, figs/vsdiff_2km.png; the MAPs and forward states on /N/scratch/dlilien/ismip7_vs
+- **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/json/gn_2km_*.json, json/vsdiff_2km.json, vsflux_2km.json, ff_vs2km.json, ffacets_2km.json, figs/vsdiff_2km.png; the MAPs and forward states in /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_vs
 - **Audit:** Unobserved nodes 50,220 and 38,693 of 969,764; misfit 1,271 and 1,960, \|grad\| 0.40 and 1.36. Tendency nb 1.45 and 1.40, bin 1.94 and 1.92 m/yr; year-1 VAF gain +0.53 and +0.06 mm; grounding-line flux over the year 1,775 and 1,949, calving 1,378 and 1,590 Gt/yr. The VAF difference (-0.48 mm, -185 Gt grounded) lies within 20 km of the 2003 grounding line (0 to 5 km -0.24, 5 to 20 km -0.21, 20 to 50 km -0.06 mm). front_flux_check at t=0: grounding line 2,256 and 2,396 against 2,156 (point target) and 2,167 (cell-mean target); floating front 1,320 and 1,518 against 998 and 1,282; grounded front 261 and 1,277 against 81 and 132, of which 151 and 1,101 Gt/yr cross three thin unobserved front facets at Shirase Glacier near (1,385, 1,750) km at up to 2.4e5 and 1.9e6 m/yr
 - **Notes:** Sections 2 and 5 of antarctica/reports/first_year_mass_gain_iu.md; calibrated melt from results/rehearsal_2km_iu/calibration/deltaT_per_basin_2000_K6.500e-05.npz
 
@@ -6033,9 +6033,9 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition (niced)
 - **Ranks / memory:** 32 ranks; inversions 240 GiB with 6.5 h links, forwards 96 GiB
 - **Job ids:** 12249701-12249716
-- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs
+- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)
 - **Started:** 2026-10-14
-- **Results path:** /N/scratch/dlilien/ismip7_vs (maps/inversion_cv_budd_2km_*, gn_cv2km*.json); cv_collect.py tabulates them
+- **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_vs (maps/inversion_cv_budd_2km_*, gn_cv2km*.json); cv_collect.py tabulates them
 - **Notes:** Section 6 of antarctica/reports/first_year_mass_gain_iu.md. Three stages for cell_mean and one for point, the point MAP being near convergence at 150 iterations
 
 ### test-2km-full-mumps-issue161-gcwatch
@@ -6054,7 +6054,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 2 h 50 min and 2 h 45 min for 58 evaluations (162 and 153 s an evaluation, adjoint 107 and 103 s)
-- **Results path:** /N/scratch/dlilien/ismip7_issue161_jobs/probe/q2_before_gcw.*, q2_fix_gcw.*
+- **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/probe/q2_before_gcw.*, q2_fix_gcw.*
 - **Audit:** at most 4 Firedrake variational solvers alive after any evaluation in either arm (120 built), so Python's collector keeps up with the dropped ones; final totals 1.976163179e+03 and 1.976163181e+03 after 55 iterations (1.4e-15 at evaluation 10, 8.8e-13 at 40, 1.3e-9 at 58), the same Newton iterations at every evaluation; PETSc -log_view on rank 0 at exit: 25 of 1,658 matrices alive without the release, 10 with it, every SNES, KSP and PC destroyed (121 of 121)
 - **Notes:** Issue #161. The other 2 km arms took an object census after every evaluation, which walks the collector's lists; this pair does not.
 
@@ -6074,7 +6074,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 2 h 33 min and 2 h 24 min for 62 evaluations (136 and 128 s an evaluation, adjoint 92 and 90 s); 1 h 45 min for 42 evaluations under ICNTL(13)=1
-- **Results path:** /N/scratch/dlilien/ismip7_issue161_jobs/probe/q2_before_long.*, q2_fix_long.*, q2_icntl13.*
+- **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/probe/q2_before_long.*, q2_fix_long.*, q2_icntl13.*
 - **Audit:** objectives agree to 1.3e-14 at evaluation 10 and 8.4e-13 at 20, then drift as roundoff compounds through L-BFGS-B (9.5e-11 at 40, 3.4e-5 at 62, the same Newton iterations at every evaluation); same-code reruns spread alike (2.0e-15 at evaluation 2, 1.6e-11 at 22). PETSc -log_view on rank 0 at exit: 37 of 1,766 matrices alive without the release, 10 with it; every SNES, KSP and PC destroyed in both.
 - **Notes:** Issue #161. Turning ScaLAPACK off for the root changed neither the trend nor the adjoint time (95 s).
 
@@ -6094,7 +6094,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 2 h 6 min and 2 h 5 min for 48 evaluations (141 and 140 s an evaluation, adjoint 92 and 95 s); 1 h 35 min for 33 evaluations with the counters
-- **Results path:** /N/scratch/dlilien/ismip7_issue161_jobs/probe/q2_before_moving.*, q2_fix_moving.*, q2_before_moving_mumps.*
+- **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/probe/q2_before_moving.*, q2_fix_moving.*, q2_before_moving_mumps.*
 - **Audit:** final totals 2.006562430e+03 and 2.006562429e+03 after 45 iterations, the same Newton iterations; PETSc -log_view on rank 0 at exit: 28 of 1,388 matrices alive without the release, 10 with it, every SNES, KSP and PC destroyed. The cached forward solver was built once and its MUMPS instance reported INFO(16) 1,482 to 1,488 MB allocated, INFO(22) 654 to 659 MB used and RINFO(8) 1,552 MB at every evaluation.
 - **Notes:** Issue #161.
 
@@ -6114,7 +6114,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 55 to 64 min each, 22 evaluations: 132 to 153 s an evaluation (forward 39 to 44 s, adjoint 91 to 107 s)
-- **Results path:** /N/scratch/dlilien/ismip7_issue161_jobs/probe/<arm>.json (timing), <arm>.jsonl (probe), <arm>_log_view.txt; logs/inv_<job>.out
+- **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/probe/<arm>.json (timing), <arm>.jsonl (probe), <arm>_log_view.txt; logs/inv_<job>.out
 - **Audit:** objectives within 1.2e-12 at evaluation 20 between every pair, the same spread as same-code reruns (32-rank runs are not bit-identical); PETSc -log_view on rank 0: every SNES, KSP and PC destroyed (49 of 49) in every arm, 10 of 686 matrices alive at exit in every arm but the plain phases probe (28). malloc_trim returned 115 to 226 MiB a rank every evaluation (median 156) and left the trend. Phase medians from evaluation 6 (MiB a rank, after a trim at each boundary): plain forward +63, to the first adjoint solve -60, adjoint +797, to the end of compute_gradient -727, so an evaluation keeps +74, all of it anonymous memory; with the release the same steps are +9, +3, +802, -790, keeping +14. tracemalloc saw Python's own memory flat at 909 to 937 MiB a rank over evaluations 2 to 6.
 - **Notes:** Issue #161. Python 3.14, Firedrake 2026.04, PETSc 3.25.5, MUMPS 5.8.2, OpenBLAS 0.3.13, Open MPI 4.0.5.
 
@@ -6134,7 +6134,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-01
 - **Cost per model year:** 30 min wall; evaluations after the first: 102 s forward, 52 s adjoint, 168 s each
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/2km_full_p32.h5 (scratch, purged after 30 days); timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/2km_full_p32.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** 5 L-BFGS-B iterations, 7 evaluations, objective 5.25148e4 to 4.935180e4; published residual 1.0e-4 after a 0-iteration final solve
 - **Notes:** cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)
 
@@ -6154,7 +6154,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-01
 - **Cost per model year:** 25 min wall; 70 s forward, 12 s adjoint, 95 s an evaluation; 110 V-cycles a condensed solve against bt's 64
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/2km_gamgnl8_p32.h5 (scratch, purged after 30 days); timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/2km_gamgnl8_p32.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** every evaluation's objective within 6.5e-8 of the full_mumps arm, final 4.935180e4; no forward failed
 - **Notes:** cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)
 
@@ -6174,7 +6174,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-01
 - **Cost per model year:** 28 min wall; 61 s forward, 20 s adjoint, 107 s an evaluation
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/2km_gamg_p16.h5 (scratch, purged after 30 days); timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/2km_gamg_p16.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** the same trajectory as on 32 ranks, every evaluation within 2.6e-6 of it (the ramp's state follows the partition), final 4.935170e4; no forward failed
 - **Notes:** cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)
 
@@ -6194,7 +6194,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-01
 - **Cost per model year:** 19 min wall; 41 s forward, 9.3 s adjoint, 64 s an evaluation; 4.5 Newton iterations and 64 V-cycles a condensed solve
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/2km_gamg_p32.h5 (scratch, purged after 30 days); timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/2km_gamg_p32.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** every evaluation's objective within 3.7e-6 of test-2km-inversion-cost-full-mumps-p32 (the largest at the rejected trial, evaluation 4), final 4.935180e4 in both; no forward failed; published residual 1.3e-3
 - **Notes:** cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)
 
@@ -6210,11 +6210,11 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c84); peak RSS 5.0 GB a rank (sacct MaxRSS)
 - **Job ids:** 10950102
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 3 h 25 min wall; ramp 468 s; first evaluation 235 s; 162.9 s an evaluation with its checkpoint (median), of it 48.7 s the forward, 94.5 s the adjoint and 16.9 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/2km_mass_full.h5 (sha256 02785d92) and timing/2km_mass_full.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/2km_mass_full.h5 (sha256 02785d92) and timing/2km_mass_full.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
 - **Audit:** 60 iterations, 71 evaluations, objective 1.292839e5 to 7.093891e4; every direct forward converged, no lost trial, no rescue; published residual 3.8e0; the other solver's evaluations within 1.9e-7 (objective) over the first 38, then drifting apart as L-BFGS-B's history amplifies the difference (1.5e-3 at one trial; best objectives 7.093891e4 and 7.083074e4)
 - **Notes:** issues #156 and #157, the final round on the production settings: the solver pair at 2 km (test-2km-inversion-final-mass-scpc-gamg) and the optimizer arms test-2km-inversion-final-{tao,none,mass}-*
 
@@ -6230,11 +6230,11 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c57); peak RSS 2.8 GB a rank (sacct MaxRSS)
 - **Job ids:** 10950103
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 2 h 19 min wall; ramp 486 s; first evaluation 99 s; 108.5 s an evaluation with its checkpoint (median), of it 73.2 s the forward, 16.1 s the adjoint and 16.3 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/2km_mass_gamg.h5 (sha256 ff459a59) and timing/2km_mass_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/2km_mass_gamg.h5 (sha256 ff459a59) and timing/2km_mass_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
 - **Audit:** 60 iterations, 71 evaluations, objective 1.292839e5 to 7.083074e4; every direct forward converged, no lost trial, no rescue; published residual 2.0e0; the other solver's evaluations within 1.9e-7 (objective) over the first 38, then drifting apart as L-BFGS-B's history amplifies the difference (1.5e-3 at one trial; best objectives 7.093891e4 and 7.083074e4)
 - **Notes:** issues #156 and #157, the final round on the production settings: the solver pair at 2 km (test-2km-inversion-final-mass-full-mumps) and the optimizer arms test-2km-inversion-final-{tao,none,mass}-*
 
@@ -6250,11 +6250,11 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c70); peak RSS 5.1 GB a rank (sacct MaxRSS)
 - **Job ids:** 10950100
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 3 h 06 min wall; ramp 511 s; first evaluation 241 s; 155.2 s an evaluation with its checkpoint (median), of it 47.4 s the forward, 89.1 s the adjoint and 16.5 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/2km_none_full.h5 (sha256 272e0a66) and timing/2km_none_full.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/2km_none_full.h5 (sha256 272e0a66) and timing/2km_none_full.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
 - **Audit:** 60 iterations, 65 evaluations, objective 1.292839e5 to 5.819865e4; every direct forward converged, no lost trial, no rescue; published residual 6.7e-1; the other solver's evaluations within 3.6e-7 (objective) over the first 37, then drifting apart as L-BFGS-B's history amplifies the difference (4.8e-5 at most; best objectives 5.819865e4 and 5.819830e4)
 - **Notes:** issues #156 and #157, the final round on the production settings: the solver pair at 2 km (test-2km-inversion-final-none-scpc-gamg) and the optimizer arms test-2km-inversion-final-{tao,none,mass}-*
 
@@ -6270,11 +6270,11 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c27); peak RSS 2.8 GB a rank (sacct MaxRSS)
 - **Job ids:** 10950101
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 2 h 04 min wall; ramp 417 s; first evaluation 107 s; 106.0 s an evaluation with its checkpoint (median), of it 72.3 s the forward, 14.1 s the adjoint and 16.1 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/2km_none_gamg.h5 (sha256 6faaad73) and timing/2km_none_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/2km_none_gamg.h5 (sha256 6faaad73) and timing/2km_none_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
 - **Audit:** 60 iterations, 65 evaluations, objective 1.292839e5 to 5.819830e4; every direct forward converged, no lost trial, no rescue; published residual 4.9e-1; the other solver's evaluations within 3.6e-7 (objective) over the first 37, then drifting apart as L-BFGS-B's history amplifies the difference (4.8e-5 at most; best objectives 5.819865e4 and 5.819830e4)
 - **Notes:** issues #156 and #157, the final round on the production settings: the solver pair at 2 km (test-2km-inversion-final-none-full-mumps) and the optimizer arms test-2km-inversion-final-{tao,none,mass}-*
 
@@ -6290,11 +6290,11 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c85); peak RSS 4.8 GB a rank (sacct MaxRSS)
 - **Job ids:** 10950098
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 3 h 32 min wall; ramp 444 s; first evaluation 249 s; 154.8 s a TAO iteration of one evaluation (median), 154 s an evaluation on average, of it 46.4 s the forward, 89.3 s the adjoint and TAO's own work and 16.4 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/2km_tao_full.h5 (sha256 2c0a0e03) and timing/2km_tao_full.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/2km_tao_full.h5 (sha256 2c0a0e03) and timing/2km_tao_full.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
 - **Audit:** 60 iterations, 79 evaluations, objective 1.292839e5 to 8.308147e4; every direct forward converged, no lost trial, no rescue; published residual 1.0e-2; every one of 61 iterates within 4.3e-7 (objective) of the other solver's, within 1e-8 over the first 30
 - **Notes:** issues #156 and #157, the final round on the production settings: the solver pair at 2 km (test-2km-inversion-final-tao-scpc-gamg) and the optimizer arms test-2km-inversion-final-{tao,none,mass}-*
 
@@ -6310,11 +6310,11 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, one node (c70); peak RSS 2.7 GB a rank (sacct MaxRSS)
 - **Job ids:** 10950099
-- **Code:** 72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e
+- **Code:** 72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e
 - **Started:** 2026-10-03
 - **Finished:** 2026-10-03
 - **Cost per model year:** 2 h 34 min wall; ramp 517 s; first evaluation 123 s; 115.0 s a TAO iteration of one evaluation (median), 109 s an evaluation on average, of it 80.2 s the forward, 16.9 s the adjoint and TAO's own work and 16.3 s the checkpoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_final_runs/maps/2km_tao_gamg.h5 (sha256 a865856b) and timing/2km_tao_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/2km_tao_gamg.h5 (sha256 a865856b) and timing/2km_tao_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh
 - **Audit:** 60 iterations, 79 evaluations, objective 1.292839e5 to 8.308150e4; every direct forward converged, no lost trial, no rescue; published residual 1.0e-2; every one of 61 iterates within 4.3e-7 (objective) of the other solver's, within 1e-8 over the first 30
 - **Notes:** issues #156 and #157, the final round on the production settings: the solver pair at 2 km (test-2km-inversion-final-tao-full-mumps) and the optimizer arms test-2km-inversion-final-{tao,none,mass}-*
 
@@ -6334,7 +6334,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-02
 - **Finished:** 2026-10-02
 - **Cost per model year:** 75 min wall; 3820 s in 21 evaluations, 182 s each on average, 13 s of it outside the forward and adjoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue157_runs/maps/mass.h5 (sha256 3c10890d; scratch, purged after 30 days); timing record, log and submit script copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/optimizer_issue157/2km
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue157_runs/maps/mass.h5 (sha256 3c10890d); timing record, log and submit script copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/optimizer_issue157/2km
 - **Audit:** 15 L-BFGS-B iterations, objective 5.621096e4 to 5.146191e4; the first six evaluations moved the objective by 0.06 percent, each decrease about four times the last; no forward failure; published residual 1.03e-4
 - **Notes:** issue #157 optimizer comparison, arm mass; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -6354,7 +6354,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-02
 - **Finished:** 2026-10-02
 - **Cost per model year:** 109 min wall; 5801 s in 21 evaluations over 15 iterations, 236 to 250 s an iteration of one evaluation, 896 s at the rescued one
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue157_runs/maps/mass_consistent.h5 (sha256 d141375c; scratch, purged after 30 days); timing record, log and submit script copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/optimizer_issue157/2km
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue157_runs/maps/mass_consistent.h5 (sha256 d141375c); timing record, log and submit script copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/optimizer_issue157/2km
 - **Audit:** 15 TAO iterations, objective 5.621096e4 to 5.380034e4; one trial point failed in iteration 3 and the re-ramp rescue recovered it; iterations 0 to 5 reproduce job 10824069 (test-2km-inversion-prod-full-mumps-ec0) to 7e-15 relative; published residual 1.09e-4
 - **Notes:** issue #157 optimizer comparison, arm mass_consistent; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -6374,7 +6374,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-02
 - **Finished:** 2026-10-02
 - **Cost per model year:** 67 min wall; 3356 s in 18 evaluations, 186 s each on average, 13 s of it outside the forward and adjoint
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue157_runs/maps/none.h5 (sha256 3e51b7c1; scratch, purged after 30 days); timing record, log and submit script copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/optimizer_issue157/2km
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue157_runs/maps/none.h5 (sha256 3e51b7c1); timing record, log and submit script copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/optimizer_issue157/2km
 - **Audit:** 15 L-BFGS-B iterations, objective 5.621096e4 to 5.044395e4; no forward failure; published residual 1.05e-4
 - **Notes:** issue #157 optimizer comparison, arm none; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -6394,7 +6394,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** 47 min wall; 227 s a TAO iteration
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/ec0_2km_full_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/ec0_2km_full_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** 5 TAO iterations, objective 5.621096e4 to 5.570022e4; one trial point failed in iteration 3 and the re-ramp rescue recovered it (878 s that iteration); published residual 7.9e-2
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -6414,7 +6414,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** 1 h 57 min wall; 982 s a TAO iteration after the first (1130 s with the compile)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/prod2km_full_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/prod2km_full_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** 5 TAO iterations, objective 5.621096e4 to 5.570022e4; no forward failed; published residual 40.9
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -6434,7 +6434,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** 42 min wall; 175 s a TAO iteration; 3.8 Newton iterations and 103 V-cycles a condensed solve
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/ec0_2km_gamg_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/ec0_2km_gamg_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** every iterate within 1.0e-9 of test-2km-inversion-prod-full-mumps-ec0, final 5.570022e4; the same trial point failed in iteration 3 and took the same rescue (795 s); every recorded solve confirmed with no step; 1.3 times faster than full_mumps
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -6454,7 +6454,7 @@ Cell-scale noise of the 2 km Budd production historical, control and ssp585 agai
 - **Started:** 2026-10-01
 - **Finished:** 2026-10-02
 - **Cost per model year:** 4 h 00 min wall; 2405 s a TAO iteration after the first (1886 s the first); 10.3 Newton iterations and 242 V-cycles a condensed solve, about 625 at the n = 1 step of each evaluation
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/prod2km_gamg_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/prod2km_gamg_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz
 - **Audit:** every iterate within 1.1e-9 of test-2km-inversion-prod-full-mumps-ec1, final 5.570022e4; no forward failed; every recorded solve confirmed with no step; 2.4 times slower than full_mumps
 - **Notes:** issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)
 
@@ -6471,7 +6471,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10969231
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6492,7 +6492,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: the cons
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10969232
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6513,7 +6513,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10969342
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6534,7 +6534,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10969343
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6555,7 +6555,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10969230
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6576,7 +6576,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10969233
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6597,7 +6597,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: the smoo
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10968923
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6618,7 +6618,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10969497
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6639,7 +6639,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: the vert
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10969613
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
@@ -6660,7 +6660,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: the vert
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, up to 1 h
 - **Job ids:** 10972023
-- **Code:** 60c0262; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s4
+- **Code:** 60c0262; Quartz worktree ismip7_reinvert_s4 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s4.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 28 min with the ramp; ISMIP7_MAXITER=1
@@ -6912,7 +6912,7 @@ RC stage 2 cold start from the rho 75 km MAP with the vertex gate and the 10 m m
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 3 h
 - **Job ids:** 10972101
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 1 h 50 min in the startup ramp, cancelled
@@ -6933,7 +6933,7 @@ RC stage 2 on the 20 km buffered mesh from the rho 75 km MAP, with the vertex ga
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G then 220G, 12 h then 16 h
 - **Job ids:** 10971050 10971250
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** scpc_gamg: forwards of 580 to 940 s (870 Krylov iterations a condensed solve, 150 at rho 750 km), cancelled at evaluation 5; full_mumps: about 145 s an evaluation; the full_mumps link ran 103 evaluations in 4 h 28 min, then rank 29 was OOM-killed at 220G (09:42 on 5 October) and the job hung until its 16 h limit
@@ -6954,7 +6954,7 @@ Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 k
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 2 h
 - **Job ids:** 10993794
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h (TIMEOUT)
@@ -6975,7 +6975,7 @@ Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 k
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 2 h
 - **Job ids:** 10993795
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h (TIMEOUT)
@@ -6996,7 +6996,7 @@ Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 k
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 2 h
 - **Job ids:** 11002795
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h (TIMEOUT)
@@ -7017,7 +7017,7 @@ Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 k
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 2 h
 - **Job ids:** 11002796
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h (TIMEOUT)
@@ -7038,7 +7038,7 @@ RC stage 2 on the 20 km buffered mesh with the ocean drag off (300 iterations) (
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 12 h
 - **Job ids:** 10969345
-- **Code:** 3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2
+- **Code:** 3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 310 evaluations in 3 h 54 min
@@ -7059,7 +7059,7 @@ The RC final-product inversion's first evaluations under scpc_mumps (speed and R
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 480G, 3 h
 - **Job ids:** 11452514
-- **Code:** aa06dc8; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s6
+- **Code:** aa06dc8; Quartz worktree ismip7_reinvert_s6 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s6.tar.gz)
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 15 min 31 s, 8 evaluations
@@ -7080,7 +7080,7 @@ RC stage 2 on the 20 km buffered mesh with the drag kept off every node of the i
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 12 h
 - **Job ids:** 10969700
-- **Code:** 4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3
+- **Code:** 4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 309 evaluations in 6 h 08 min
@@ -7164,7 +7164,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP with the fluidit
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 10 h
 - **Job ids:** 10972022
-- **Code:** 60c0262; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s4
+- **Code:** 60c0262; Quartz worktree ismip7_reinvert_s4 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s4.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 10 h (TIMEOUT), 46 evaluations; forwards up to 936 s
@@ -7185,7 +7185,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP with the fluidit
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 10 h
 - **Job ids:** 10972021
-- **Code:** 60c0262; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s4
+- **Code:** 60c0262; Quartz worktree ismip7_reinvert_s4 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s4.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 10 h (TIMEOUT), 136 evaluations; forwards up to 544 s
@@ -7206,7 +7206,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP with the fluidit
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 10 h
 - **Job ids:** 10972020
-- **Code:** 60c0262; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s4
+- **Code:** 60c0262; Quartz worktree ismip7_reinvert_s4 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s4.tar.gz)
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 5 h 54 min, 155 evaluations
@@ -7227,7 +7227,7 @@ One fresh scpc_gamg solver on Rice's mesh at RC's final stage-1 controls (Krylov
 - **Site / partition:** IU Quartz, debug partition
 - **Ranks / memory:** 32 ranks, 160G
 - **Job ids:** 10968526
-- **Code:** 9683007; Quartz clone /N/scratch/dlilien/ismip7_reinvert
+- **Code:** 9683007; Quartz clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** three evaluations, 61 s forward and 13 s adjoint (median)
@@ -7248,7 +7248,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP, curvature x0.01
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 8 h
 - **Job ids:** 10969229
-- **Code:** 9683007; Quartz clone /N/scratch/dlilien/ismip7_reinvert
+- **Code:** 9683007; Quartz clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 158 evaluations in 6 h 22 min
@@ -7269,7 +7269,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP, curvature x0.1 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 8 h
 - **Job ids:** 10969228
-- **Code:** 9683007; Quartz clone /N/scratch/dlilien/ismip7_reinvert
+- **Code:** 9683007; Quartz clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 157 evaluations in 5 h 30 min
@@ -7290,7 +7290,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP, curvature x1 (r
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 8 h
 - **Job ids:** 10969227
-- **Code:** 9683007; Quartz clone /N/scratch/dlilien/ismip7_reinvert
+- **Code:** 9683007; Quartz clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 157 evaluations in 3 h 32 min
@@ -9021,7 +9021,7 @@ DG1 forward from the DG1 probe MAP, unforced, no apparent MB: cell-scale dH nois
 - **Started:** 2026-09-25
 - **Finished:** 2026-09-25
 - **Cost per model year:** 3 min 35 s for 5 model years (2 min 40 s at 65c870a)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue26/antarctica/results/ocx_issue26_32000_* and ocx_issue26b_32000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/melt_calibration_iu/scratch_results/ismip7_issue26/antarctica/results/ocx_issue26_32000_* and ocx_issue26b_32000_*
 - **Audit:** resid 0.0 Gt on all 50 rows and forward exit 0 at both commits, the rerun (job 10644548) passing the thickness-floor check; the provenance line names the file, its sha256, K50 and both meshes, and the raster sampling is the calibration's vertex. The first step books 1069.4891 Gt/yr of melt, the forward total check_melt_bound.py gives on the same mesh (job 10644430, 1069.489), and 1068.9659 at 1984. That check exits 1 by design: at 32 km the offsets fitted on the 1000 m mesh put the basins at 0.33 (basin 6) to 1.74 (basin 10) times their fitted totals
 - **Notes:** issues #26 and #30: the default calibration read with nothing set, through the forward's own driver, on a mesh other than the one it was fitted on. Run from a scratch clone of claude/issue-26-k50-default without ISMIP7_OUTPUT
 
@@ -9373,7 +9373,7 @@ t = 0 front thickness and observed front flux on the buffered meshes, by mesh an
 - **Forcing versions:** none (geometry only; fluxes under velocity_obs)
 - **Site / partition:** IU Quartz
 - **Job ids:** 11850256 11850257 11850402 11851440
-- **Code:** 47429e8 (issue #167 front cells and meshes, on PR 164's branch); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s14
+- **Code:** 47429e8 (issue #167 front cells and meshes, on PR 164's branch); Quartz worktree ismip7_reinvert_s14 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s14.tar.gz)
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 1 to 6 min each
@@ -9391,11 +9391,11 @@ Buffered 2 km and 1 km meshes whose nodes follow BedMachine's marine front (_fro
 - **Forcing versions:** none
 - **Site / partition:** IU Quartz
 - **Job ids:** 11850254 11850255 11850365 11850366
-- **Code:** 47429e8 (issue #167 front cells and meshes, on PR 164's branch); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s14
+- **Code:** 47429e8 (issue #167 front cells and meshes, on PR 164's branch); Quartz worktree ismip7_reinvert_s14 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s14.tar.gz)
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 7 min (2 km) and 9 min (1 km); 11850254 and 11850255 stopped at a ring of ice with no marine edge, fixed in 47429e8
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_s14/antarctica/mesh/ (the two .msh, their boundary-id sidecars and *_front.npz)
+- **Results path:** the two .msh, their boundary-id sidecars and *_front.npz, members antarctica/mesh/antarctica_{5000_2000,10000_1000}_buffered20000_frontbm{.msh,_front.npz} and antarctica/mesh/boundary_ids_antarctica_{5000_2000,10000_1000}_buffered20000_frontbm.json of /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s14.tar.gz (the worktree was removed on 22 October 2026)
 - **Audit:** mesh_antarctica.py --front bm: 66 front curves (14,868 points) at 2 km and 170 (31,101) at 1 km, every front point a mesh node. 6 % (2 km) and 8 % (1 km) more cells than the current buffered meshes (1,928,285 and 3,716,587).
 - **Notes:** issue #167: IU chose the front-cell rule (ISMIP7_RASTER_SAMPLE=vertex_front) on the current meshes over these (8 Oct): under the rule both carry the same t = 0 front flux within 3 % (test-i167-front-probes), and the current 2 km mesh starts the refit closer to its optimum (test-2km-budd-ef2-vertex-front-eval1). The mesh code stays (ISMIP7_MESH_FRONT=bm, default none).
 
@@ -9448,11 +9448,11 @@ One rank of four killed by the OOM killer or raising while the others wait in a 
 - **Site / partition:** IU Quartz, general partition, Slurm 25.11.8 with KillOnBadExit=0 and TaskPluginParam unset (no OOMKillStep)
 - **Ranks / memory:** 4 ranks, 4G, 10 min limit; the victim rank allocates 256 MiB blocks until the cgroup OOM-kills it, or raises RuntimeError
 - **Job ids:** 11462592 (OOM, plain srun), 11462594 and 11464621 (OOM, ismip7_mpirun), 11464622 (raise with Firedrake imported, ismip7_mpirun), 11464623 (raise with Firedrake imported, plain srun), 11462595 and 11462596 (raise without Firedrake, plain and ismip7_mpirun)
-- **Code:** 06cb0a9 (site_core.sh ismip7_mpirun); scratch clone /N/scratch/dlilien/ismip7_issue161
+- **Code:** 06cb0a9 (site_core.sh ismip7_mpirun); scratch clone ismip7_issue161, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** under 2 core-hours in all
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_issue161_jobs/ (oom_probe.py, oom_probe.script, logs/probe_<job>.out and .err)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/ (oom_probe.py, oom_probe.script, logs/probe_<job>.out and .err)
 - **Audit:** OOM under plain srun: the step was still running 2 min 10 s after Slurm logged the oom_kill event, three ranks waiting in the barrier, as in job 10971250 (cancelled by hand). OOM under ismip7_mpirun: srun printed 'Terminating StepId' and the step ended within the second Slurm logged the oom_kill event, every task Out Of Memory, jobs of 12 and 13 s in all; srun returned 1 (11464621, the first probe's script did not capture it). Raise with Firedrake imported: Firedrake's abort ends the step either way, in 14 s under ismip7_mpirun and 45 s under plain srun (Slurm's 32 s abort wait). Raise without Firedrake: the raising rank never exits (mpi4py blocks in MPI_Finalize), so neither launcher ends the step (both cancelled by hand); every ISMIP7 driver imports Firedrake.
 - **Notes:** Issue #161, item 2. Three submissions 11463855-11463857 are discarded: zsh did not split the loop's arguments, so all three ran the raise case without Firedrake under ismip7_mpirun.
 
@@ -9485,7 +9485,7 @@ icepack.fit against the point and cell-mean velocity targets on synthetic raster
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 1 task, 8 GiB, 17 s; Firedrake 2026.4.2
 - **Job ids:** 12249855
-- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs; fit_vs_cellmean.py carries icepack master's fit (commits 18b34b42 and c9a29780)
+- **Code:** c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle); fit_vs_cellmean.py carries icepack master's fit (commits 18b34b42 and c9a29780)
 - **Started:** 2026-10-14
 - **Finished:** 2026-10-14
 - **Results path:** Quartz antarctica/results/first_year_mass_gain_iu/json/fit_vs_cellmean.json
@@ -9544,7 +9544,7 @@ Core 1 at 2 km, IU Budd production: CESM2-WACCM historical from the relaxed MAP'
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11899766
-- **Code:** c4c9eb8 (this PR: a relaxed MAP gives its controls alone), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kc; wrapper submit_r2kiu.sh beside it
+- **Code:** c4c9eb8 (this PR: a relaxed MAP gives its controls alone), Quartz worktree ismip7_rehearsal25iu/run2kc (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kc.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 7 h 16 min of wall time on 32 ranks for 12 model years, 51.4 s a diagnostic solve on average
@@ -9596,7 +9596,7 @@ Core 2 at 2 km, IU Budd production: MRI-ESM2-0 historical from the relaxed MAP's
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0; yearly checkpoints kept
 - **Job ids:** 11899769
-- **Code:** c4c9eb8 (this PR: a relaxed MAP gives its controls alone), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kc; wrapper submit_r2kiu.sh beside it
+- **Code:** c4c9eb8 (this PR: a relaxed MAP gives its controls alone), Quartz worktree ismip7_rehearsal25iu/run2kc (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kc.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 7 h 44 min of wall time on 32 ranks for 12 model years, 54.9 s a diagnostic solve on average
@@ -9712,7 +9712,7 @@ Core 9 at 2 km, IU Budd production: control on the CESM2-WACCM ctrl forcing, rel
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912182 12256729
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb control (CORE=c01)
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb control (CORE=c01)
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-16
 - **Cost per model year:** 114 h 02 min of wall time on 32 ranks for 178.4 model years in 2 links, 56.9 s a diagnostic solve on average
@@ -9762,7 +9762,7 @@ Core 10 at 2 km, IU Budd production: control on the MRI-ESM2-0 ctrl forcing, rel
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912186 12256726
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb control (CORE=c02)
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb control (CORE=c02)
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-16
 - **Cost per model year:** 114 h 08 min of wall time on 32 ranks for 179.4 model years in 2 links, 56.5 s a diagnostic solve on average
@@ -9903,7 +9903,7 @@ Core 3 at 2 km, IU Budd production: ssp370 CESM2-WACCM, relaxed controls, withou
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912184
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb ssp370_cesm_waccm (CORE=c01)
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb ssp370_cesm_waccm (CORE=c01)
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-14
 - **Cost per model year:** 52 h 59 min of wall time on 32 ranks for 86 model years in 1 link, 54.6 s a diagnostic solve on average
@@ -9955,7 +9955,7 @@ Core 4 at 2 km, IU Budd production: ssp370 MRI-ESM2-0, relaxed controls, without
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912188
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb ssp370_mri_esm2 (CORE=c02)
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb ssp370_mri_esm2 (CORE=c02)
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-14
 - **Cost per model year:** 61 h 10 min of wall time on 32 ranks for 86 model years in 1 link, 62.2 s a diagnostic solve on average
@@ -10007,7 +10007,7 @@ Core 5 at 2 km, IU Budd production: ssp126 CESM2-WACCM, relaxed controls, withou
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912183 12256684
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb ssp126_cesm_waccm (CORE=c01)
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb ssp126_cesm_waccm (CORE=c01)
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-16
 - **Cost per model year:** 114 h 19 min of wall time on 32 ranks for 190.8 model years in 2 links, 53.1 s a diagnostic solve on average
@@ -10057,7 +10057,7 @@ Core 6 at 2 km, IU Budd production: ssp126 MRI-ESM2-0, relaxed controls, without
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912187 12256723 12307231
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb ssp126_mri_esm2 (CORE=c02)
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb ssp126_mri_esm2 (CORE=c02)
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-18
 - **Cost per model year:** 153 h 37 min of wall time on 32 ranks for 286 model years in 3 links, 47.6 s a diagnostic solve on average
@@ -10109,7 +10109,7 @@ Core 7 at 2 km, IU Budd production: ssp585 CESM2-WACCM, relaxed controls, withou
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912185 12256677 12306581 12348487
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb ssp585_cesm_waccm (CORE=c01)
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb ssp585_cesm_waccm (CORE=c01)
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-21
 - **Cost per model year:** 234 h 17 min of wall time on 32 ranks for 286 model years in 4 links, 72.3 s a diagnostic solve on average
@@ -10161,7 +10161,7 @@ Core 8 at 2 km, IU Budd production: ssp585 MRI-ESM2-0, relaxed controls, without
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912189 11981754 12273375
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh proj rlcnoamb ssp585_mri_esm2 (CORE=c02)
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh proj rlcnoamb ssp585_mri_esm2 (CORE=c02)
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-16
 - **Cost per model year:** 113 h 31 min of wall time on 32 ranks for 165.2 model years in 3 links, 60.5 s a diagnostic solve on average
@@ -10226,7 +10226,7 @@ Core 11 at 2 km, IU Budd production: OCX on the protocol forcing, relaxed contro
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 96 GiB, scpc_mumps, ISMIP7_MAP_CLIP=0, ISMIP7_OUTPUT=1; five-yearly checkpoints, three kept; 72 h links that resubmit themselves (projection.sbatch, ISMIP7_AUTO_RESUME=1)
 - **Job ids:** 11912190
-- **Code:** c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; wrapper submit_r2kiu.sh ocx rlcnoamb
+- **Code:** c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); wrapper /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/submit_r2kiu.sh ocx rlcnoamb
 - **Started:** 2026-10-11
 - **Finished:** 2026-10-12
 - **Cost per model year:** 12 h 52 min of wall time on 32 ranks for 23 model years in 1 link, 48.7 s a diagnostic solve on average

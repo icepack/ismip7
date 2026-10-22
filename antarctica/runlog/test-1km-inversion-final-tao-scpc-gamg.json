@@ -11,11 +11,11 @@
   "site": "IU Quartz, general partition",
   "resources": "32 ranks, one node (c57); peak RSS 4.2 GB a rank (sacct MaxRSS)",
   "jobs": "10950105",
-  "code": "72ac7a1 (PR 155), worktree /N/scratch/dlilien/ismip7_final; icepack_tools e7b923e",
+  "code": "72ac7a1 (PR 155), worktree ismip7_final (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_final.tar.gz); icepack_tools e7b923e",
   "started": "2026-10-03",
   "finished": "2026-10-03",
   "cost": "16 min wall; ramp 360 s; first evaluation 84 s; 70 s a TAO iteration (median), of it 44.5 s the forward, 10.9 s the adjoint and TAO's own work and 12.6 s the checkpoint",
-  "results": "Quartz /N/scratch/dlilien/ismip7_final_runs/maps/1km_tao_gamg.h5 (sha256 87502e9f) and timing/1km_tao_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_final_runs/maps/1km_tao_gamg.h5 (sha256 87502e9f) and timing/1km_tao_gamg.json; timing records and logs copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/final_decision_quartz; submit script qfinal_submit.sh",
   "audit": "5 iterations, 7 evaluations, objective 6.209388e5 to 3.156258e5; every direct forward converged, no lost trial, no rescue; published residual 1.2e-2; every iterate within 1.1e-12 (objective) and 5.0e-12 (gradient norm) of the other solver's, the same Newton iterations in every direct solve",
   "notes": "issues #156 and #157, the final round on the production settings: the solver pair at 1 km (test-1km-inversion-final-tao-full-mumps)"
 }

@@ -17,7 +17,7 @@
   "started": "2026-10-02",
   "finished": "2026-10-02",
   "cost": "75 min wall; 3820 s in 21 evaluations, 182 s each on average, 13 s of it outside the forward and adjoint",
-  "results": "Quartz /N/scratch/dlilien/ismip7_issue157_runs/maps/mass.h5 (sha256 3c10890d; scratch, purged after 30 days); timing record, log and submit script copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/optimizer_issue157/2km",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue157_runs/maps/mass.h5 (sha256 3c10890d); timing record, log and submit script copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/optimizer_issue157/2km",
   "audit": "15 L-BFGS-B iterations, objective 5.621096e4 to 5.146191e4; the first six evaluations moved the objective by 0.06 percent, each decrease about four times the last; no forward failure; published residual 1.03e-4",
   "notes": "issue #157 optimizer comparison, arm mass; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)"
 }

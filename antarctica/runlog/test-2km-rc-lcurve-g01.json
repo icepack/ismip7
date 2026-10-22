@@ -14,7 +14,7 @@
   "jobs": [
     "10969228"
   ],
-  "code": "9683007; Quartz clone /N/scratch/dlilien/ismip7_reinvert",
+  "code": "9683007; Quartz clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert",
   "started": "2026-10-04",
   "finished": "2026-10-05",
   "cost": "157 evaluations in 5 h 30 min",

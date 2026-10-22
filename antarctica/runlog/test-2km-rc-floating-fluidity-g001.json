@@ -14,7 +14,7 @@
   "jobs": [
     "10972022"
   ],
-  "code": "60c0262; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s4",
+  "code": "60c0262; Quartz worktree ismip7_reinvert_s4 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s4.tar.gz)",
   "started": "2026-10-05",
   "finished": "2026-10-05",
   "cost": "10 h (TIMEOUT), 46 evaluations; forwards up to 936 s",

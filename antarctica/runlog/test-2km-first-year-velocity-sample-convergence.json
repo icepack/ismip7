@@ -12,8 +12,8 @@
   "jobs": [
     "12249701-12249716"
   ],
-  "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs",
+  "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)",
   "started": "2026-10-14",
-  "results": "/N/scratch/dlilien/ismip7_vs (maps/inversion_cv_budd_2km_*, gn_cv2km*.json); cv_collect.py tabulates them",
+  "results": "/N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_vs (maps/inversion_cv_budd_2km_*, gn_cv2km*.json); cv_collect.py tabulates them",
   "notes": "Section 6 of antarctica/reports/first_year_mass_gain_iu.md. Three stages for cell_mean and one for point, the point MAP being near convergence at 150 iterations"
 }

@@ -23,11 +23,11 @@
     "11912202",
     "11912203"
   ],
-  "code": "c4c9eb8, Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/run2kp; tags r2kiugamg32 and r2kiugamg64",
+  "code": "c4c9eb8, Quartz worktree ismip7_rehearsal25iu/run2kp (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_run2kp.tar.gz); tags r2kiugamg32 and r2kiugamg64",
   "started": "2026-10-11",
   "finished": "2026-10-11",
   "cost": "31 min each, cancelled after step 1",
-  "results": "the step-1 rows of Quartz /N/scratch/dlilien/ismip7_prod2kiu/results/ctrl2015_cesm2_waccm_r2kiugamg{32,64}_2000_timeseries.csv",
+  "results": "the step-1 rows of Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/prod_2km_iu/scratch_results/ismip7_prod2kiu/results/ctrl2015_cesm2_waccm_r2kiugamg{32,64}_2000_timeseries.csv",
   "audit": "step 1 converged in 9 Newton iterations on both, as on scpc_mumps (11912182), with the same budget to the Gt/yr (SMB +2,457, melt -1,038, calving -1,292, dM/dt +127, resid 0.00). The step took 1,533 s on 32 ranks (31 condensed solves, 27,704 Krylov iterations) and 1,804 s on 64 (57 condensed solves, 51,593 iterations), against 76 s on scpc_mumps at 32 ranks (19 condensed solves of one iteration each)",
   "notes": "IU's check before the production suite (antarctica/reports/rehearsal_25km_iu.md, section 'The 2 km production suite'). At about 20 times the step cost IU cancelled both and kept scpc_mumps for every production core."
 }

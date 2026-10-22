@@ -9,11 +9,11 @@
   "site": "IU Quartz, general partition, Slurm 25.11.8 with KillOnBadExit=0 and TaskPluginParam unset (no OOMKillStep)",
   "resources": "4 ranks, 4G, 10 min limit; the victim rank allocates 256 MiB blocks until the cgroup OOM-kills it, or raises RuntimeError",
   "jobs": "11462592 (OOM, plain srun), 11462594 and 11464621 (OOM, ismip7_mpirun), 11464622 (raise with Firedrake imported, ismip7_mpirun), 11464623 (raise with Firedrake imported, plain srun), 11462595 and 11462596 (raise without Firedrake, plain and ismip7_mpirun)",
-  "code": "06cb0a9 (site_core.sh ismip7_mpirun); scratch clone /N/scratch/dlilien/ismip7_issue161",
+  "code": "06cb0a9 (site_core.sh ismip7_mpirun); scratch clone ismip7_issue161, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161",
   "started": "2026-10-06",
   "finished": "2026-10-06",
   "cost": "under 2 core-hours in all",
-  "results": "Quartz /N/scratch/dlilien/ismip7_issue161_jobs/ (oom_probe.py, oom_probe.script, logs/probe_<job>.out and .err)",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/ (oom_probe.py, oom_probe.script, logs/probe_<job>.out and .err)",
   "audit": "OOM under plain srun: the step was still running 2 min 10 s after Slurm logged the oom_kill event, three ranks waiting in the barrier, as in job 10971250 (cancelled by hand). OOM under ismip7_mpirun: srun printed 'Terminating StepId' and the step ended within the second Slurm logged the oom_kill event, every task Out Of Memory, jobs of 12 and 13 s in all; srun returned 1 (11464621, the first probe's script did not capture it). Raise with Firedrake imported: Firedrake's abort ends the step either way, in 14 s under ismip7_mpirun and 45 s under plain srun (Slurm's 32 s abort wait). Raise without Firedrake: the raising rank never exits (mpi4py blocks in MPI_Finalize), so neither launcher ends the step (both cancelled by hand); every ISMIP7 driver imports Firedrake.",
   "notes": "Issue #161, item 2. Three submissions 11463855-11463857 are discarded: zsh did not split the loop's arguments, so all three ran the raise case without Firedrake under ismip7_mpirun."
 }

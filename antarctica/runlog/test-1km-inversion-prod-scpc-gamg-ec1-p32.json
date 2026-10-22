@@ -17,7 +17,7 @@
   "started": "2026-10-01",
   "finished": "2026-10-02",
   "cost": "cancelled after 4 h 52 min, still in its first evaluation (computing, no output since the ramp)",
-  "results": "Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/prod1km_gamg_p32.h5 (scratch, purged after 30 days); timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz",
+  "results": "none: the job was cancelled in its first evaluation, before it wrote maps/prod1km_gamg_p32.h5; timing record and log copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz",
   "audit": "no evaluation finished; the n = 1 restart steps under GAMG at 1 km dominate, as on 64 ranks",
   "notes": "issue #156 production-configuration cost probe; no MAP is kept (strict handoff off, the legacy prior name overridden by the warm start's prior)"
 }

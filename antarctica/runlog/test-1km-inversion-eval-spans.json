@@ -14,9 +14,9 @@
     "10937657",
     "10937658"
   ],
-  "code": "10937657 at 2626c71 (the spans only), 10937658 at 4e45164 (the factored prior solve), from worktrees /N/scratch/dlilien/ismip7_evalspans_{base,fix} of the scratch clone; icepack_tools e7b923e",
+  "code": "10937657 at 2626c71 (the spans only), 10937658 at 4e45164 (the factored prior solve), from worktrees ismip7_evalspans_{base,fix} of the scratch clone (removed on 22 October 2026; their loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_evalspans_{base,fix}.tar.gz); icepack_tools e7b923e",
   "started": "2026-10-02",
-  "results": "Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/spans1km_{base,fix}_p64.h5 (sha256 31b963a3, 165899b0; scratch, purged after 30 days) and timing/spans1km_*; timing records, logs and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_eval_overhead/quartz; submit script /N/scratch/dlilien/q156d_submit.sh, copy in /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_eval_overhead/quartz/../scripts",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/spans1km_{base,fix}_p64.h5 (sha256 31b963a3, 165899b0) and timing/spans1km_*; timing records, logs and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_eval_overhead/quartz; submit script /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/q156d_submit.sh, copy in /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_eval_overhead/quartz/../scripts",
   "notes": "Attributes the 27 s of a 1 km evaluation outside the forward and adjoint (issue #156): the bi-Laplacian prior's per-call MUMPS LU. Since 10818449 the scpc_gamg taped forward moved from bt to NLEQ-ERR at Krylov rtol 1e-8 (PR 155), so forward times are not comparable with it; base and fix are",
   "finished": "2026-10-02",
   "cost": "13 min (base) and 11 min (fix) wall. Seconds an evaluation, medians over evaluations 2 to 4: base 54.0 (forward 22.0, adjoint 5.3, outside both 26.8, of it prior_solve 26.2); fix 27.9 (22.0, 5.4, 0.73, of it prior_solve 0.17). The fix's first prior solve, which factors M, took 14.8 s once",

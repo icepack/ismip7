@@ -129,7 +129,8 @@ differences between columns compare):
 The cell-mean target lowers VAF by 0.46 to 0.58 mm and the tendency by 31 % in
 both spaces. DG1 leaves the tendency where it is and moves VAF by 0.12 to
 0.23 mm, inside the spread the MAPs' convergence allows. The two do not
-compound. Results: Quartz `/N/scratch/dlilien/ismip7_dg1/25km/dg1_25km_2x2.json`.
+compound. Results: Quartz
+`/N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/25km/dg1_25km_2x2.json`.
 
 ## 5. Where the 2 km cell-mean run loses its VAF gain
 
@@ -398,18 +399,24 @@ Quartz `/N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_i
 `scripts/` (the wrappers and analyses named above, and `cv_jobs.txt`), `json/`
 (every measure), `figs/` (`vsdiff_2km.png`, `gridnoise_tests.png`), `csv/` (the
 test forwards' timeseries), `maps_25km/` (every 25 km MAP of these tests) and
-`logs/`. The 2 km MAPs, the forward states and the smoothed BedMachine stay on
-`/N/scratch/dlilien/ismip7_vs/`, which purges files untouched for 30 days; each
-is rebuilt by its wrapper. The runs used the Quartz worktree
-`/N/scratch/dlilien/ismip7_rehearsal25iu/runvs` at c62bcf0, which is this PR's
-first commit applied to PR 168's branch at 74d0b84; the checkerboard runs used
-288382a (PR 163's head) and 74d0b84 for the CG1 rerun. Section 8 ran in the
-Quartz worktree `/N/scratch/dlilien/ismip7_rehearsal25iu/runfymg` at 0220ece,
-this PR at 32b378d merged with main 92b6598, which has the same code as the
-PR's merge of main (47bdfcc). Its scripts, `json/fymg_hist2km.json`,
-`figs/fymg_hist2km.png`, the timeseries and scalars CSVs and the job logs are in
-the artifact tree; the DG1 cell_mean MAP and the forward states stay on
-`/N/scratch/dlilien/ismip7_fymg/`. Sections 9 and 10 add `dh_maps_fymg.py`,
+`logs/`. The 2 km MAPs, the forward states and the smoothed BedMachine are in
+the tree's `scratch_results/ismip7_vs/`, copied from Quartz scratch on
+22 October 2026 and checked against its `SHA256SUMS`. The runs used the Quartz
+worktree `ismip7_rehearsal25iu/runvs` at c62bcf0, which is this PR's first
+commit applied to PR 168's branch at 74d0b84; the worktree was removed on
+22 October, its loose files are in
+`results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz`
+and c62bcf0 is kept as `archive/wt-runvs` in
+`results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle`.
+The checkerboard runs used 288382a (PR 163's head) and 74d0b84 for the CG1
+rerun. Section 8 ran in the Quartz worktree `ismip7_rehearsal25iu/runfymg` at
+0220ece, this PR at 32b378d merged with main 92b6598, which has the same code
+as the PR's merge of main (47bdfcc); its untracked files are in
+`results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/runfymg`. Its
+scripts, `json/fymg_hist2km.json`, `figs/fymg_hist2km.png`, the timeseries and
+scalars CSVs and the job logs are in the artifact tree; the DG1 cell_mean MAP
+and the forward states are in the tree's `scratch_results/ismip7_fymg/`.
+Sections 9 and 10 add `dh_maps_fymg.py`,
 `shelf_coupling_fymg.py`, `plot_shelf_coupling.py` and `plot_fymg_ext.py` to
 `scripts/`, `dh_basins_dg1cm_vs_prod.json` and `shelf_coupling_2km.json` to
 `json/`, and their figures to `figs/`.

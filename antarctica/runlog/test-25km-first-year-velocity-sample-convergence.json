@@ -13,7 +13,7 @@
     "12249665-12249700",
     "12252153"
   ],
-  "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs",
+  "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)",
   "started": "2026-10-14",
   "finished": "2026-10-14",
   "results": "Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_cv_budd_25km_*, json/gn_cv25km*.json, json/ff_cv25km_s6.json, scripts/cv_jobs.txt",

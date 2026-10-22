@@ -15,7 +15,7 @@
   "started": "2026-10-06",
   "finished": "2026-10-06",
   "cost": "55 to 64 min each, 22 evaluations: 132 to 153 s an evaluation (forward 39 to 44 s, adjoint 91 to 107 s)",
-  "results": "/N/scratch/dlilien/ismip7_issue161_jobs/probe/<arm>.json (timing), <arm>.jsonl (probe), <arm>_log_view.txt; logs/inv_<job>.out",
+  "results": "/N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/probe/<arm>.json (timing), <arm>.jsonl (probe), <arm>_log_view.txt; logs/inv_<job>.out",
   "audit": "objectives within 1.2e-12 at evaluation 20 between every pair, the same spread as same-code reruns (32-rank runs are not bit-identical); PETSc -log_view on rank 0: every SNES, KSP and PC destroyed (49 of 49) in every arm, 10 of 686 matrices alive at exit in every arm but the plain phases probe (28). malloc_trim returned 115 to 226 MiB a rank every evaluation (median 156) and left the trend. Phase medians from evaluation 6 (MiB a rank, after a trim at each boundary): plain forward +63, to the first adjoint solve -60, adjoint +797, to the end of compute_gradient -727, so an evaluation keeps +74, all of it anonymous memory; with the release the same steps are +9, +3, +802, -790, keeping +14. tracemalloc saw Python's own memory flat at 909 to 937 MiB a rank over evaluations 2 to 6.",
   "notes": "Issue #161. Python 3.14, Firedrake 2026.04, PETSc 3.25.5, MUMPS 5.8.2, OpenBLAS 0.3.13, Open MPI 4.0.5."
 }

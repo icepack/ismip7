@@ -6,7 +6,7 @@
   "period": "2015 state",
   "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix",
   "site": "IU Quartz, general partition",
-  "code": "4426372; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s10",
+  "code": "4426372; Quartz worktree ismip7_reinvert_s10 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s10.tar.gz)",
   "started": "2026-10-07",
   "finished": "2026-10-07",
   "resources": "32 ranks, 240G, up to 1 h",

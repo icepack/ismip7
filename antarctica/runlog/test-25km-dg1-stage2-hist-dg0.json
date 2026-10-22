@@ -26,8 +26,8 @@
   "12249602"
  ],
  "cost": "5 min 26 s",
- "results": "Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg0_25000_*",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/hist_cesm2_waccm_s2dg0_25000_*",
  "audit": "resid 0 at every one of 480 steps; clamp +0.22 Gt in total; VAF +30.78 mm, mass +6,905 Gt; first year SMB 2,382, melt 985, calving 1,024 Gt/yr, last year 2,595, 982, 753; backdate 2,992 grounded cells, +566 Gt; t = 0 melt 997.8 Gt/yr",
- "ismip7_output": "2003 to 2014, regridded by write_ismip7_output.py (job 12249610) into Quartz /N/scratch/dlilien/ismip7_dg1/stage2/s2dg0/submission",
+ "ismip7_output": "2003 to 2014, regridded by write_ismip7_output.py (job 12249610) into Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/s2dg0/submission",
  "checker": "isschecker 0.5.1 on C001: 0 errors, 2 warnings"
 }

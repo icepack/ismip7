@@ -15,7 +15,7 @@
   "started": "2026-10-06",
   "finished": "2026-10-06",
   "cost": "2 h 6 min and 2 h 5 min for 48 evaluations (141 and 140 s an evaluation, adjoint 92 and 95 s); 1 h 35 min for 33 evaluations with the counters",
-  "results": "/N/scratch/dlilien/ismip7_issue161_jobs/probe/q2_before_moving.*, q2_fix_moving.*, q2_before_moving_mumps.*",
+  "results": "/N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/probe/q2_before_moving.*, q2_fix_moving.*, q2_before_moving_mumps.*",
   "audit": "final totals 2.006562430e+03 and 2.006562429e+03 after 45 iterations, the same Newton iterations; PETSc -log_view on rank 0 at exit: 28 of 1,388 matrices alive without the release, 10 with it, every SNES, KSP and PC destroyed. The cached forward solver was built once and its MUMPS instance reported INFO(16) 1,482 to 1,488 MB allocated, INFO(22) 654 to 659 MB used and RINFO(8) 1,552 MB at every evaluation.",
   "notes": "Issue #161."
 }

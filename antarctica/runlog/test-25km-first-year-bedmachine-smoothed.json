@@ -22,10 +22,10 @@
     "12207231",
     "12207232"
   ],
-  "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/runvs; filter bm_gauss.py in Quartz antarctica/results/first_year_mass_gain_iu/scripts",
+  "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle); filter bm_gauss.py in Quartz antarctica/results/first_year_mass_gain_iu/scripts",
   "started": "2026-10-13",
   "finished": "2026-10-13",
-  "results": "Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_vs_budd_25km_*_bmg12k.h5, json/gn_vs25km*bmg12k*.json, csv/; the smoothed raster and its obs root on /N/scratch/dlilien/ismip7_vs/obs_bmg12k",
+  "results": "Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_vs_budd_25km_*_bmg12k.h5, json/gn_vs25km*bmg12k*.json, csv/; the smoothed raster and its obs root in /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_vs/obs_bmg12k (the obs root's links into antarctica/data are listed in /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_vs/SYMLINKS)",
   "audit": "Filter: thickness changed 165 m RMS over ice pixels (bed 186, surface 68), ice mean thickness 1,940.4 to 1,941.0 m. Misfit 3,382 (point) and 4,876 (cell_mean). Tendency (nb) 1.67 and 1.14 m/yr calibrated, 1.67 and 1.13 uniform K, against 1.76 / 1.72 and 1.21 / 1.20 unsmoothed. Cell-scale RMS of the sampled thickness 150.6 to 129.9 m and of the surface 104.6 to 97.7 m. Year-1 VAF gain +1.18 / +1.19 (point) and +0.35 / +0.40 mm (cell_mean). The smoothed geometry holds 312 mm more VAF and 33,000 Gt less ice; calibrated melt 897 against 998 Gt/yr",
   "notes": "Section 3 of antarctica/reports/first_year_mass_gain_iu.md. A normalized convolution inside BedMachine's ice mask (mask 2, 3, 4) for thickness, bed and surface, and outside it for the bed; the mask unchanged"
 }

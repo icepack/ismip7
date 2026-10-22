@@ -14,7 +14,7 @@
   "code": "06cb0a9 and the release tree of test-2km-full-mumps-issue161-probes; probe161_gcwatch.py",
   "started": "2026-10-06",
   "cost": "2 h 50 min and 2 h 45 min for 58 evaluations (162 and 153 s an evaluation, adjoint 107 and 103 s)",
-  "results": "/N/scratch/dlilien/ismip7_issue161_jobs/probe/q2_before_gcw.*, q2_fix_gcw.*",
+  "results": "/N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue161_jobs/probe/q2_before_gcw.*, q2_fix_gcw.*",
   "audit": "at most 4 Firedrake variational solvers alive after any evaluation in either arm (120 built), so Python's collector keeps up with the dropped ones; final totals 1.976163179e+03 and 1.976163181e+03 after 55 iterations (1.4e-15 at evaluation 10, 8.8e-13 at 40, 1.3e-9 at 58), the same Newton iterations at every evaluation; PETSc -log_view on rank 0 at exit: 25 of 1,658 matrices alive without the release, 10 with it, every SNES, KSP and PC destroyed (121 of 121)",
   "notes": "Issue #161. The other 2 km arms took an object census after every evaluation, which walks the collector's lists; this pair does not.",
   "finished": "2026-10-06"

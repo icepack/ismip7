@@ -14,7 +14,7 @@
   "jobs": [
     "10963952"
   ],
-  "code": "9683007 with the stage-2 cells; Quartz clone /N/scratch/dlilien/ismip7_reinvert",
+  "code": "9683007 with the stage-2 cells; Quartz clone ismip7_reinvert, its untracked files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert",
   "started": "2026-10-04",
   "finished": "2026-10-04",
   "cost": "16 min: load, ramp of 8 steps, 4 evaluations of 34 to 41 s",

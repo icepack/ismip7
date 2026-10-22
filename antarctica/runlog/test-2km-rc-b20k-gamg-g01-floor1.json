@@ -5,7 +5,7 @@
   "period": "2015 state",
   "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix",
   "site": "IU Quartz, general partition",
-  "code": "4e45d18; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s3",
+  "code": "4e45d18; Quartz worktree ismip7_reinvert_s3 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s3.tar.gz)",
   "id": "test-2km-rc-b20k-gamg-g01-floor1",
   "title": "Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 km buffered mesh, membrane floor 1 m",
   "status": "stopped",

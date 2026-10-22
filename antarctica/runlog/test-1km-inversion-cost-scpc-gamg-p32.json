@@ -17,7 +17,7 @@
   "started": "2026-10-01",
   "finished": "2026-10-01",
   "cost": "16 min wall; 21 s forward, 8.5 s adjoint, 58 s an evaluation (27 s of it outside the forward and adjoint, as under full_mumps); 4.0 Newton iterations and 31 V-cycles a condensed solve",
-  "results": "Quartz /N/scratch/dlilien/ismip7_issue156_runs/maps/1km_gamg_p32.h5 (scratch, purged after 30 days); timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/1km_gamg_p32.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz",
   "audit": "every evaluation's objective within 4.3e-9 of test-1km-inversion-cost-full-mumps-p32, final 4.179544e4; no forward failed; published residual 2.7e-4",
   "notes": "cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)"
 }

@@ -27,9 +27,9 @@
   "12249611"
  ],
  "cost": "16 min 33 s; output and checker 6 min 23 s",
- "results": "Quartz /N/scratch/dlilien/ismip7_dg1/stage2/results/ssp585_cesm2_waccm_s2dg1_25000_*",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/results/ssp585_cesm2_waccm_s2dg1_25000_*",
  "audit": "resid 0 at every one of 3,400 steps, no rescue; clamp +1,227 Gt in total; VAF +48.2, +120.8, +199.7, +334.8 mm by 2030, 2050, 2070, 2100; mass -111,953 Gt; last year melt 5,683, calving 914 Gt/yr; collapse flagged 433, removed 377, held 56 cells at 2100",
- "ismip7_output": "2015 to 2099, regridded into Quartz /N/scratch/dlilien/ismip7_dg1/stage2/s2dg1/submission",
+ "ismip7_output": "2015 to 2099, regridded into Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/first_year_mass_gain_iu/scratch_results/ismip7_dg1/stage2/s2dg1/submission",
  "checker": "isschecker 0.5.1 on C007: 93 errors, all on the time axis (the run stops at 2100, the experiment at 2300: 31 variables x 3); naming, numerical and spatial tests 0 errors",
  "notes": "the DG1 and DG0 historicals start from different MAPs, so the difference is not DG1's alone"
 }

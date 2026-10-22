@@ -11,7 +11,7 @@
   "forcing": "observations sampled onto this mesh; the final-product objective (bilaplacian sigma 30, rho 7.5 km, no dH/dt term, log friction control, cell-wise friction, L-BFGS-B without a metric); ISMIP7_FLUIDITY_CONTROL=floating ISMIP7_DRAG_GATE=vertex ISMIP7_RC_HVISC_FLOOR=2.5 ISMIP7_TRANSFER_FILL=extend; ISMIP7_EXACT_FRONT=2; full_mumps",
   "site": "IU Quartz, general partition",
   "resources": "32 ranks, 240G, 8 h; ISMIP7_MAXITER=150 so the link ends inside its wall at about 140 s an evaluation and writes the full MAP, ISMIP7_CHAIN_MAX=0",
-  "code": "9575a74; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s11",
+  "code": "9575a74; Quartz worktree ismip7_reinvert_s11 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s11.tar.gz)",
   "jobs": [
     "11837469"
   ],

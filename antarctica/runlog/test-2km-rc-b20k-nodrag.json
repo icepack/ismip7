@@ -14,7 +14,7 @@
   "jobs": [
     "10969345"
   ],
-  "code": "3490914; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s2",
+  "code": "3490914; Quartz worktree ismip7_reinvert_s2 (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_reinvert_s2.tar.gz)",
   "started": "2026-10-04",
   "finished": "2026-10-05",
   "cost": "310 evaluations in 3 h 54 min",
