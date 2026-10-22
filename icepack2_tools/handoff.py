@@ -24,6 +24,7 @@ import math
 OBJECTIVE_KEYS = (
     "misfit_norm", "misfit_scale", "log_vel_weight", "log_vel_eps",
     "dhdt_weight", "dhdt_net_sigma",
+    "dhdt_speed_ratio", "dhdt_speed_slow", "dhdt_speed_fast",
     "prior_form", "gamma_theta", "gamma_phi",
     "prior_sigma_theta", "prior_sigma_phi", "prior_rho",
     "prior_sigma_alpha", "prior_rho_theta", "friction_c_ref",

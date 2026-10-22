@@ -622,6 +622,7 @@ so each is the DG0 rule applied to those means:
 | grounded cells, forcing mask, drag gate, tripwire | the flotation test and the thresholds on the cell means |
 | level-set front and its law | the level set and the law read the cell means (`h_cell`, the bed's means) |
 | removals (fixed front, level set, slivers, collapse) | whole cells, booked at mean times area; the sub-cell shed scales the whole cell |
+| dH/dt term of the inversion (`ISMIP7_DHDT_WEIGHT`) | one DG1 upwind step (`transport.transport_form`) forced on the DG0 cells, with the grounded test on the cell means (`obs_dhdt.grounded_cells`); the term scores the cell means of the tendency against Smith binned onto the cells (`obs_dhdt.cell_mean_form`), leaving the slope inside a cell free |
 | backdate | the DG0 rule on the cell means; a changed cell moves by its mean's change, keeping its slope, floored by the positivity operator (`obs_dhdt.backdate_cells`) |
 | ISMIP7 output | the per-cell fields are the cell means and their surface; the grounding-line and boundary fluxes are the transport's own, on the DG1 traces |
 
@@ -679,7 +680,7 @@ as any first link that changes the objective does.
 sub-element friction and `ISMIP7_LEGACY_TRANSPORT`, which integrate a
 continuous surface; an inversion taking a warm start's geometry from another
 mesh, where a discontinuous linear field interpolated node by node samples one
-source cell per target node; adaptive transfer; `ISMIP7_DHDT_WEIGHT`;
+source cell per target node; adaptive transfer;
 `ISMIP7_SUBSTEP_TRACE`, which prints one value per cell; and timing caches:
 one is prepared on another mesh and its contract
 (`timing_campaign.cache_required_fields`) names the DG0 `N_ref`, so

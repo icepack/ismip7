@@ -1,0 +1,27 @@
+{
+  "id": "test-25km-dg1-dhdt-cell-mean",
+  "task": "test",
+  "institution": "IU",
+  "title": "The inversion's dH/dt term under DG1, scored on cell means: DG0 regression against main, Taylor test and a 43-evaluation refit at 25 km",
+  "status": "done",
+  "friction": "budd",
+  "mesh": "antarctica_250000_25000_buffered20000 (IU's build, 4,509 vertices, 7,615 cells); DG0 for the regression, DG1 for the rest",
+  "initial_state": "DG0: the 25 km cell_mean MAP of the velocity-sampling test (ismip7_vs/maps/inversion_vs_budd_25km_cell_mean.h5); DG1: the 25 km DG1 cell_mean MAP of 13 Oct (ismip7_dg1/25km/maps/inversion_dg1_budd_25km_cell_mean.h5)",
+  "melt": "the dH/dt step's melt source: deltaT_per_basin_25000_K6.500e-05.npz, the constant slope, 1,067 Gt/yr at the reference geometry",
+  "site": "IU Quartz, general partition",
+  "resources": "8 ranks, 64 GiB, scpc_mumps",
+  "jobs": [
+    "12270749",
+    "12270750",
+    "12270751",
+    "12271793",
+    "12270752"
+  ],
+  "code": "ed556a6 (claude/dg1-dhdt-cell-mean), Quartz worktree /N/scratch/dlilien/ismip7_rehearsal25iu/rundhdt; main 77515c3 (worktree runcvdg1) for the DG0 regression",
+  "started": "2026-10-15",
+  "finished": "2026-10-15",
+  "cost": "regression 2 min 28 s (main) and 3 min 2 s (branch) for 5 evaluations each; Taylor test 2 min 11 s; refit 5 min 22 s for 43 evaluations",
+  "results": "Quartz /N/scratch/dlilien/ismip7_dhdtdg1/25km/maps (inversion_dhdt_25km_*); wrapper /N/scratch/dlilien/ismip7_rehearsal25iu/submit_dhdt25.sh",
+  "audit": "DG0: main and the branch agree to every printed digit at all 5 evaluations (dH/dt term 137.66, total 5,264.992 at the first). DG1: Taylor test of the full objective, minimum order 2.001. Refit on 2,988 grounded observed cells (11.35 million km^2): dH/dt term 153.0 to 96.0, velocity term 231.8 to 228.0, the net grounded model minus Smith +121 to +229 Gt/yr; the MAP's final solve reproduced its state in 0 Newton iterations",
+  "notes": "The objective is IU's refit_vf_budd (submit_dg1_25.sh inv) with ISMIP7_DHDT_WEIGHT=1, sigma 0.1 m/yr and ISMIP7_DHDT_NET_SIGMA=0 (inversion.sbatch exports 10 otherwise); the weight is a probe value. The Taylor test runs on the TAO path (ISMIP7_GRAD_CHECK=1, ISMIP7_GRAD_PRECOND=prior), which takes no floating-only fluidity control, so it frees the fluidity everywhere (ISMIP7_FLUIDITY_CONTROL=all); its first submission, 12270751, stopped at startup without that. The pointwise term leaves the integrated grounded imbalance free, and it grew while the cell-scale misfit fell"
+}

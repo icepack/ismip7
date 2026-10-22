@@ -7,11 +7,16 @@ a row at evaluation 107 and L-BFGS-B stopped with a CONVERGENCE message at a
 gradient norm of 1.03; the chain then marked the MAP done. The tracker has to
 tell that stop apart from a minimisation that met failed trials along the way
 and recovered.
+
+``optimization.AcceptedIterate`` keeps the evaluations a MAP can be published
+at. scipy's result.x is rarely the last evaluation, and after failed trials
+it can be a failed trial itself; the publishing solve and the MAP's record
+need a successful evaluation's state and objective.
 """
 import numpy as np
 from scipy.optimize import minimize
 
-from icepack2_tools.optimization import TrialFailures
+from icepack2_tools.optimization import AcceptedIterate, TrialFailures
 
 HESSIAN = np.diag(np.linspace(1.0, 50.0, 20))
 
@@ -86,3 +91,80 @@ def test_a_failed_trial_returns_ten_times_the_last_objective_and_no_gradient():
     objective, gradient = TrialFailures().failed(3.0, 4)
     assert objective == 30.0
     assert np.array_equal(gradient, np.zeros(4))
+
+
+def _minimise_recorded(fails, regularisation=0.0, scale_from="total"):
+    r"""``_minimise`` with every good evaluation recorded in an
+    ``AcceptedIterate`` (its total as the payload, where the driver records
+    its mixed state) and the record's callback; ``fails(n, x)``."""
+    tracker, record = TrialFailures(), AcceptedIterate()
+    good = {"misfit": None, "total": None, "x": None, "n": 0, "totals": []}
+
+    def objective_and_gradient(x):
+        good["n"] += 1
+        if good["x"] is not None and fails(good["n"], x):
+            return tracker.failed(good[scale_from], x.size)
+        misfit = 0.5 * x @ HESSIAN @ x
+        good.update(misfit=misfit, total=misfit + regularisation, x=x.copy())
+        good["totals"].append(good["total"])
+        record.evaluated(good["x"], good["total"], good["total"])
+        tracker.succeeded()
+        return good["total"], HESSIAN @ x
+
+    result = minimize(objective_and_gradient, np.ones(20), jac=True,
+                      method="L-BFGS-B", callback=record.iterate,
+                      options={"maxiter": 300, "ftol": 1e-12, "gtol": 0})
+    return result, tracker, record, good
+
+
+def test_the_returned_controls_are_an_evaluation_other_than_the_last():
+    r"""Every trial past the wall ``x.sum() < wall`` fails, as a forward that
+    stops converging past some controls (the minimiser at 0 lies past it).
+    At 5 L-BFGS-B stops right after a failed trial, at 2 it stops ABNORMAL
+    with none trailing. Both times result.x is an earlier evaluation than the
+    last good one, whose state the publishing solve used to start from, and
+    the record publishes that evaluation; after the failure stop result.fun
+    is the failed trial's inflated value."""
+    for wall, stopped in ((5.0, True), (2.0, False)):
+        result, tracker, record, good = _minimise_recorded(
+            lambda n, x: x.sum() < wall)
+        assert tracker.stopped_on_failures == stopped, wall
+        assert not np.array_equal(result.x, good["x"]), wall
+        x_pub, total, how = record.publish(result.x)
+        assert how == "returned" and np.array_equal(x_pub, result.x), wall
+        assert total == 0.5 * result.x @ HESSIAN @ result.x, wall
+        if stopped:
+            assert result.fun > total
+
+
+def test_a_failed_trial_returned_publishes_the_lowest_evaluation():
+    r"""Under the misfit scaling with heavy regularisation L-BFGS-B accepts
+    failed trials and returns one, as the 2 km re-inversions 12286864 and
+    12291649 returned theirs: no evaluation is at result.x, so the record
+    publishes the lowest-objective evaluation, which the publishing solve
+    has a converged state for."""
+    result, tracker, record, good = _minimise_recorded(
+        lambda n, x: n > 12, regularisation=100 * 0.5 * np.trace(HESSIAN),
+        scale_from="misfit")
+    assert tracker.stopped_on_failures
+    x_pub, total, how = record.publish(result.x)
+    assert how == "lowest"
+    assert not np.array_equal(x_pub, result.x)
+    assert total == min(good["totals"])
+
+
+def test_the_starting_point_is_accepted_until_a_callback_moves_it():
+    record = AcceptedIterate()
+    x0, x1, x2 = np.zeros(3), np.ones(3), np.full(3, 2.0)
+    assert record.publish(x0) is None
+    record.evaluated(x0, 3.0, "start")
+    record.evaluated(x1, 5.0, "trial")
+    assert record.publish(x0)[1:] == ("start", "returned")
+    record.iterate(x2)
+    assert record.publish(x0)[1:] == ("start", "returned")
+    record.iterate(x1.copy())
+    record.evaluated(x2, 4.0, "next")
+    assert record.publish(x1)[1:] == ("trial", "returned")
+    # x0 is still the lowest evaluation, and what a failed point publishes
+    assert record.publish(x0)[1:] == ("start", "returned")
+    assert record.publish(np.full(3, 9.0))[1:] == ("start", "lowest")

@@ -45,11 +45,6 @@ from firedrake import (
     COMM_WORLD,
     exp,
     TestFunction,
-    FacetNormal,
-    dot,
-    jump,
-    ds,
-    dS,
 )
 from tlm_adjoint.firedrake import (
     reset_manager,
@@ -100,6 +95,7 @@ from icepack2_tools.geometry import (
 from icepack2_tools.cellview import CellView
 from icepack2_tools.preconditioners import frozen_linearization, with_scpc_blocks
 from icepack2_tools.taped_solve import StateSolverCache, taped_state_solve
+from icepack2_tools.transport import transport_form
 from icepack2_tools.transfer import (
     harmonic_extension, interpolate_with_fill, load_checkpoint_mesh, meshes_match,
 )
@@ -140,6 +136,7 @@ from icepack2_tools.relaxation import (
     end_state_problems, inherited_geometry, is_relaxed)
 from icepack2_tools.profiling import Spans
 from icepack2_tools.optimization import (NOT_FINAL,
+                                         AcceptedIterate,
                                          FunctionalDecreaseStop,
                                          TrialFailures,
                                          recorded_objective,
@@ -1006,13 +1003,27 @@ def main():
                         if chk.has_attr("/", "friction_control") else "log")
             warm_exp_alpha = _warm_fc == "exp" and _theta_mode != "0"
             if _warm_fc == "log" and _theta_mode != "0":
-                # The band a forward bounds a loaded MAP's log controls to
-                # (simulation.py, ISMIP7_MAP_CLIP: 10 at n=3, 6 at n=4). The
-                # 94-iteration sigma=3 MAP carries ~30 spikes up to theta=19
-                # (C x 1e8) at the grounding line, and from them the first
-                # n=1 solve of a sub-element sqrt run wandered at ||F|| 1e13-1e21.
-                _clip = float(os.environ.get(
-                    "ISMIP7_MAP_CLIP", "6.0" if float(n_flow_val) == 4.0 else "10.0"))
+                # A warm start keeps the controls its writer fitted unless
+                # ISMIP7_MAP_CLIP bounds them (the band a forward bounds a
+                # loaded MAP's log controls to, simulation.py: 10 at n=3, 6 at
+                # n=4). A chain link has to continue the minimisation from the
+                # controls the link before it saved: each of the 19
+                # warm-started 2 km DG1 links of 15 to 17 Oct 2026 bounded 29
+                # to 59 nodes at 10, started from ||F|| 2.8e9 to 1.4e12 where
+                # its writer recorded 4e-5 to 5e2, and missed the recorded
+                # objective by up to 1.1e-2. At 2 km the clip was the cause:
+                # with ISMIP7_MAP_CLIP=0 the warm start of 12293346
+                # reproduced the recorded 2300.923 to 3.2e-12. A DG1 warm
+                # start on a synthetic cap still misses its recorded
+                # objective with no clipping (21%, from ||F|| 4.4e9 against a
+                # recorded 3.3e-5), on main as well, while DG0 reproduces it;
+                # that points to the DG1 geometry not surviving a write and
+                # reload through the MAP. Set it for a warm start from another
+                # configuration: the 94-iteration sigma=3 MAP carries ~30
+                # spikes up to theta=19 (C x 1e8) at the grounding line, and
+                # from them the first n=1 solve of a sub-element sqrt run
+                # wandered at ||F|| 1e13-1e21.
+                _clip = float(os.environ.get("ISMIP7_MAP_CLIP", "0"))
                 if _clip > 0.0:
                     _d = theta.dat.data
                     _n_clip = COMM_WORLD.allreduce(int((np.abs(_d) > _clip).sum()))
@@ -2133,12 +2144,20 @@ def main():
     #
     # That last point is about the MISFIT, not the source term: the step still
     # applies the shelf melt (below) so the single prognostic solve matches the
-    # forcing the forward experiment uses, but because the DG0 upwind operator
+    # forcing the forward experiment uses, but because the upwind operator
     # couples a cell only to its UPWIND neighbours and the flow runs
     # grounded->shelf, no grounded-cell equation ever sees a shelf value. The
     # melt source therefore cannot move the grounded-only misfit -- which is
     # why a missing per-basin K degrades to an SMB-only source rather than
     # aborting the inversion.
+    #
+    # Under DG1 the step is the forward's DG1 upwind step on the vertex-node
+    # thickness, forced as the forward forces it (SMB and melt on the DG0
+    # cells, from the cell means of the geometry), and the term scores the
+    # CELL MEANS of the tendency against Smith binned onto the same cells
+    # (obs_dhdt.cell_mean_form): the binned field holds one value per cell,
+    # so the slope of the tendency inside a cell is left free. Under DG0 a
+    # cell's value is its mean and every piece below is what it always was.
     dhdt_w = float(os.environ.get("ISMIP7_DHDT_WEIGHT", "0.0"))
     use_dhdt = dhdt_w > 0.0
     # Resolved (not merely requested) net-term provenance: ISMIP7_DHDT_NET_SIGMA
@@ -2152,21 +2171,27 @@ def main():
     # carries the answer.
     k_npz_used = "none"
     if use_dhdt:
-        if geometry_space != "dg0":
+        if geometry_space not in ("dg0", "dg1"):
             raise RuntimeError(
-                "ISMIP7_DHDT_WEIGHT requires ISMIP7_GEOMETRY_SPACE=dg0: the "
-                "prognostic step is the DG0 upwind FV operator and must act on "
-                "the same field the forward transports."
+                "ISMIP7_DHDT_WEIGHT requires ISMIP7_GEOMETRY_SPACE=dg0 or dg1: "
+                "the prognostic step is the forward's upwind transport "
+                "(icepack2_tools.transport) and must act on the same field the "
+                "forward transports."
             )
-        from icepack2_tools.obs_dhdt import load_dhdt_obs
+        from icepack2_tools.obs_dhdt import (
+            CELL_MEAN_SOLVER, cell_mean_form, grounded_cells, load_dhdt_obs)
 
         dhdt_sigma = float(os.environ.get("ISMIP7_DHDT_SIGMA", "0.1"))   # m/yr
         dhdt_dt = float(os.environ.get("ISMIP7_DHDT_DT", "1.0"))          # yr
         clim0 = int(os.environ.get("ISMIP7_DHDT_CLIM_START", "2003"))
         clim1 = int(os.environ.get("ISMIP7_DHDT_CLIM_END", "2019"))
 
-        dhdt_obs, dhdt_cov = load_dhdt_obs(Q_g)
-        smb_obs = load_racmo_smb_climatology(Q_g, clim_start=clim0, clim_end=clim1)
+        # The cells the term is scored on and the forcing lives on: Q_g
+        # itself under DG0, the DG0 cells under DG1.
+        dhdt_view = CellView(Q_g)
+        Q_c = dhdt_view.Q0
+        dhdt_obs, dhdt_cov = load_dhdt_obs(Q_c)
+        smb_obs = load_racmo_smb_climatology(Q_c, clim_start=clim0, clim_end=clim1)
 
         # Ocean melt for the prognostic step, from the SAME parameterisation
         # and forcing the experiments use: OI-climatology TF/so at draft depth
@@ -2179,7 +2204,7 @@ def main():
         # it fixes is the source term the implicit step sees on shelf cells,
         # keeping the single prognostic step consistent with the forward
         # experiment. ISMIP7_DHDT_MELT=0 drops it (SMB-only source).
-        melt_ref = Function(Q_g, name="ocean_melt_ref")
+        melt_ref = Function(Q_c, name="ocean_melt_ref")
         if os.environ.get("ISMIP7_DHDT_MELT", "1") != "0":
             from icepack2_tools.forcing import (
                 load_K_per_basin, make_climatology_ocean_callback)
@@ -2200,9 +2225,13 @@ def main():
                     k_npz, geom_xy[0], geom_xy[1], fill=0.0)
                 K_field = K_field * float(
                     os.environ.get("ISMIP7_K_SCALE", "1.0"))
+            # Under DG1 the callback reads the cell means through the view
+            # (forcing.forcing_geometry), as the forward's does.
             _ctx = {"mesh": mesh, "Q": Q, "V": V, "Q_g": Q_g,
                     "geom_xy": geom_xy, "h": H, "b": b, "s": s,
-                    "ocean_melt": melt_ref}
+                    "ocean_melt": melt_ref, "accum": smb_obs,
+                    "cell_view": dhdt_view if geom_dg1 else None,
+                    "rho_ratio": rho_ratio}
             make_climatology_ocean_callback(K_field)(_ctx, 0.0)
             _melt_gt = float(assemble(melt_ref * dx)) * 917.0 / 1e12
             PETSc.Sys.Print(
@@ -2213,11 +2242,8 @@ def main():
 
         # grounded indicator on the reference geometry, frozen (the control
         # fields move, the classification of where we trust dH/dt should not)
-        haf_ref = Function(Q_g).interpolate(height_above_flotation(H, b))
-        grounded = Function(Q_g)
-        grounded.dat.data[:] = np.where(
-            (haf_ref.dat.data_ro > 0.0) & (H.dat.data_ro > 1.0), 1.0, 0.0)
-        dhdt_mask = Function(Q_g, name="dhdt_mask")
+        grounded = grounded_cells(dhdt_view, H, b)
+        dhdt_mask = Function(Q_c, name="dhdt_mask")
         dhdt_mask.dat.data[:] = dhdt_cov.dat.data_ro * grounded.dat.data_ro
         dhdt_area = assemble(dhdt_mask * dx(mesh))
         if dhdt_area <= 0.0:
@@ -2243,6 +2269,11 @@ def main():
                     "dates DA initial states before 2015; see obs_dhdt.py)"
                 )
         h_next = Function(Q_g, name="h_next")
+        # DG1: the cell means of the step's tendency, the field scored.
+        dhdt_cell = Function(Q_c, name="dhdt_cell_mean") if geom_dg1 else None
+        if geom_dg1:
+            PETSc.Sys.Print("  dH/dt term on DG1: the DG1 upwind step, scored on "
+                            "its cell means against Smith binned onto the cells")
 
         # ── Net (integral) mass-balance term -- OFF BY DEFAULT ──────────
         # Explored Aug 2026 and mechanically validated (it moves the grounded
@@ -2283,6 +2314,35 @@ def main():
         sp_obs = sqrt(u_obs[0] ** 2 + u_obs[1] ** 2 + Constant(1e-12))
         return ln((sp + _eps_v) / (sp_obs + _eps_v))
 
+    # The velocity terms' weight by observed speed (ISMIP7_DHDT_SPEED_RATIO,
+    # obs_dhdt.speed_weight): 1 at and above ISMIP7_DHDT_SPEED_FAST, 1/ratio
+    # at and below ISMIP7_DHDT_SPEED_SLOW, log-linear between, so the dH/dt
+    # term outweighs the velocity in the slow interior and the coast keeps
+    # the weights it had. It multiplies the chi^2 and the log term alike;
+    # area_val stays the observed area, so fast ice keeps its weight.
+    dhdt_speed_ratio = float(os.environ.get("ISMIP7_DHDT_SPEED_RATIO", "1"))
+    dhdt_speed_slow = float(os.environ.get("ISMIP7_DHDT_SPEED_SLOW", "10"))
+    dhdt_speed_fast = float(os.environ.get("ISMIP7_DHDT_SPEED_FAST", "100"))
+    vel_mask = obs_mask
+    if dhdt_speed_ratio != 1.0:
+        if not use_dhdt:
+            raise RuntimeError(
+                "ISMIP7_DHDT_SPEED_RATIO weights the velocity against the dH/dt "
+                "term, so it needs ISMIP7_DHDT_WEIGHT > 0")
+        from icepack2_tools.obs_dhdt import speed_weight
+        vel_speed_weight = Function(Q, name="velocity_speed_weight").interpolate(
+            sqrt(u_obs[0] ** 2 + u_obs[1] ** 2))
+        vel_speed_weight.dat.data[:] = speed_weight(
+            vel_speed_weight.dat.data_ro, dhdt_speed_ratio, dhdt_speed_slow,
+            dhdt_speed_fast)
+        vel_mask = obs_mask * vel_speed_weight
+        _w_lo, _w_hi = global_range(vel_speed_weight)
+        PETSc.Sys.Print(
+            f"  Velocity weight by observed speed: 1/{dhdt_speed_ratio:g} at and "
+            f"below {dhdt_speed_slow:g} m/yr, 1 at and above {dhdt_speed_fast:g} "
+            f"m/yr, log-linear between (ISMIP7_DHDT_SPEED_RATIO); weight in "
+            f"[{_w_lo:.3g}, {_w_hi:.3g}]")
+
     _derived_w = None
     log_vel_w = (0.0 if LOG_VEL_WEIGHT.lower() == "auto"
                  else float(LOG_VEL_WEIGHT))
@@ -2292,11 +2352,11 @@ def main():
         # starts from, used when the warm start holds no weight of its own.
         _u0 = z.subfunctions[0]
         _chi2_0 = float(assemble(
-            (0.5 / area_val * obs_mask
+            (0.5 / area_val * vel_mask
              * ((_u0[0] - u_obs[0]) ** 2 / sig_ux ** 2
                 + (_u0[1] - u_obs[1]) ** 2 / sig_uy ** 2)) * dx(mesh)))
         _log_0 = float(assemble(
-            (0.5 / area_val * obs_mask * _log_ratio(_u0) ** 2) * dx(mesh)))
+            (0.5 / area_val * vel_mask * _log_ratio(_u0) ** 2) * dx(mesh)))
         _derived_w = (_chi2_0 / _log_0) if _log_0 > 0 else 0.0
     log_vel_w, log_vel_source, _log_vel_note = resolve_log_vel_weight(
         LOG_VEL_WEIGHT, _derived_w, warm_objective,
@@ -2425,7 +2485,7 @@ def main():
         integrand = (
             0.5
             / area_val
-            * obs_mask
+            * vel_mask
             * (
                 (u_sol[0] - u_obs[0]) ** 2 / sig_ux ** 2
                 + (u_sol[1] - u_obs[1]) ** 2 / sig_uy ** 2
@@ -2436,26 +2496,20 @@ def main():
             # ISSM SurfaceLogVelMisfit: a relative (scale-free) error, so the
             # fit is not bought entirely in the slow interior.
             integrand = integrand + (
-                Constant(0.5 * log_vel_w) / area_val * obs_mask
+                Constant(0.5 * log_vel_w) / area_val * vel_mask
                 * _log_ratio(u_sol) ** 2
             )
 
         if use_dhdt:
-            # ONE prognostic step, using the SAME DG0 upwind FV operator the
-            # forward transports with -- that consistency is the point: the
-            # inversion must be penalised for the divergence its own transport
-            # scheme will produce, not an idealised one.
+            # ONE prognostic step, using the SAME upwind operator the forward
+            # transports with (icepack2_tools.transport: the DG0 finite-volume
+            # update, and under DG1 the same with its volume term). That
+            # consistency is the point: the inversion must be penalised for
+            # the divergence its own transport scheme will produce, not an
+            # idealised one.
             w = TestFunction(Q_g)
-            nrm = FacetNormal(mesh)
-            un = dot(u_sol, nrm)
-            unp = (un + abs(un)) / 2
             dt_c = Constant(dhdt_dt)
-            F_h = (
-                (h_next - H) / dt_c * w * dx
-                + (unp("+") * h_next("+") - unp("-") * h_next("-")) * jump(w) * dS
-                + unp * h_next * w * ds
-                - (smb_obs - melt_ref) * w * dx
-            )
+            F_h = transport_form(h_next, H, w, u_sol, dt_c, smb_obs - melt_ref)
             EquationSolver(
                 F_h == 0,
                 h_next,
@@ -2469,6 +2523,14 @@ def main():
                 form_compiler_parameters=fc_params,
             ).solve()
             dhdt_model = (h_next - H) / dt_c
+            if geom_dg1:
+                EquationSolver(
+                    cell_mean_form(dhdt_cell, dhdt_model) == 0,
+                    dhdt_cell,
+                    solver_parameters=CELL_MEAN_SOLVER,
+                    form_compiler_parameters=fc_params,
+                ).solve()
+                dhdt_model = dhdt_cell
             integrand = integrand + (
                 0.5
                 * Constant(dhdt_w)
@@ -2547,20 +2609,58 @@ def main():
     # (diagnostic only -- outside the annotated tape, so they do not enter the
     # gradient). Both are dimensionless and directly comparable.
     _u_now = z.subfunctions[0]
-    _vel_chi2 = (
-        0.5 / area_val * obs_mask
+    _vel_density = (
+        0.5 / area_val * vel_mask
         * ((_u_now[0] - u_obs[0]) ** 2 / sig_ux ** 2
-           + (_u_now[1] - u_obs[1]) ** 2 / sig_uy ** 2)
-    ) * dx(mesh)
-    _log_chi2 = (0.5 / area_val * obs_mask * _log_ratio(_u_now) ** 2) * dx(mesh)
+           + (_u_now[1] - u_obs[1]) ** 2 / sig_uy ** 2))
+    _log_density = 0.5 / area_val * vel_mask * _log_ratio(_u_now) ** 2
+    _vel_chi2 = _vel_density * dx(mesh)
+    _log_chi2 = _log_density * dx(mesh)
     if use_dhdt:
-        _net_form = (((h_next - H) / Constant(dhdt_dt) - dhdt_obs)
-                     * dhdt_mask * dx(mesh))
-        _dhdt_chi2 = (
+        # the tendency the term scores: its cell means under DG1
+        _dhdt_rate = (dhdt_cell if geom_dg1
+                      else (h_next - H) / Constant(dhdt_dt))
+        _net_form = ((_dhdt_rate - dhdt_obs) * dhdt_mask * dx(mesh))
+        _dhdt_density = (
             0.5 / dhdt_area * dhdt_mask
-            * (((h_next - H) / Constant(dhdt_dt) - dhdt_obs)
-               / Constant(dhdt_sigma)) ** 2
-        ) * dx(mesh)
+            * ((_dhdt_rate - dhdt_obs) / Constant(dhdt_sigma)) ** 2)
+        _dhdt_chi2 = _dhdt_density * dx(mesh)
+
+    # Each data term split by observed speed (the cell's |u_obs| at its
+    # centroid), in the units of the per-evaluation report: where the
+    # objective's weight sits, and what ISMIP7_DHDT_SPEED_RATIO moves.
+    # The dH/dt step's fields, which hold the last forward's step: a record
+    # keeps them with its state, so the published state's diagnostics are
+    # of its own step (an adjoint that fails leaves its trial's step there).
+    _dhdt_fields = ([h_next] + ([dhdt_cell] if geom_dg1 else [])) if use_dhdt else []
+
+    _band_edges = (0.0, 10.0, 30.0, 100.0, 300.0, np.inf)
+    _band_speed = Function(FunctionSpace(mesh, "DG", 0)).interpolate(
+        sqrt(u_obs[0] ** 2 + u_obs[1] ** 2))
+    _band_ind = []
+    for _lo, _hi in zip(_band_edges[:-1], _band_edges[1:]):
+        _ind = Function(_band_speed.function_space())
+        _ind.dat.data[:] = ((_band_speed.dat.data_ro >= _lo)
+                            & (_band_speed.dat.data_ro < _hi))
+        _band_ind.append((f"{_lo:g}-{_hi:g}", _ind))
+
+    def band_report(label):
+        """Collective: the data terms of the state in z by observed speed."""
+        rows = []
+        for name, ind in _band_ind:
+            row = [name, float(assemble(obs_mask * ind * dx(mesh))) / area_val,
+                   float(assemble(_vel_density * ind * dx(mesh)))]
+            row.append(log_vel_w * float(assemble(_log_density * ind * dx(mesh)))
+                       if log_vel_w > 0.0 else 0.0)
+            row.append(float(assemble(_dhdt_density * ind * dx(mesh)))
+                       if use_dhdt else 0.0)
+            rows.append(row)
+        PETSc.Sys.Print(f"  Data terms by observed speed, {label}:")
+        PETSc.Sys.Print(f"    {'m/yr':>9s} {'area':>6s} {'vel':>9s} {'W*log':>9s} {'dhdt':>9s}")
+        for name, frac, vel, wlog, dh in rows:
+            PETSc.Sys.Print(f"    {name:>9s} {frac:6.3f} {vel:9.3f} {wlog:9.3f} {dh:9.3f}")
+        tot = [sum(r[k] for r in rows) for k in range(1, 5)]
+        PETSc.Sys.Print(f"    {'all':>9s} {tot[0]:6.3f} {tot[1]:9.3f} {tot[2]:9.3f} {tot[3]:9.3f}")
 
     # Velocity chi^2 of the last accepted state, in ITS OWN accumulator. The
     # optimizer's J_val is the COMBINED objective under use_dhdt, so it cannot
@@ -2764,6 +2864,10 @@ def main():
                 chk.set_attr("/", "prior_rho", float(PRIOR_RHO))
             chk.set_attr("/", "dhdt_weight", float(dhdt_w))
             chk.set_attr("/", "dhdt_net_sigma", net_sigma_used)
+            chk.set_attr("/", "dhdt_speed_ratio", float(dhdt_speed_ratio))
+            if dhdt_speed_ratio != 1.0:
+                chk.set_attr("/", "dhdt_speed_slow", float(dhdt_speed_slow))
+                chk.set_attr("/", "dhdt_speed_fast", float(dhdt_speed_fast))
             # Which per-basin K the dH/dt melt source used, or "none". The
             # fallback is deliberately non-fatal (the misfit is grounded-only
             # and melt is zero there), but a MAP that cannot say whether it
@@ -2835,6 +2939,10 @@ def main():
     last_good_total = [np.inf]
     last_x = [None]                      # controls of the last CONVERGED evaluation
     trial_failures = TrialFailures()
+    # The scipy path's accepted, lowest and last evaluations with their mixed
+    # states, residuals and objective terms, for the publishing solve and
+    # the MAP's record.
+    accepted_iterate = AcceptedIterate()
     iteration_count = [0]
     timing_history = []
     timing_json = os.environ.get("ISMIP7_INVERSION_TIMING_JSON", "").strip()
@@ -3049,9 +3157,21 @@ def main():
         prev_gap = gap_spans.reduce()
         iteration_count[0] += 1
         # NB: this path records the last EVALUATED point (L-BFGS-B trial
-        # points included); the TAO path below records the accepted iterate.
+        # points included) in the periodic checkpoints, whose controls are
+        # that point's; the final MAP gets the record of the evaluation it is
+        # published at from accepted_iterate. The TAO path below records the
+        # accepted iterate.
         last_accepted.update(iteration=iteration_count[0], total=total, misfit=J_val,
                              reg_theta=reg_theta, reg_phi=reg_phi)
+        with spans("record_state"):
+            accepted_iterate.evaluated(last_good_x[0], total, {
+                "state": [_zb.dat.data_ro.copy() for _zb in z_backup.subfunctions],
+                "fnorm": last_good_fnorm[0],
+                "obj": J_val,
+                "vel_chi2": last_good_vel_chi2[0],
+                "dhdt": [_f.dat.data_ro.copy() for _f in _dhdt_fields],
+                "terms": dict(last_accepted),
+            })
         if iteration_count[0] == 1:
             _check_handoff(total)
         with gap_spans("report"):
@@ -3068,6 +3188,9 @@ def main():
                 + (" | before: " + " ".join(f"{k}={v:.2f}" for k, v in prev_gap.items())
                    if prev_gap else "")
             )
+
+        if iteration_count[0] == 1:
+            band_report("evaluation 1")
 
         if timing_json:
             with gap_spans("eval_terms"):
@@ -3588,6 +3711,10 @@ def main():
         "phi_grounded": PHI_GROUNDED, "raster_sample": str(raster_sample),
         "velocity_sample": VELOCITY_SAMPLE,
     })
+    run_settings["dhdt_speed_ratio"] = float(dhdt_speed_ratio)
+    if dhdt_speed_ratio != 1.0:
+        run_settings.update({"dhdt_speed_slow": float(dhdt_speed_slow),
+                             "dhdt_speed_fast": float(dhdt_speed_fast)})
     if PRIOR_FORM == "bilaplacian":
         run_settings.update({"prior_sigma_theta": float(PRIOR_SIGMA_THETA),
                              "prior_sigma_phi": float(PRIOR_SIGMA_PHI),
@@ -3670,17 +3797,63 @@ def main():
         x0 = np.concatenate([func_to_global(theta), func_to_global(phi)])
         if grad_precond == "mass":
             x0 = x0 * _sqrtm
+
+        def _lbfgs_iterate(xk):
+            accepted_iterate.iterate(xk / _sqrtm if grad_precond == "mass" else xk)
+
         result = scipy_minimize(
             objective_and_gradient,
             x0,
             method="L-BFGS-B",
             jac=True,
+            callback=_lbfgs_iterate,
             options={"maxiter": max_iter, "ftol": ftol, "gtol": 0},
         )
 
     PETSc.Sys.Print(f"\nOptimization finished: {result.message}")
     PETSc.Sys.Print(f"  {result.nit} iterations, {result.nfev} function evaluations")
     _x_final = result.x / _sqrtm if grad_precond == "mass" else result.x
+    if grad_precond not in ("mass_consistent", "prior"):
+        # The driver holds the last successful evaluation's mixed state, and
+        # scipy's result.x is rarely that evaluation: usually the accepted
+        # iterate, and after failed trials the last failed trial itself
+        # (AcceptedIterate). Publish at the evaluation at result.x, else at
+        # the lowest-objective evaluation, with that evaluation's mixed
+        # state, residual and objective, so the publishing solve starts from
+        # the state of the controls the MAP saves and the MAP records their
+        # objective.
+        _pub = accepted_iterate.publish(_x_final)
+        if _pub is None:
+            PETSc.Sys.Print(
+                "  WARNING: no evaluation on record; the publishing solve "
+                "starts from the last evaluated state")
+        else:
+            _x_pub, _acc, _how = _pub
+            _n_acc, _f_acc = _acc["terms"]["iteration"], _acc["terms"]["total"]
+            if _how == "lowest":
+                PETSc.Sys.Print(
+                    f"  The returned controls match no successful evaluation "
+                    f"(a failed trial); the MAP is published at evaluation "
+                    f"{_n_acc}, the lowest objective evaluated (total "
+                    f"{_f_acc:.6e})")
+                _x_final = np.array(_x_pub, copy=True)
+            else:
+                PETSc.Sys.Print(
+                    f"  Returned controls: evaluation {_n_acc} (total "
+                    f"{_f_acc:.6e})")
+            for _z, _zb, _d in zip(z.subfunctions, z_backup.subfunctions,
+                                   _acc["state"]):
+                _z.dat.data[:] = _d
+                _zb.dat.data[:] = _d
+            last_good_fnorm[0] = _acc["fnorm"]
+            last_good_obj[0] = _acc["obj"]
+            last_good_vel_chi2[0] = _acc["vel_chi2"]
+            for _f, _d in zip(_dhdt_fields, _acc["dhdt"]):
+                _f.dat.data[:] = _d
+            last_good_x[0] = np.array(_x_final, copy=True)
+            last_x[0] = last_good_x[0]
+            last_accepted.clear()
+            last_accepted.update(_acc["terms"])
     global_to_func(_x_final[:global_ndof], theta)
     set_phi(_x_final[global_ndof:])
     _t_lo, _t_hi = global_range(theta)
@@ -3696,9 +3869,9 @@ def main():
         PETSc.Sys.Print(
             f"  {NOT_FINAL} the optimizer stopped right after "
             f"{trial_failures.trailing} failed trial evaluations in a row "
-            f"({trial_failures.total} in this run). The MAP holds the last "
-            "accepted iterate; no done marker, so the chain's next link "
-            "resumes from it.")
+            f"({trial_failures.total} in this run). The MAP holds the "
+            "evaluation named above; no done marker, so the chain's next "
+            "link resumes from it.")
 
     # ── Save MAP immediately ──
     chk_fn = os.path.join(_map_dir, map_fn)
@@ -3837,6 +4010,7 @@ def main():
     if published:
         save_map(chk_fn, full_state=True)
         PETSc.Sys.Print(f"Saved full mixed-state MAP: {chk_fn}")
+        band_report("published state")
     else:
         PETSc.Sys.Print(
             f"WARNING: NOT saving mixed state -- the final forward solve at "

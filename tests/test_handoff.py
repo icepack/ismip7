@@ -20,6 +20,7 @@ def _settings(**over):
         "misfit_norm": "sigma", "misfit_scale": 918512.0,
         "log_vel_weight": 85380.44865839917, "log_vel_eps": 1.0,
         "dhdt_weight": 1.0, "dhdt_net_sigma": 10.0,
+        "dhdt_speed_ratio": 30.0, "dhdt_speed_slow": 10.0, "dhdt_speed_fast": 100.0,
         "prior_form": "bilaplacian", "gamma_theta": 1e5, "gamma_phi": 1e5,
         "prior_sigma_theta": 0.3, "prior_sigma_phi": 0.3, "prior_rho": 7500.0,
         "prior_sigma_alpha": 0.1828, "prior_rho_theta": 7500.0, "friction_c_ref": 0.0334,

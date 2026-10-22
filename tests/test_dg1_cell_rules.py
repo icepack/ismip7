@@ -12,8 +12,10 @@ What these hold: the cell-local mass inverse; the DG1 reference holding a
 transport step at the t=0 state, which a cell-constant one does not; the
 forcing geometry, the draft slope and the feedback's surface change on a
 DG1 run equal to the DG0 ones on its cell means; the melt calibration
-record; the backdate on cell means; the ISMIP7 output booking the DG1
-transport's own outflow.
+record; the backdate on cell means; the inversion's dH/dt term, which
+scores the cell means of a DG1 tendency on the grounded cells of the DG0
+rule and steps with its forcing on the cells; the ISMIP7 output booking the
+DG1 transport's own outflow.
 
 Serial, small rectangle meshes.
 """
@@ -47,6 +49,7 @@ from firedrake import (                                         # noqa: E402
     pi,
     rhs,
     sin,
+    solve,
 )
 
 from icepack2_tools import geometry as G                        # noqa: E402
@@ -59,7 +62,14 @@ from icepack2_tools.forcing import (                            # noqa: E402
     forcing_geometry,
     melt_receiving,
 )
-from icepack2_tools.obs_dhdt import backdate_cells, backdate_thickness  # noqa: E402
+from icepack2_tools.grounding import height_above_flotation   # noqa: E402
+from icepack2_tools.obs_dhdt import (                           # noqa: E402
+    CELL_MEAN_SOLVER,
+    backdate_cells,
+    backdate_thickness,
+    cell_mean_form,
+    grounded_cells,
+)
 from icepack2_tools.runconfig import dg1_refusals, melt_geometry_space  # noqa: E402
 from icepack2_tools.transport import transport_form, upwind_divergence  # noqa: E402
 
@@ -303,6 +313,70 @@ def test_a_dg1_backdate_moves_each_cell_by_its_means_change():
                                np.broadcast_to((want - means0)[kept, None], nodes[kept].shape),
                                atol=1e-9)
     assert (~changed).any() and kept.any()
+
+
+# ── the inversion's dH/dt term ───────────────────────────────────────────
+
+def _cell_means_by_solve(f, Q0):
+    mean = Function(Q0)
+    solve(cell_mean_form(mean, f) == 0, mean, solver_parameters=CELL_MEAN_SOLVER)
+    return mean
+
+
+def test_the_dhdt_term_scores_the_cell_means_of_a_dg1_tendency():
+    r"""The DG0 solve the term runs is the cell mean to roundoff, on cells of
+    unequal area, and a slope that keeps every mean leaves it unchanged."""
+    rng = np.random.default_rng(6)
+    mesh = _mesh(n=8, jitter=0.3)
+    Q1 = G.geometry_function_space(mesh, "dg1")
+    view = CellView(Q1)
+    f = Function(Q1)
+    f.dat.data[:] = rng.normal(0.0, 3.0, size=f.dat.data.size)
+    mean = _cell_means_by_solve(f, view.Q0)
+    np.testing.assert_allclose(mean.dat.data_ro, view.means(f), rtol=1e-12, atol=1e-13)
+    sloped = f.copy(deepcopy=True)
+    tilt = rng.normal(0.0, 5.0, size=(view.Q0.dof_dset.size, 3))
+    view.write_nodes(sloped, view.nodes(f) + tilt - tilt.mean(axis=1, keepdims=True))
+    assert np.abs(view.nodes(sloped) - view.nodes(f)).max() > 1.0
+    np.testing.assert_allclose(_cell_means_by_solve(sloped, view.Q0).dat.data_ro,
+                               mean.dat.data_ro, rtol=1e-12, atol=1e-12)
+
+
+def test_the_dhdt_grounded_cells_are_the_dg0_rule_on_the_cell_means():
+    mesh = _mesh(n=10)
+    h_expr, b_expr = _straddling_geometry(mesh)
+    Q1 = G.geometry_function_space(mesh, "dg1")
+    view = CellView(Q1)
+    H1 = Function(Q1).interpolate(h_expr)
+    b1 = Function(Q1).interpolate(b_expr)
+    Q0 = view.Q0
+    H0, b0 = Function(Q0), Function(Q0)
+    H0.dat.data[:] = view.means(H1)
+    b0.dat.data[:] = view.means(b1)
+    # under DG0 the rule is the one the term always applied, on the dofs
+    haf0 = Function(Q0).interpolate(height_above_flotation(H0, b0)).dat.data_ro
+    want = np.where((haf0 > 0.0) & (H0.dat.data_ro > 1.0), 1.0, 0.0)
+    np.testing.assert_array_equal(grounded_cells(CellView(Q0), H0, b0).dat.data_ro, want)
+    np.testing.assert_array_equal(grounded_cells(view, H1, b1).dat.data_ro, want)
+    haf1 = view.nodes(Function(Q1).interpolate(height_above_flotation(H1, b1)))
+    assert ((haf1 > 0.0).any(axis=1) & ~(haf1 > 0.0).all(axis=1)).any()
+    assert 0 < want.sum() < want.size
+
+
+def test_a_dg1_dhdt_step_forced_on_the_cells_conserves_mass():
+    mesh = _mesh(n=10)
+    Q1 = G.geometry_function_space(mesh, "dg1")
+    view = CellView(Q1)
+    x, y = SpatialCoordinate(mesh)
+    h0 = Function(Q1).project(800.0 + 300.0 * sin(2 * pi * x / L) * cos(pi * y / L))
+    u = _flow(mesh)
+    src = Function(view.Q0).interpolate(0.3 + 0.2 * cos(pi * x / L))
+    dt = 2.0
+    h1 = _step(h0, u, src, dt=dt)
+    un = dot(u, FacetNormal(mesh))
+    outflow = assemble((un + abs(un)) / 2 * h1 * ds)
+    change = assemble(h1 * dx) - assemble(h0 * dx)
+    assert change == pytest.approx(dt * (assemble(src * dx) - outflow), rel=1e-10)
 
 
 # ── the ISMIP7 output ────────────────────────────────────────────────────

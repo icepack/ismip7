@@ -145,6 +145,21 @@ failed trial. The fix was verified on a 12-iteration
 joint run (published residual 76). The stage-2 run showed the second half:
 its accepted iterate had a forward that converged only relatively from a
 starting residual of 1e17, hence the ceiling.
+The scipy L-BFGS-B path had the same fault until 16 October 2026: the
+driver kept only the last evaluation's state, and scipy's returned controls
+are rarely that evaluation. On wall-limited quadratics they were the
+accepted iterate at 600 of 600 endings and the last evaluation at 5. The
+2 km DG1 velocity-only re-inversions 12286864 and 12291649 each stopped
+after three failed trials and returned the last failed trial itself: the
+publishing solve, started from the same last good state as that trial,
+diverged as it did (`||F||` 1.841e27 at Newton iteration 11 in 12291649,
+2.455e32 at iteration 14 in 12286864), and neither published a velocity. `optimization.AcceptedIterate` keeps the
+accepted (callback), lowest-objective and last evaluations with their mixed
+states, residuals and objective terms. The MAP is published at the
+evaluation at the returned controls, else at the lowest-objective
+evaluation; the publishing solve starts from that evaluation's state and
+the MAP records its objective. The periodic checkpoints still record the
+last evaluation, with its own controls.
 
 **Restart handoff.** Every checkpoint records the objective's settings and
 the objective at the accepted iterate; a warm start freezes the auto weights
@@ -152,7 +167,17 @@ the objective at the accepted iterate; a warm start freezes the auto weights
 section 5) from the record, refuses a changed
 objective under `ISMIP7_WARM_START_STRICT=1`, and checks that its first
 evaluation reproduces the recorded objective. Verified: the stage-2 handoff
-reproduced 5.2008401e7 to all printed digits.
+reproduced 5.2008401e7 to all printed digits. Until 16 October 2026 the
+warm start also bounded theta to `ISMIP7_MAP_CLIP` (10), which moved every
+2 km DG1 link off the point the link before it saved: 12293274 bounded 29
+nodes, started from `||F||` 3.4e9 against the recorded 3.5e-5 and missed its
+recorded 2300.923 by 1.12e-2. With the clip off the same warm start
+reproduced it to 3.2e-12 (12293346), so at 2 km the clip was the cause. An
+inversion now clips only when the knob is set. A DG1 warm start on a
+synthetic cap still misses its recorded objective with no clipping, by 21%
+from `||F||` 4.4e9 against a recorded 3.3e-5, on main as well, while a DG0
+warm start reproduces it to 3.5e-14; that points to the DG1 geometry not
+surviving a write and reload through the MAP.
 
 **Cost.** The sub-element scheme costs nothing per iteration (790 to 860 s
 per iteration at 2 km on 32 ranks, the same as the cell-wise law) but its

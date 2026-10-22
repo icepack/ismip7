@@ -354,6 +354,55 @@ def load_dhdt_obs(Q_g, variable=None, data_root=None, min_coverage=0.5):
     return dhdt, mask
 
 
+# The cell-mean solve of the inversion's dH/dt term under DG1. The DG0 mass
+# matrix is diagonal, so one Jacobi application solves it exactly.
+CELL_MEAN_SOLVER = {"snes_type": "ksponly", "ksp_type": "preonly",
+                    "pc_type": "jacobi"}
+
+
+def speed_weight(speed, ratio, slow, fast):
+    r"""The velocity misfit's weight at observed speed ``speed`` (m/yr) under
+    ``ISMIP7_DHDT_SPEED_RATIO``: 1 at and above ``fast``, ``1/ratio`` at and
+    below ``slow``, and log-linear in speed between, so against the velocity
+    the dH/dt term carries ``ratio`` times the weight in ice slower than
+    ``slow`` that it carries in ice faster than ``fast``. ``ratio`` 1 is 1
+    everywhere."""
+    if not (ratio >= 1.0 and 0.0 < slow < fast):
+        raise ValueError(
+            f"speed weight needs ratio >= 1 and 0 < slow < fast, got ratio "
+            f"{ratio}, slow {slow}, fast {fast}")
+    s = np.clip(np.asarray(speed, dtype=float), slow, fast)
+    return np.exp(-np.log(ratio) * np.log(fast / s) / np.log(fast / slow))
+
+
+def cell_mean_form(mean, f):
+    r"""The residual whose root is the cell mean of ``f``, solved for the DG0
+    Function ``mean`` under :data:`CELL_MEAN_SOLVER`. The inversion's dH/dt
+    term scores a DG1 tendency through it: Smith's field, binned onto the
+    cells by :func:`load_dhdt_obs`, holds one value per cell, so the cell
+    means are what it observes and the slope inside a cell is left free.
+    Written as an equation, so the adjoint carries it."""
+    from firedrake import TestFunction, dx
+    return (mean - f) * TestFunction(mean.function_space()) * dx
+
+
+def grounded_cells(view, H, b):
+    r"""The grounded cells the inversion's dH/dt term is restricted to, as a
+    DG0 indicator on ``view.Q0``: height above flotation positive and more
+    than 1 m of ice, read on the cell means of ``H`` and ``b`` through the
+    cell view ``view`` (:class:`icepack2_tools.cellview.CellView`), which
+    under DG0 are their own dofs."""
+    from firedrake import Function
+    from .grounding import height_above_flotation
+    H_c = view.mean_function(H)
+    haf = Function(view.Q0).interpolate(
+        height_above_flotation(H_c, view.mean_function(b)))
+    grounded = Function(view.Q0)
+    grounded.dat.data[:] = np.where(
+        (haf.dat.data_ro > 0.0) & (H_c.dat.data_ro > 1.0), 1.0, 0.0)
+    return grounded
+
+
 def backdate_thickness(h, bed, dhdt, observed, years, rho_ratio):
     r"""Per-cell thickness ``years`` before the observed state: the observed
     mean thickness change undone on grounded ice (issue #117).
