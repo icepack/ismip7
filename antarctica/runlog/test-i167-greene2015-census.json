@@ -16,7 +16,7 @@
  "started": "2026-10-08",
  "finished": "2026-10-08",
  "cost": "under a minute each, serial",
- "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/i167/census_2015.json; the cut mask antarctica/data/icemask_cache/icemask_greene_2015_AntarcticaObsISMIP7-v1.2.tif (sha256 8a587fa4)",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/i167/census_2015.json; the cut mask antarctica/data/icemask_cache/icemask_greene_2015_AntarcticaObsISMIP7-v1.2.tif (sha256 8a587fa4)",
  "audit": "mask ice 13,641,733 km2 against BedMachine ice 13,528,544 km2. Mask ice where BedMachine holds none: 51,373 km2 over BedMachine ocean (11,936 km2 within 0.5 to 1 km of BedMachine ice, 9,978 at 1 to 2, 13,641 at 2 to 5, 11,002 at 5 to 10, 4,605 at 10 to 20, 211 at 20 to 50) and 70,121 km2 over rock; Bedmap3 covers 70,189 km2 of it at 142.6 m. BedMachine ice outside the mask: 6,421 km2 floating (779 Gt) and 1,885 km2 grounded (86 Gt). The mask's marine front is 68,693 pixels, 43.2 % of them on BedMachine ice (mean 140.4 m, median 126.3 m).",
  "notes": "issue #167: the mask's 2015 front lies up to 20 km seaward of BedMachine's ice, where BedMachine holds no thickness, so IU took the front from BedMachine's own marine edge instead (8 Oct). The mask stays an evaluation tool (obs_icemask.py, bm_front_flux.py --greene-tif)."
 }

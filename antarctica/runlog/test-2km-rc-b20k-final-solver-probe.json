@@ -5,7 +5,7 @@
   "status": "done",
   "friction": "regularized_coulomb",
   "title": "RC's final-product MAP after its false stop: one hour of full_mumps against scpc_mumps from the same checkpoint",
-  "initial_state": "inversion-2km-rc-b20k-rho7500-floating's link 1 checkpoint at evaluation 107 (Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/rc_prod_snap_eval107.h5, md5 matched), strict",
+  "initial_state": "inversion-2km-rc-b20k-rho7500-floating's link 1 checkpoint at evaluation 107 (Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/rc_prod_snap_eval107.h5, md5 matched), strict",
   "period": "2015 state",
   "mesh": "antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix",
   "forcing": "observations sampled onto this mesh; the final-product objective (bilaplacian sigma 30, rho 7.5 km, no dH/dt term, log friction control, cell-wise friction, L-BFGS-B without a metric); ISMIP7_FLUIDITY_CONTROL=floating ISMIP7_DRAG_GATE=vertex ISMIP7_RC_HVISC_FLOOR=2.5 ISMIP7_TRANSFER_FILL=extend; ISMIP7_EXACT_FRONT=1; full_mumps (11487397) against scpc_mumps (11487398)",
@@ -19,7 +19,7 @@
   "started": "2026-10-06",
   "finished": "2026-10-06",
   "cost": "1 h 20 min (full_mumps, wall) and 1 h 13 min (scpc_mumps)",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/rc_probe161_{full,scpc}_rc.{h5,json}",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/rc_probe161_{full,scpc}_rc.{h5,json}",
   "audit": "both reproduced the recorded objective (1,743.88 against 1,743.72, gap 9.0e-5) and took identical iterates for 6 evaluations. full_mumps: 25 evaluations in 67 min to total 1,725.7, about 10 s a Newton step and 94 s an adjoint, one failed far trial recovered, mean RSS flat at 2.75 GB a rank, peak 5.1 GB. scpc_mumps: about 18 to 21 s a Newton step (about 8 outer Krylov iterations each), then four failed trials in a row (three stalled at ||F|| 1.7e-4 to 2.0e-4) and the false PGTOL stop at evaluation 6; its driver printed MAP not final, and its runner, stored at submission, still wrote the done marker",
   "notes": "issue #153: the evidence for continuing RC's final on full_mumps (inversion-2km-rc-b20k-rho7500-floating, 11789630). A Slurm job runs the batch script it was submitted with, so a worktree update reaches a queued job's driver and leaves its runner as it was"
 }

@@ -23,12 +23,12 @@ Status: 12 planned, 5 running, 41 stopped, 345 done, 21 superseded.
 | 25 km Budd re-inversion on the relaxed geometry from the IU rehearsal MAP, 250 iterations | done | antarctica_250000_25000_buffered20000 (IU's build, 4,509 vertices), DG0 geometry, the MAP's own mesh, ISMIP7_RASTER_SAMPLE=vertex_front | IU Quartz, general partition | 2026-10-10 | 2026-10-10 | the objective settings matched the end state under the strict handoff; first objective 5,356.5 (misfit 4,891.8) on the relaxed geometry against the source MAP's 4,231.3 on its own. 250 L-BFGS-B iterations (270 evaluations) to the limit: total 3,551.2, misfit 3,023.1 (vel 249.5), \|grad\| 55; theta spans -32.8 to 20.7 and phi -26.6 to 9.5; published-state residual 1.6e-2 |
 | 25 km Budd relaxation year from the IU rehearsal MAP: 2014 to 2015 on OCX's 2014 forcing | done | antarctica_250000_25000_buffered20000 (IU's build, 4,509 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | 2026-10-10 | 2026-10-10 | reached 2015.0 in one link, resid 0.00 every step. Mass budget [Gt/yr]: SMB +2,386, melt -1,050 falling to -1,028, flux out of the pinned front -1,264 at the first step falling to -982, dM/dt +69 rising to +374; VAF +1.07 mm SLE over the year |
 | Budd re-inversion on the relaxed geometry from the version 2 final MAP, 250 iterations | stopped | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | 2026-10-08 | 2026-10-08 | - |
-| Budd relaxation year of the relaxed initial state from the version 2 final MAP: 2014 to 2015 on OCX's 2014 forcing | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | 2026-10-08 | 2026-10-08 | reached 2015.0 in one link, 80 steps; resid 0.00 every step; 81 diagnostic solves at 7.8 Newton iterations on average (12 at most), 33 s each; initial solve from the MAP's state converged at \|\|F\|\| 2.4e-4 with no continuation; initial velocity misfit 969.0; exact cliff push version 2 from the MAP; backdate +77 Gt over 1,287,128 grounded cells. Mass budget [Gt/yr]: SMB +2410, melt -1048 to -1027, outflux -4 to -2, flux out of the pinned front -891 at the first step, then -373 rising to -551; dM/dt +830 to +989. Log /N/scratch/dlilien/ismip7_reinvert_relax/logs/ismip7_fwd_11838241.out. Front flux measured with front_flux_check.py (job 11843493): the MAP's own state at t = 0 carries 343 Gt/yr out of the floating front (29,035 km of facets, u.n 184 m/yr, ice-side thickness 47.7 m; the front band of 16,241 cells averages 39.5 m), the same as the version 1 MAP (343.1); floating ice is 288 m thick 5 to 10 km in and its speed matches velocity_obs from 5 km inward. BedMachine's own 500 m front (bm_front_flux.py, job 11843809) is 163 m thick (mean) and carries 1,138 to 1,297 Gt/yr under MEaSUREs v2. The deficit is the front cells' thickness: the 2 km vertex-sampled DG0 front is a ring of partly covered cells at a third of the front's thickness. After the year the band held 47.9 m (+384 Gt) and the front flux had risen to 550 Gt/yr; IU stopped the relaxation there (8 Oct; issue #167). |
+| Budd relaxation year of the relaxed initial state from the version 2 final MAP: 2014 to 2015 on OCX's 2014 forcing | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | 2026-10-08 | 2026-10-08 | reached 2015.0 in one link, 80 steps; resid 0.00 every step; 81 diagnostic solves at 7.8 Newton iterations on average (12 at most), 33 s each; initial solve from the MAP's state converged at \|\|F\|\| 2.4e-4 with no continuation; initial velocity misfit 969.0; exact cliff push version 2 from the MAP; backdate +77 Gt over 1,287,128 grounded cells. Mass budget [Gt/yr]: SMB +2410, melt -1048 to -1027, outflux -4 to -2, flux out of the pinned front -891 at the first step, then -373 rising to -551; dM/dt +830 to +989. Log /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/logs/ismip7_fwd_11838241.out. Front flux measured with front_flux_check.py (job 11843493): the MAP's own state at t = 0 carries 343 Gt/yr out of the floating front (29,035 km of facets, u.n 184 m/yr, ice-side thickness 47.7 m; the front band of 16,241 cells averages 39.5 m), the same as the version 1 MAP (343.1); floating ice is 288 m thick 5 to 10 km in and its speed matches velocity_obs from 5 km inward. BedMachine's own 500 m front (bm_front_flux.py, job 11843809) is 163 m thick (mean) and carries 1,138 to 1,297 Gt/yr under MEaSUREs v2. The deficit is the front cells' thickness: the 2 km vertex-sampled DG0 front is a ring of partly covered cells at a third of the front's thickness. After the year the band held 47.9 m (+384 Gt) and the front flux had risen to 550 Gt/yr; IU stopped the relaxation there (8 Oct; issue #167). |
 | Budd final MAP refitted under the front-cell rule (ISMIP7_RASTER_SAMPLE=vertex_front) on the 2 km buffered mesh | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, front cells by geometry.front_cells | IU Quartz, general partition | 2026-10-08 | 2026-10-09 | 300 iterations (311 evaluations, about 35 s each), stop 'TOTAL NO. OF ITERATIONS REACHED LIMIT': misfit 1,882.3 at the first evaluation (the ef2 controls on the rebuilt geometry) to 1,274.8, total 2,163.5 to 1,592.3, \|grad\| 24.9 to 0.62 (the ef2 MAP: misfit 1,102, total 1,382, \|grad\| 0.15). front_flux_check.py at the MAP's state (job 11883142): floating front 24,224 km at 190.9 m, model u.n 219.5 m/yr (166.0 observed), 1,312.7 Gt/yr out of it (997.8 under velocity_obs; BedMachine's own front 1,138 to 1,297), against 343.0 at the ef2 state; front band 129.5 m; floating ice 0 to 5 km in at 224.9 m and 432.1 m/yr (418.6 observed), 5 to 10 km at 302.6 m and 408.9 (415.7); grounding-line flux 2,255.7 Gt/yr (2,155.7 observed). The band stays stiffer than the rest of the ice: log fluidity -1.13 against -0.13, log friction 0.82 against -0.10. |
 | Budd re-inversion on the relaxed geometry from the front-cell refit, 250 iterations | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint), front cells by geometry.front_cells | IU Quartz, general partition | 2026-10-09 | 2026-10-09 | - |
 | Budd relaxation year from the front-cell refit: 2014 to 2015 on OCX's 2014 forcing (issue #167 acceptance) | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint), front cells by geometry.front_cells | IU Quartz, general partition | 2026-10-09 | 2026-10-09 | reached 2015.0 in one link, resid 0.00 every step; 81 diagnostic solves at 8 Newton iterations on average (15 at most), 51 s each; the MAP's state converged at \|\|F\|\| 9.5e-2 in 8 iterations; backdate +77 Gt over 1,287,008 grounded cells; the melt provenance line names the vertex_front calibration (sha256 2ef9fad4). Mass budget [Gt/yr]: SMB +2380, melt -1045 falling to -1019, flux out of the pinned front -1866 at the first step (the clearing of sub-1 m films), then -1420 falling to -1317, dM/dt -536, -59, then up to +42. The same year from the ef2 MAP (inversion-2km-budd-b20k-ef2-relax2014-year) carried 343 to 551 Gt/yr out of the front with dM/dt +830 to +989. The fastest node, a thin floating patch near Shirase Glacier at (1,385,927, 1,755,878) (34 m on a bed at -107 m, about 1 km behind the front), ran 54,165 m/yr at the first step and 14,377 by the eighth; the forward's unweighted whole-domain velocity misfit was 2.0e4 against 969 from the ef2 MAP; that metric covers the whole mesh, buffer included, unweighted, and how much of it the patch carries was not measured. On the ice the refit's speeds match velocity_obs in every distance band (inversion-2km-budd-b20k-ef2-vf). |
 | Budd re-inversion on the relaxed geometry, 250 iterations | superseded | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | - | - | - |
-| Budd relaxation year of the relaxed initial state: 2014 to 2015 on OCX's 2014 forcing | stopped | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | 2026-10-06 | 2026-10-07 | timed out at the 6 h limit without a step: the first diagnostic solve from the MAP's state on the backdated geometry diverged under ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg (50 Newton iterations, \|\|F\|\| 2.0e13), and the fallback cold continuation from 0.1 u_obs sat in its n=1 step 1 for the rest of the job. Nothing was written beside the production MAPs. The production inversions run scpc_mumps or full_mumps because scpc_gamg stalls at this regularization; the forward's solver and the backdate have not been separated. Held by IU on 7 Oct; log /N/scratch/dlilien/ismip7_reinvert_relax/logs/ismip7_fwd_11489435.out |
+| Budd relaxation year of the relaxed initial state: 2014 to 2015 on OCX's 2014 forcing | stopped | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | 2026-10-06 | 2026-10-07 | timed out at the 6 h limit without a step: the first diagnostic solve from the MAP's state on the backdated geometry diverged under ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg (50 Newton iterations, \|\|F\|\| 2.0e13), and the fallback cold continuation from 0.1 u_obs sat in its n=1 step 1 for the rest of the job. Nothing was written beside the production MAPs. The production inversions run scpc_mumps or full_mumps because scpc_gamg stalls at this regularization; the forward's solver and the backdate have not been separated. Held by IU on 7 Oct; log /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/logs/ismip7_fwd_11489435.out |
 | Budd final-product inversion on the 20 km buffered 2 km mesh: gamma x0.01, fluidity on floating ice only, 2.5 m floor | superseded | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix | IU Quartz, general partition | 2026-10-06 | 2026-10-07 | first checkpoint (check_phi_grounded.py, job 11469157): phi exactly 0 on all 658,217 held nodes of 969,764 (largest \|phi\| 0.0), and the MAP records fluidity_control=floating, phi_grounded=zero, h_visc_floor=2.5, drag_gate=vertex, exact_front=1; evaluation 1 total 4,329.3 (Budd stage 1 recorded 2,762.5 on Rice's mesh with grounded phi inverted), 37 to 66 s an evaluation; finished at the iteration limit (500 iterations, job 11461567; link 11461579 exited on the marker), sha256 1d2e3ae92f91813a; at its controls (theta clipped at \|10\| on load, 23 nodes) misfit 1,108.24, total 1,388.36, \|grad\| 0.66 (test-2km-budd-b20k-exact-front-v1-eval1) |
 | IU's final Budd MAP refitted under exact_front version 2 (the push of the face above the neighbour's bed) | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix | IU Quartz, general partition | 2026-10-07 | 2026-10-07 | stopped at the iteration limit (STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT), done marker written: total 1,382.48, misfit 1,102.14, reg_theta 182.0, reg_phi 98.3, \|grad\| 0.15 (evaluation 1, the version 1 controls under version 2: 1,393.17, 1,113.05, 1.70). Change in theta against the version 1 final by distance to a facet whose push version 2 changes: p50/p99 0.057/1.45 within 2 km, 0.027/1.00 at 2 to 6 km, 0.009/0.38 at 6 to 20 km, 0.002/0.18 at 20 to 100 km, 0.001/0.13 beyond; the far field is the optimizer continuing from a MAP that had stopped at its own iteration limit. phi (floating only) moves p99 0.97 within 2 km and 0.43 beyond 100 km; its largest moves (19 nodes above 5) sit in small floating patches whose phi was already outside \|10\| in the version 1 final (824 such nodes there, 856 here, range -33.8 to 6.9), which ISMIP7_MAP_CLIP at its default 10 would bound in a forward |
 | 2 km Budd inversion under the bilaplacian prior | running | antarctica_5000_2000_buffered0, 2 km fine, 5 km interior, no buffer | nots, long partition, sapphirerapids | 2026-09-20 | - | misfit 2.04e4 and falling at link three |
@@ -40,7 +40,7 @@ Status: 12 planned, 5 running, 41 stopped, 345 done, 21 superseded.
 | RC re-inversion on the relaxed geometry from the front-cell refit, 250 iterations | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint), front cells by geometry.front_cells | IU Quartz, general partition | 2026-10-10 | 2026-10-10 | - |
 | RC relaxation year from the front-cell refit: 2014 to 2015 on OCX's 2014 forcing | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the MAP's own mesh (ISMIP7_MESH=checkpoint), front cells by geometry.front_cells | IU Quartz, general partition | 2026-10-09 | 2026-10-10 | reached 2015.0 in one link, resid 0.00 every step; 81 diagnostic solves at 15 Newton iterations on average (52 at most), 89 s each on average; the MAP's state converged at \|\|F\|\| 9.4 in 47 iterations and 703 s; backdate +77 Gt over 1,287,008 grounded cells; the melt provenance line names the vertex_front calibration (sha256 2ef9fad4). Mass budget [Gt/yr]: SMB +2380, melt -1045 falling to -1025, flux out of the pinned front -2015 at the first step, then -1520 falling to -1431, dM/dt -686, -185, then rising to -78. Budd's year from its refit (inversion-2km-budd-b20k-ef2-vf-relax2014-year) carried 1,420 falling to 1,317 Gt/yr out of the front with dM/dt reaching +42. |
 | RC re-inversion on the relaxed geometry, 250 iterations | superseded | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | - | - | - |
-| RC relaxation year of the relaxed initial state: 2014 to 2015 on OCX's 2014 forcing | stopped | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | 2026-10-06 | 2026-10-06 | timed out at the 6 h limit without a step: the first diagnostic solve from the MAP's state on the backdated geometry diverged under ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg (50 Newton iterations, \|\|F\|\| 5.9e13), and the fallback cold continuation from 0.1 u_obs sat in its n=1 step 1 for the rest of the job. Nothing was written beside the production MAPs. The production inversions run scpc_mumps or full_mumps because scpc_gamg stalls at this regularization; the forward's solver and the backdate have not been separated. Held by IU on 7 Oct; log /N/scratch/dlilien/ismip7_reinvert_relax/logs/ismip7_fwd_11487501.out |
+| RC relaxation year of the relaxed initial state: 2014 to 2015 on OCX's 2014 forcing | stopped | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, the production MAP's own mesh (ISMIP7_MESH=checkpoint) | IU Quartz, general partition | 2026-10-06 | 2026-10-06 | timed out at the 6 h limit without a step: the first diagnostic solve from the MAP's state on the backdated geometry diverged under ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg (50 Newton iterations, \|\|F\|\| 5.9e13), and the fallback cold continuation from 0.1 u_obs sat in its n=1 step 1 for the rest of the job. Nothing was written beside the production MAPs. The production inversions run scpc_mumps or full_mumps because scpc_gamg stalls at this regularization; the forward's solver and the backdate have not been separated. Held by IU on 7 Oct; log /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/logs/ismip7_fwd_11487501.out |
 | RC final-product inversion on the 20 km buffered 2 km mesh: gamma x0.01, fluidity on floating ice only, 2.5 m floor | superseded | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix | IU Quartz, general partition | 2026-10-06 | 2026-10-08 | first checkpoint (check_phi_grounded.py, job 11469157): phi exactly 0 on all 658,217 held nodes of 969,764 (largest \|phi\| 0.0), and the MAP records fluidity_control=floating, phi_grounded=zero, h_visc_floor=2.5, drag_gate=vertex, exact_front=1; strict resume reproduced the recorded objective (relative gap 5.6e-12); total 5,546.0 at the resume, 3,572.8 seven evaluations later, 30 to 125 s an evaluation; link 1 stopped at evaluation 107 (total 1,743.7, misfit 1,399.6, \|grad\| 1.03, the objective falling about 1 an evaluation): three failed trial forwards in a row, the last two stalled at \|\|F\|\| 2.2e-4 and 2.5e-4 for 30 Newton iterations, and scipy's L-BFGS-B then reported CONVERGENCE: NORM OF PROJECTED GRADIENT <= PGTOL, read off the zero gradient a failed trial returns; the runner marked the MAP done. From that MAP full_mumps took 25 evaluations an hour and scpc_mumps stalled the same way (test-2km-rc-b20k-final-solver-probe), so the chain continued on full_mumps (11789630, strict, handoff gap 9.0e-5): 147 evaluations to total 1,662.9, then 11789631 to 1,648.13 (misfit 1,306.81, \|grad\| 0.41) in 141 evaluations, about 0.1 an evaluation, ending at its wall at 01:32 on 8 October, so the file holds that link's last periodic checkpoint (controls, no mixed state) and no done marker |
 | RC final-product inversion under exact_front version 2 (issue #166), beside its version 1 chain | done | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix | IU Quartz, general partition | 2026-10-07 | 2026-10-08 | its warm start bounded 10 theta nodes to 10 (ISMIP7_MAP_CLIP at its default) and the optimizer grew theta back to 13.0; first forward from the version 1 state took 34 Newton iterations (11832359 stopped at the default cap of 30, so 11832709 ran with ISMIP7_DIRECT_FORWARD_MAXIT=100); at the version 1 controls version 2 gave total 1,656.98 and misfit 1,316.79 against version 1's recorded 1,658.76 and 1,318.2, \|grad\| 1.74; 16 evaluations to total 1,648.7 and \|grad\| 0.81, then about 0.08 an evaluation; finished at the iteration limit with no failed trial: total 1,635.45, misfit 1,301.61, \|grad\| 0.76 at the last evaluation (0.35 to 0.47 over the last 60), theta [-7.77, 13.02], phi [-96.5, 11.2]; final solve converged at 0 Newton iterations (\|\|F\|\| 9.3e-3); sha256 88452d3aead43740 |
 | One more 8 h link of RC's version 2 final-product inversion, written beside its MAP | stopped | antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix | IU Quartz, general partition | 2026-10-08 | 2026-10-08 | cancelled at iteration 44 with no failed trial: total 1,635.52 to 1,634.10, misfit 1,300.49, \|grad\| 0.50 at the last evaluation |
@@ -586,7 +586,7 @@ Budd re-inversion on the relaxed geometry from the version 2 final MAP, 250 iter
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 6 h, one link (afterok on the relaxation year); scpc_mumps (as the version 2 production run: 35 s an evaluation over 311, so about 2.5 h for 260); ISMIP7_MAXITER=250, ISMIP7_CHAIN_MAX=0; verify job 11838243 checks the version 2 MAP's sha256 afterwards
 - **Job ids:** 11838242 11838243
-- **Code:** e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2
+- **Code:** e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 12 min of 32 ranks
@@ -606,12 +606,12 @@ Budd relaxation year of the relaxed initial state from the version 2 final MAP: 
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 4 h (projection.sbatch, ISMIP7_EXPERIMENT=relax); ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11838241
-- **Code:** e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2
+- **Code:** e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 47.6 min of 32 ranks (one link)
-- **Results path:** /N/scratch/dlilien/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_2000_final.h5, copied to /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/relax_states/ by the verify job
-- **Audit:** reached 2015.0 in one link, 80 steps; resid 0.00 every step; 81 diagnostic solves at 7.8 Newton iterations on average (12 at most), 33 s each; initial solve from the MAP's state converged at \|\|F\|\| 2.4e-4 with no continuation; initial velocity misfit 969.0; exact cliff push version 2 from the MAP; backdate +77 Gt over 1,287,128 grounded cells. Mass budget [Gt/yr]: SMB +2410, melt -1048 to -1027, outflux -4 to -2, flux out of the pinned front -891 at the first step, then -373 rising to -551; dM/dt +830 to +989. Log /N/scratch/dlilien/ismip7_reinvert_relax/logs/ismip7_fwd_11838241.out. Front flux measured with front_flux_check.py (job 11843493): the MAP's own state at t = 0 carries 343 Gt/yr out of the floating front (29,035 km of facets, u.n 184 m/yr, ice-side thickness 47.7 m; the front band of 16,241 cells averages 39.5 m), the same as the version 1 MAP (343.1); floating ice is 288 m thick 5 to 10 km in and its speed matches velocity_obs from 5 km inward. BedMachine's own 500 m front (bm_front_flux.py, job 11843809) is 163 m thick (mean) and carries 1,138 to 1,297 Gt/yr under MEaSUREs v2. The deficit is the front cells' thickness: the 2 km vertex-sampled DG0 front is a ring of partly covered cells at a third of the front's thickness. After the year the band held 47.9 m (+384 Gt) and the front flux had risen to 550 Gt/yr; IU stopped the relaxation there (8 Oct; issue #167).
+- **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_2000_final.h5, the only copy (final/relax_states/ was never created)
+- **Audit:** reached 2015.0 in one link, 80 steps; resid 0.00 every step; 81 diagnostic solves at 7.8 Newton iterations on average (12 at most), 33 s each; initial solve from the MAP's state converged at \|\|F\|\| 2.4e-4 with no continuation; initial velocity misfit 969.0; exact cliff push version 2 from the MAP; backdate +77 Gt over 1,287,128 grounded cells. Mass budget [Gt/yr]: SMB +2410, melt -1048 to -1027, outflux -4 to -2, flux out of the pinned front -891 at the first step, then -373 rising to -551; dM/dt +830 to +989. Log /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/logs/ismip7_fwd_11838241.out. Front flux measured with front_flux_check.py (job 11843493): the MAP's own state at t = 0 carries 343 Gt/yr out of the floating front (29,035 km of facets, u.n 184 m/yr, ice-side thickness 47.7 m; the front band of 16,241 cells averages 39.5 m), the same as the version 1 MAP (343.1); floating ice is 288 m thick 5 to 10 km in and its speed matches velocity_obs from 5 km inward. BedMachine's own 500 m front (bm_front_flux.py, job 11843809) is 163 m thick (mean) and carries 1,138 to 1,297 Gt/yr under MEaSUREs v2. The deficit is the front cells' thickness: the 2 km vertex-sampled DG0 front is a ring of partly covered cells at a third of the front's thickness. After the year the band held 47.9 m (+384 Gt) and the front flux had risen to 550 Gt/yr; IU stopped the relaxation there (8 Oct; issue #167).
 - **Notes:** IU's choice on 8 Oct: the forward on scpc_mumps without the MAP clip, after the first attempts from the version 1 MAPs (inversion-2km-budd-b20k-relax2014-year) diverged on their first solve under scpc_gamg. The evidence for scpc_mumps is test-2km-budd-b20k-final-forward-diagnostics, which converged that solve in 14 Newton iterations at about 34 s a step from the version 1 Budd MAP with the 1-year backdate, the default clip (10) and exact_front 1; these runs are the first to exercise scpc_mumps with the clip off on the version 2 MAPs. The forward takes exact_front version 2 from the MAP. README, "The relaxed initial state"; issue #162
 
 ### inversion-2km-budd-b20k-ef2-vf
@@ -627,7 +627,7 @@ Budd final MAP refitted under the front-cell rule (ISMIP7_RASTER_SAMPLE=vertex_f
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 8 h links; scpc_mumps, ISMIP7_MAXITER=300, ISMIP7_CHAIN_MAX=2
 - **Job ids:** 11869834 11869837
-- **Code:** 9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s15; cell refit_vf_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh
+- **Code:** 9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s15; cell refit_vf_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-09
 - **Cost per model year:** 3 h 57 min of 32 ranks (11869834; its successor 11869837 exited at once on the .done marker)
@@ -648,7 +648,7 @@ Budd re-inversion on the relaxed geometry from the front-cell refit, 250 iterati
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 6 h links; scpc_mumps; ISMIP7_MAXITER=250 and ISMIP7_CHAIN_MAX=0 for 11885313, then ISMIP7_MAXITER=176 and ISMIP7_CHECKPOINT_EVERY_IT=25 for 11886338, which resumed its checkpoint
 - **Job ids:** 11885313 11886338
-- **Code:** f910b3a (PR 163's gated head, which wrote the end state); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell reinv_relax_vf_budd of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh
+- **Code:** f910b3a (PR 163's gated head, which wrote the end state); Quartz worktree ismip7_reinvert_s16, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16; cell reinv_relax_vf_budd of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-09
 - **Cost per model year:** 6 h 35 min of 32 ranks (2 h 11 min and 4 h 24 min)
@@ -668,11 +668,11 @@ Budd relaxation year from the front-cell refit: 2014 to 2015 on OCX's 2014 forci
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 4 h (projection.sbatch, ISMIP7_EXPERIMENT=relax); ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11883141
-- **Code:** f910b3a (PR 163's gated head); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell relax_vf_budd of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh
+- **Code:** f910b3a (PR 163's gated head); Quartz worktree ismip7_reinvert_s16, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16; cell relax_vf_budd of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-09
 - **Cost per model year:** 1 h 12 min of 32 ranks
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_s16/antarctica/results/relax_inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_2000_final.h5
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16/antarctica/results/relax_inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_2000_final.h5
 - **Audit:** reached 2015.0 in one link, resid 0.00 every step; 81 diagnostic solves at 8 Newton iterations on average (15 at most), 51 s each; the MAP's state converged at \|\|F\|\| 9.5e-2 in 8 iterations; backdate +77 Gt over 1,287,008 grounded cells; the melt provenance line names the vertex_front calibration (sha256 2ef9fad4). Mass budget [Gt/yr]: SMB +2380, melt -1045 falling to -1019, flux out of the pinned front -1866 at the first step (the clearing of sub-1 m films), then -1420 falling to -1317, dM/dt -536, -59, then up to +42. The same year from the ef2 MAP (inversion-2km-budd-b20k-ef2-relax2014-year) carried 343 to 551 Gt/yr out of the front with dM/dt +830 to +989. The fastest node, a thin floating patch near Shirase Glacier at (1,385,927, 1,755,878) (34 m on a bed at -107 m, about 1 km behind the front), ran 54,165 m/yr at the first step and 14,377 by the eighth; the forward's unweighted whole-domain velocity misfit was 2.0e4 against 969 from the ef2 MAP; that metric covers the whole mesh, buffer included, unweighted, and how much of it the patch carries was not measured. On the ice the refit's speeds match velocity_obs in every distance band (inversion-2km-budd-b20k-ef2-vf).
 - **Notes:** issue #167 acceptance: the forward from the refit carries the observed calving flux (about 1,265 to 1,321 Gt/yr published; 1,138 to 1,297 at BedMachine's own front under MEaSUREs) and holds dM/dt near zero without apparent MB. It is also the relaxed initial state's relaxation year from the refit (issue #162); its re-inversion is inversion-2km-budd-b20k-ef2-vf-relax2014.
 
@@ -689,7 +689,7 @@ Budd re-inversion on the relaxed geometry, 250 iterations (superseded), IU.
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 6 h, one link (afterok on the relaxation year): Budd's production chain took 53 s an evaluation over its first 330, so about 3.8 h for 260; ISMIP7_MAXITER=250, ISMIP7_CHAIN_MAX=0; a verify job checks the production MAP's sha256 afterwards
 - **Job ids:** 11489436 11489437
-- **Code:** 8a55a20 (PR 163); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells
+- **Code:** 8a55a20 (PR 163); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells
 - **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_relax2014.h5 beside the production MAP, which is read only
 - **Notes:** First attempt (jobs 11489436 and its verify 11489437) cancelled on 7 Oct without starting: its relaxation year failed. The MAP is one of the initial-state options the forwards can start from in 2003 (INVERSION_PRIORS.md section 6); issue #162. Superseded on 8 Oct before it ran: IU's final MAPs are the exact_front version 2 refits, and inversion-2km-budd-b20k-ef2-relax2014 re-inverts from those
 
@@ -706,11 +706,11 @@ Budd relaxation year of the relaxed initial state: 2014 to 2015 on OCX's 2014 fo
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h (projection.sbatch, ISMIP7_EXPERIMENT=relax)
 - **Job ids:** 11487469 11489435
-- **Code:** 8a55a20 (PR 163); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells
+- **Code:** 8a55a20 (PR 163); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-07
 - **Cost per model year:** 6 h of 32 ranks, no step
-- **Audit:** timed out at the 6 h limit without a step: the first diagnostic solve from the MAP's state on the backdated geometry diverged under ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg (50 Newton iterations, \|\|F\|\| 2.0e13), and the fallback cold continuation from 0.1 u_obs sat in its n=1 step 1 for the rest of the job. Nothing was written beside the production MAPs. The production inversions run scpc_mumps or full_mumps because scpc_gamg stalls at this regularization; the forward's solver and the backdate have not been separated. Held by IU on 7 Oct; log /N/scratch/dlilien/ismip7_reinvert_relax/logs/ismip7_fwd_11489435.out
+- **Audit:** timed out at the 6 h limit without a step: the first diagnostic solve from the MAP's state on the backdated geometry diverged under ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg (50 Newton iterations, \|\|F\|\| 2.0e13), and the fallback cold continuation from 0.1 u_obs sat in its n=1 step 1 for the rest of the job. Nothing was written beside the production MAPs. The production inversions run scpc_mumps or full_mumps because scpc_gamg stalls at this regularization; the forward's solver and the backdate have not been separated. Held by IU on 7 Oct; log /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/logs/ismip7_fwd_11489435.out
 - **Notes:** Trigger 11487469 handed off at 18:54 EDT on 6 Oct, after the Budd production chain reached its 500 iterations (\|grad\| 0.13) at 18:51. README, "The relaxed initial state"; issue #162
 
 ### inversion-2km-budd-b20k-rho7500-floating
@@ -730,7 +730,7 @@ Budd final-product inversion on the 20 km buffered 2 km mesh: gamma x0.01, fluid
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-07
 - **Cost per model year:** 7 h 16 min (job 11461567: 515 evaluations, 500 iterations, about 37 s an evaluation late on); link 11461579 4 s
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating.h5; evaluation 1 copied to Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/plots/prod_*_eval1.h5
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating.h5; evaluation 1 copied to Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/plots/prod_*_eval1.h5
 - **Audit:** first checkpoint (check_phi_grounded.py, job 11469157): phi exactly 0 on all 658,217 held nodes of 969,764 (largest \|phi\| 0.0), and the MAP records fluidity_control=floating, phi_grounded=zero, h_visc_floor=2.5, drag_gate=vertex, exact_front=1; evaluation 1 total 4,329.3 (Budd stage 1 recorded 2,762.5 on Rice's mesh with grounded phi inverted), 37 to 66 s an evaluation; finished at the iteration limit (500 iterations, job 11461567; link 11461579 exited on the marker), sha256 1d2e3ae92f91813a; at its controls (theta clipped at \|10\| on load, 23 nodes) misfit 1,108.24, total 1,388.36, \|grad\| 0.66 (test-2km-budd-b20k-exact-front-v1-eval1)
 - **Notes:** issue #153: IU's option set for the final inversion products (Rice prepares its own). Started on full_mumps (jobs 11452513 and 11452520, cancelled after 18 min) and moved to scpc_mumps once test-2km-rc-b20k-rho7500-floating-scpc-mumps showed it 2.4x faster on the same iterates; the full_mumps link had written no checkpoint, so the scpc_mumps chain starts from the warm start. 8 h links at 480G. Memory under scpc_mumps levels off: peak rss_mib 4,271 MiB a rank after 107 evaluations, growing about 1 MiB an evaluation, so about 125 to 135 GB a job; projected to a full link with a 1.3 margin about 200 to 210 GB (mem_project.py). Superseded on 7 Oct by inversion-2km-budd-b20k-rho7500-floating-ef2, its refit under exact_front version 2 (issue #166): version 1's free-cliff push drives ice into rock above the ice surface
 
@@ -751,7 +751,7 @@ IU's final Budd MAP refitted under exact_front version 2 (the push of the face a
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 3 h 50 min on 32 ranks for 300 iterations (311 evaluations), 31 to 50 s an evaluation; link 2 (11828663) cancelled before it started, the MAP carrying its marker
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2.h5 (sha256 9492a2451c85c150); control comparison Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/c166/controls_budd.txt and phi_extremes.txt
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2.h5 (sha256 9492a2451c85c150); control comparison Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/c166/controls_budd.txt and phi_extremes.txt
 - **Audit:** stopped at the iteration limit (STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT), done marker written: total 1,382.48, misfit 1,102.14, reg_theta 182.0, reg_phi 98.3, \|grad\| 0.15 (evaluation 1, the version 1 controls under version 2: 1,393.17, 1,113.05, 1.70). Change in theta against the version 1 final by distance to a facet whose push version 2 changes: p50/p99 0.057/1.45 within 2 km, 0.027/1.00 at 2 to 6 km, 0.009/0.38 at 6 to 20 km, 0.002/0.18 at 20 to 100 km, 0.001/0.13 beyond; the far field is the optimizer continuing from a MAP that had stopped at its own iteration limit. phi (floating only) moves p99 0.97 within 2 km and 0.43 beyond 100 km; its largest moves (19 nodes above 5) sit in small floating patches whose phi was already outside \|10\| in the version 1 final (824 such nodes there, 856 here, range -33.8 to 6.9), which ISMIP7_MAP_CLIP at its default 10 would bound in a forward
 - **Notes:** issue #166: submitted once the Tier-1 check passed (test-2km-budd-b20k-exact-front-v2-eval1 and -t0). At the version 1 controls version 2 gave misfit 1,113.05 against 1,108.24 and \|grad\| 1.70 against 0.66. Forwards from this MAP run ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_mumps and ISMIP7_MAP_CLIP=0, passed at submission (IU, 8 Oct; test-2km-budd-b20k-final-forward-diagnostics); its relaxation year (11838241) ran that way in 81 solves at 7.8 Newton iterations on average, 30 s each at the median
 
@@ -816,7 +816,7 @@ IU's final Budd MAP refitted under exact_front version 2 (the push of the face a
 - **Cost per model year:** ramp of 8 continuation steps under full_mumps; 1031 evaluations for 1000 L-BFGS-B iterations in 30.8 h; 81 s an evaluation (median: the forward 65 s, the adjoint 15 s), plus 26 s for the checkpoint each accepted iterate writes; the stopped TAO run took 260 to 320 s an iteration
 - **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_nomass_ws0948.h5 (sha256 a03b432931b92f32, the full mixed state, published-state residual 0.187) and inversion_timing_budd_2000_int5000_nomass_ws0948.json beside it
 - **Audit:** ended at ITERATIONS REACHED LIMIT, 1000 iterations, 24 line-search trials that did not lower the objective, no failed forward. Evaluation 1 reproduces the stopped run's start to every printed digit. From evaluation 1 to 1031: misfit 3.302e4 to 2.454e3, velocity chi2 1.98e4 to 32.8, the log term 0.154 to 0.0284, smoothness 87 and 400 to 206 and 103, total 3.351e4 to 2.763e3. phi spans [-13.2, 2.3] (the warm start [-17.5, 0.16]); its 1st percentile fell from -0.76 to -3.9. theta spans [-3.3, 4.6], 127 nodes above 3
-- **Notes:** issue #153, evidence for issue #24. The objective of inversion-2km-budd-nomass, which stopped on 1 October before its first checkpoint: Rice's with the prior's mass term removed (bilaplacian sigma 30 on both controls, rho 750 km) and no dH/dt term; misfit sigma with a 3 m/yr floor, the log-velocity term at the warm start's last-link weight, the log friction control, cell-wise friction (ISMIP7_SUBELEMENT_FRICTION=0, so no exact front push), ISMIP7_LAKE_ICE_BASE=0, the warm start's fluidity prior, ISMIP7_WARM_START_STRICT=0 on link 1 (strict on resume). What changed is how it is minimised: scipy L-BFGS-B without a metric (ISMIP7_GRAD_PRECOND=none) in place of TAO lmvm with the mass-consistent metric, the chains' optimizer since 3 October (INVERSION_PRIORS.md section 4); ISMIP7_INVERSION_LINEAR_SOLVER=scpc_gamg for the taped solves and the adjoint; the direct forward, one untaped Newton solve an evaluation (the default, so ISMIP7_EVAL_CONTINUATION no longer applies). The comparison with Rice's printed misfit carries the same 1.1e4 offset from PR #122's ocean drag gate as the stopped run. Submitted with submit_reinvert.sh stage1_budd from /N/scratch/dlilien/ismip7_reinvert_jobs, with every knob spelled out. Stage 2 moves the result to antarctica_5000_2000_buffered20000.
+- **Notes:** issue #153, evidence for issue #24. The objective of inversion-2km-budd-nomass, which stopped on 1 October before its first checkpoint: Rice's with the prior's mass term removed (bilaplacian sigma 30 on both controls, rho 750 km) and no dH/dt term; misfit sigma with a 3 m/yr floor, the log-velocity term at the warm start's last-link weight, the log friction control, cell-wise friction (ISMIP7_SUBELEMENT_FRICTION=0, so no exact front push), ISMIP7_LAKE_ICE_BASE=0, the warm start's fluidity prior, ISMIP7_WARM_START_STRICT=0 on link 1 (strict on resume). What changed is how it is minimised: scipy L-BFGS-B without a metric (ISMIP7_GRAD_PRECOND=none) in place of TAO lmvm with the mass-consistent metric, the chains' optimizer since 3 October (INVERSION_PRIORS.md section 4); ISMIP7_INVERSION_LINEAR_SOLVER=scpc_gamg for the taped solves and the adjoint; the direct forward, one untaped Newton solve an evaluation (the default, so ISMIP7_EVAL_CONTINUATION no longer applies). The comparison with Rice's printed misfit carries the same 1.1e4 offset from PR #122's ocean drag gate as the stopped run. Submitted with submit_reinvert.sh stage1_budd from /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, with every knob spelled out. Stage 2 moves the result to antarctica_5000_2000_buffered20000.
 
 ### inversion-2km-rc-b20k-ef2-relax2014
 
@@ -831,7 +831,7 @@ RC re-inversion on the relaxed geometry from the version 2 final MAP, 250 iterat
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 22 h, one link, submitted by trigger 11841178 once the relaxation year reaches 2015; full_mumps with ISMIP7_DIRECT_FORWARD_MAXIT=100 (as the version 2 production run: 181 s mean and 261 s p90 an evaluation over 124, so about 13 h for 260); ISMIP7_MAXITER=250, ISMIP7_CHAIN_MAX=0; a verify job checks the version 2 MAP's sha256 afterwards
 - **Job ids:** 11841178
-- **Code:** e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2
+- **Code:** e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_relax2014.h5 beside the version 2 MAP (job 11832709's 120-iteration MAP), which is read only: the extra RC production link (job 11837469) writes ..._floating_ef2_link2.h5, so the verify job's sha256 check compares the file the relaxation read
@@ -850,11 +850,11 @@ RC relaxation year of the relaxed initial state from the version 2 final MAP: 20
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360G, 4 h links (projection.sbatch, ISMIP7_EXPERIMENT=relax, chained at the wall); ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=full_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11838244 11841115 11841178
-- **Code:** e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2
+- **Code:** e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 73 min of 32 ranks (11838244, scpc_mumps, 2 steps)
-- **Results path:** /N/scratch/dlilien/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_2000_final.h5, copied to /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/relax_states/ by the verify job
+- **Results path:** no end state (11838244 was cancelled after 2 steps and 11841115 never ran); 11838244's timeseries is /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_2000_timeseries.csv.scpc_mumps_11838244
 - **Notes:** IU's choice on 8 Oct: the forward on scpc_mumps without the MAP clip, after the first attempts from the version 1 MAPs (inversion-2km-rc-b20k-relax2014-year) diverged on their first solve under scpc_gamg. The evidence for scpc_mumps is test-2km-budd-b20k-final-forward-diagnostics, which converged that solve in 14 Newton iterations at about 34 s a step from the version 1 Budd MAP with the 1-year backdate, the default clip (10) and exact_front 1; these runs are the first to exercise scpc_mumps with the clip off on the version 2 MAPs. The forward takes exact_front version 2 from the MAP. The RC chain continues in an extra production link (job 11837469, cell prod_rc_ef2_link2), which warm-starts strictly from the 120-iteration MAP and writes its own file ..._floating_ef2_link2.h5, so the file the relaxation reads stays unchanged. README, "The relaxed initial state"; issue #162. First submitted on scpc_mumps as job 11838244 and cancelled by IU after 73 min and 2 steps: its solves took 36, 84 and 66 Newton iterations at 6 to 11 linear iterations each (13 to 34 min a step), where Budd's took 6 to 12 at 1 each; RC's production inversion uses full_mumps for the same reason. Resubmitted on full_mumps as 11841115 with no checkpoint to resume from; trigger 11841178 (relax_year_trigger.sh) submits the re-inversion once the chain reaches 2015. Stopped by IU on 8 Oct before it ran (11841115 and trigger 11841178 cancelled while queued): Budd's year showed the 2 km front carrying 343 to 551 Gt/yr against about 1,200 observed, and the RC MAP's front is the same at t = 0 (343.4 Gt/yr; its grounding-line flux is 3,290 Gt/yr against 2,236 under velocity_obs).
 
 ### inversion-2km-rc-b20k-ef2-vf
@@ -870,12 +870,12 @@ RC final MAP refitted under the front-cell rule (ISMIP7_RASTER_SAMPLE=vertex_fro
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 8 h links; full_mumps with ISMIP7_DIRECT_FORWARD_MAXIT=100, ISMIP7_MAXITER=120, ISMIP7_CHAIN_MAX=1; ISMIP7_WARM_START_STATE=1 for 11883148 and 11883149 (a4c79c6); ISMIP7_RAMP_SLIDE_FIXED=1 for 11884073 (2400acc); the one-evaluation probes on 1 h debug links (11884774 on general); ISMIP7_WARM_START_FLUIDITY with ISMIP7_WARM_START_STATE=fluidity for 11885140 and its successor 11885148, which IU cancelled; its replacement 11885372 resumes with ISMIP7_WARM_START_STATE=0 and ISMIP7_CHAIN_DEPTH=1; IU cancelled 11885140 and 11885372 and resumed the checkpoint as 11886352 with ISMIP7_CHECKPOINT_EVERY_IT=10, ISMIP7_MAXITER=104, ISMIP7_WARM_START_STATE=0 and ISMIP7_CHAIN_MAX=2 (successor 11886674)
 - **Job ids:** 11869835 11869838 11883148 11883149 11883518 11883519 11884073 11884074 11884485 11884486 11884749 11884750 11884774 11885140 11885148 11885372 11886352 11886674
-- **Code:** 9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s15; cell refit_vf_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh; from 9 Oct a4c79c6, then 2400acc for 11884073, in /N/scratch/dlilien/ismip7_reinvert_s17; from 11884485 the scratch branch tmp/rc-front-extend (52ba7cb, then 9f945b4 and 6f6a992 for 11884749 onwards, 6f6a992 for 11885140 and its hand-queued successor 11885372, both in /N/scratch/dlilien/ismip7_reinvert_s17 with that worktree's inversion.sbatch, where ISMIP7_WARM_START_STATE=0 makes the resume of 11885372 correct), whose fluidity knobs PR 163 carries as aacb5b0 and fc7f601 and its front-band continuation as a cherry-pick of 52ba7cb; 11886352 and 11886674 also ran 6f6a992 in /N/scratch/dlilien/ismip7_reinvert_s17
+- **Code:** 9dfb499 (PR 163 with main after PR 164 and issue #167's front cells); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s15; cell refit_vf_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh; from 9 Oct a4c79c6, then 2400acc for 11884073, in /N/scratch/dlilien/ismip7_reinvert_s17; from 11884485 the scratch branch tmp/rc-front-extend (52ba7cb, then 9f945b4 and 6f6a992 for 11884749 onwards, 6f6a992 for 11885140 and its hand-queued successor 11885372, both in /N/scratch/dlilien/ismip7_reinvert_s17 with that worktree's inversion.sbatch, where ISMIP7_WARM_START_STATE=0 makes the resume of 11885372 correct), whose fluidity knobs PR 163 carries as aacb5b0 and fc7f601 and its front-band continuation as a cherry-pick of 52ba7cb; 11886352 and 11886674 also ran 6f6a992 in /N/scratch/dlilien/ismip7_reinvert_s17
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-09
 - **Cost per model year:** 2 h 41 min (11885140) and 7 h 05 min (11886352) of 32 ranks for the refit, beside the probes listed in the notes
 - **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf.h5 beside the ef2 MAP, which is read only; released as maps-2km-iu-frontcell-2026-10-10 (the MAP's md5 73d1a4dee721495e2957c9a211a7e3df), with its 2 km EPSG:3031 raster, whose ice has a median speed error of 4.8 %, 70 % within 10 %
-- **Notes:** issue #167: IU chose the front-cell rule on the current meshes (8 Oct). The first link (11869835) diverged at n = 1 in all three rungs of the cold ramp (200 Newton iterations each, \|\|F\|\| 3.0e11 to 5.3e11, about an hour a rung) and exited after 2 h 56 min; its successor (11869838) was cancelled, as it would have repeated the ramp. Resubmitted as 11883148 with the ef2 MAP's mixed state as the first guess (ISMIP7_WARM_START_STATE=1). With the ef2 state as the first guess (11883148, its successor 11883149) the residual started at \|\|F\|\| 1.7e14 (the MAP's writer recorded 9.3e-3) and the first forward solve failed after 23 min. Two one-evaluation probes ramping under scpc_gamg (11883518) and scpc_mumps (11883519) failed the first linear solve at n = m = 1 (1,000 Krylov iterations from \|\|F\|\| 8.9e9) and were cancelled. RC's ef2 controls do not start from n = m = 1 on this mesh, and the old state is too far from the new geometry's solution. IU chose (9 Oct) to ramp n only with m held at 3 (ISMIP7_RAMP_SLIDE_FIXED=1). The refit was submitted as 11884073 (cell refit_vf_rc, code 2400acc), with a one-evaluation probe ramping under scpc_gamg with the sliding exponent fixed (11884074, cell i167_rc_rampn_gamg, writing to /N/scratch/dlilien/ismip7_reinvert_jobs/i167/). The ramp under full MUMPS (11884073) took three rungs for its first step at n = 1 (DIVERGED_MAX_IT after 200 Newton iterations in 37 and 34 min, then converged in 171 iterations in 30 min) and stood at n = 1.13, step 3 of 32, after 2 h 29 min; IU cancelled it as too costly. The scpc_gamg probe (11884074) failed the first linear solve in all three rungs (1,000 Krylov iterations from \|\|F\|\| 8.9e9). A probe continuing theta and phi harmonically over the 33,872 nodes of the cells the rule changed, as a blend of the ice upstream and the warm start's values seaward of the band (11884485, ISMIP7_WARM_START_FRONT_EXTEND, 52ba7cb on the scratch branch, carried into PR 163 on 9 Oct as an option) started at \|\|F\|\| 4.1e14 from the ef2 state and its first forward solve failed after 23 min; its ramp twin (11884486) was cancelled. IU then chose (9 Oct) the fluidity of Budd's refit with RC's friction: the two MAPs' fluidity priors agree to 6e-9, and Budd's log_fluidity spans [-37.4, 9.0] against RC ef2's [-96.5, 11.2]. From the ef2 state under Budd's fluidity (11884749) the residual started at \|\|F\|\| 2.5e21 and stood at 1.8e19 after 100 Newton iterations, so the first forward solve failed after 21 min; its ramp twin (11884750) was cancelled. From Budd's refit's own mixed state (11884774, general) it started at \|\|F\|\| 6.3e9 and converged in 75 Newton iterations (943 s); the first evaluation gave misfit 4,735 and total 5,045 (recorded for the ef2 MAP under vertex sampling: 1,635), the next 4,772 in 143 s, with the next forward converged in 4 iterations. The refit was submitted from that start as 11885140 (cell refit_vf_rc), successor 11885148. That successor was queued by the scratch branch inversion.sbatch at 6f6a992, which unsets ISMIP7_WARM_START_FLUIDITY only, so resuming the checkpoint it would have stopped at startup on ISMIP7_WARM_START_STATE=fluidity with no fluidity MAP; IU cancelled it (9 Oct) and queued 11885372 by hand (cell refit_vf_rc with ISMIP7_WARM_START_STATE=0 and ISMIP7_CHAIN_DEPTH=1, dependency afterany:11885140), which resumes the checkpoint if 11885140 reaches its wall and exits on the done marker otherwise. Each periodic checkpoint wrote the 840 MB MAP to /N/project, and during the IU HPFS trouble of 9 October those writes took 27 to 123 s an iteration, and 11885140's evaluations ran 6.5 to 12.5 min with 18 to 44 Newton iterations a forward, so IU cancelled it (and 11885372) right after its checkpoint at evaluation 16 (total 2,303.8) and resumed it as 11886352: a checkpoint every 10 iterations, the remaining 104, ISMIP7_WARM_START_STATE=0, and up to three links. The resumed first objective was 2,303.33 against 2,303.83 recorded (relative gap 2.1e-4). Its evaluations then ran a median of 142 s with 4 to 6 Newton iterations a forward. It finished at 22:04 on 9 Oct after 121 evaluations in all: total 1,908.5, misfit 1,540.4, \|grad\| 1.23, still descending at the iteration limit; the successor 11886674 exited on the done marker. The relaxation year and re-inversion that follow are inversion-2km-rc-b20k-ef2-vf-relax2014-year and inversion-2km-rc-b20k-ef2-vf-relax2014.
+- **Notes:** issue #167: IU chose the front-cell rule on the current meshes (8 Oct). The first link (11869835) diverged at n = 1 in all three rungs of the cold ramp (200 Newton iterations each, \|\|F\|\| 3.0e11 to 5.3e11, about an hour a rung) and exited after 2 h 56 min; its successor (11869838) was cancelled, as it would have repeated the ramp. Resubmitted as 11883148 with the ef2 MAP's mixed state as the first guess (ISMIP7_WARM_START_STATE=1). With the ef2 state as the first guess (11883148, its successor 11883149) the residual started at \|\|F\|\| 1.7e14 (the MAP's writer recorded 9.3e-3) and the first forward solve failed after 23 min. Two one-evaluation probes ramping under scpc_gamg (11883518) and scpc_mumps (11883519) failed the first linear solve at n = m = 1 (1,000 Krylov iterations from \|\|F\|\| 8.9e9) and were cancelled. RC's ef2 controls do not start from n = m = 1 on this mesh, and the old state is too far from the new geometry's solution. IU chose (9 Oct) to ramp n only with m held at 3 (ISMIP7_RAMP_SLIDE_FIXED=1). The refit was submitted as 11884073 (cell refit_vf_rc, code 2400acc), with a one-evaluation probe ramping under scpc_gamg with the sliding exponent fixed (11884074, cell i167_rc_rampn_gamg, writing to /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/i167/). The ramp under full MUMPS (11884073) took three rungs for its first step at n = 1 (DIVERGED_MAX_IT after 200 Newton iterations in 37 and 34 min, then converged in 171 iterations in 30 min) and stood at n = 1.13, step 3 of 32, after 2 h 29 min; IU cancelled it as too costly. The scpc_gamg probe (11884074) failed the first linear solve in all three rungs (1,000 Krylov iterations from \|\|F\|\| 8.9e9). A probe continuing theta and phi harmonically over the 33,872 nodes of the cells the rule changed, as a blend of the ice upstream and the warm start's values seaward of the band (11884485, ISMIP7_WARM_START_FRONT_EXTEND, 52ba7cb on the scratch branch, carried into PR 163 on 9 Oct as an option) started at \|\|F\|\| 4.1e14 from the ef2 state and its first forward solve failed after 23 min; its ramp twin (11884486) was cancelled. IU then chose (9 Oct) the fluidity of Budd's refit with RC's friction: the two MAPs' fluidity priors agree to 6e-9, and Budd's log_fluidity spans [-37.4, 9.0] against RC ef2's [-96.5, 11.2]. From the ef2 state under Budd's fluidity (11884749) the residual started at \|\|F\|\| 2.5e21 and stood at 1.8e19 after 100 Newton iterations, so the first forward solve failed after 21 min; its ramp twin (11884750) was cancelled. From Budd's refit's own mixed state (11884774, general) it started at \|\|F\|\| 6.3e9 and converged in 75 Newton iterations (943 s); the first evaluation gave misfit 4,735 and total 5,045 (recorded for the ef2 MAP under vertex sampling: 1,635), the next 4,772 in 143 s, with the next forward converged in 4 iterations. The refit was submitted from that start as 11885140 (cell refit_vf_rc), successor 11885148. That successor was queued by the scratch branch inversion.sbatch at 6f6a992, which unsets ISMIP7_WARM_START_FLUIDITY only, so resuming the checkpoint it would have stopped at startup on ISMIP7_WARM_START_STATE=fluidity with no fluidity MAP; IU cancelled it (9 Oct) and queued 11885372 by hand (cell refit_vf_rc with ISMIP7_WARM_START_STATE=0 and ISMIP7_CHAIN_DEPTH=1, dependency afterany:11885140), which resumes the checkpoint if 11885140 reaches its wall and exits on the done marker otherwise. Each periodic checkpoint wrote the 840 MB MAP to /N/project, and during the IU HPFS trouble of 9 October those writes took 27 to 123 s an iteration, and 11885140's evaluations ran 6.5 to 12.5 min with 18 to 44 Newton iterations a forward, so IU cancelled it (and 11885372) right after its checkpoint at evaluation 16 (total 2,303.8) and resumed it as 11886352: a checkpoint every 10 iterations, the remaining 104, ISMIP7_WARM_START_STATE=0, and up to three links. The resumed first objective was 2,303.33 against 2,303.83 recorded (relative gap 2.1e-4). Its evaluations then ran a median of 142 s with 4 to 6 Newton iterations a forward. It finished at 22:04 on 9 Oct after 121 evaluations in all: total 1,908.5, misfit 1,540.4, \|grad\| 1.23, still descending at the iteration limit; the successor 11886674 exited on the done marker. The relaxation year and re-inversion that follow are inversion-2km-rc-b20k-ef2-vf-relax2014-year and inversion-2km-rc-b20k-ef2-vf-relax2014.
 
 ### inversion-2km-rc-b20k-ef2-vf-relax2014
 
@@ -890,7 +890,7 @@ RC re-inversion on the relaxed geometry from the front-cell refit, 250 iteration
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 16 h links; full_mumps with ISMIP7_DIRECT_FORWARD_MAXIT=100; ISMIP7_MAXITER=250, ISMIP7_CHECKPOINT_EVERY_IT=10, ISMIP7_CHAIN_MAX=1
 - **Job ids:** 11894820 11894821
-- **Code:** f910b3a (PR 163's gated head, as the year); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell reinv_relax_vf_rc of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, submitted by the trigger vf_rc_trigger.sh (stage reinv, job 11891809) once the year had reached 2015
+- **Code:** f910b3a (PR 163's gated head, as the year); Quartz worktree ismip7_reinvert_s16, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16; cell reinv_relax_vf_rc of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, submitted by the trigger vf_rc_trigger.sh (stage reinv, job 11891809) once the year had reached 2015
 - **Started:** 2026-10-10
 - **Finished:** 2026-10-10
 - **Cost per model year:** 10 h 12 min of 32 ranks
@@ -910,11 +910,11 @@ RC relaxation year from the front-cell refit: 2014 to 2015 on OCX's 2014 forcing
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 360G, 6 h (projection.sbatch, ISMIP7_EXPERIMENT=relax); ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=full_mumps, ISMIP7_MAP_CLIP=0
 - **Job ids:** 11891808
-- **Code:** f910b3a (PR 163's gated head, as Budd's year); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell relax_vf_rc of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, submitted by the trigger vf_rc_trigger.sh (stage relax, job 11887831) once the refit's done marker existed
+- **Code:** f910b3a (PR 163's gated head, as Budd's year); Quartz worktree ismip7_reinvert_s16, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16; cell relax_vf_rc of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, submitted by the trigger vf_rc_trigger.sh (stage relax, job 11887831) once the refit's done marker existed
 - **Started:** 2026-10-09
 - **Finished:** 2026-10-10
 - **Cost per model year:** 4 h 02 min of 32 ranks
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_s16/antarctica/results/relax_inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_2000_final.h5
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16/antarctica/results/relax_inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_2000_final.h5
 - **Audit:** reached 2015.0 in one link, resid 0.00 every step; 81 diagnostic solves at 15 Newton iterations on average (52 at most), 89 s each on average; the MAP's state converged at \|\|F\|\| 9.4 in 47 iterations and 703 s; backdate +77 Gt over 1,287,008 grounded cells; the melt provenance line names the vertex_front calibration (sha256 2ef9fad4). Mass budget [Gt/yr]: SMB +2380, melt -1045 falling to -1025, flux out of the pinned front -2015 at the first step, then -1520 falling to -1431, dM/dt -686, -185, then rising to -78. Budd's year from its refit (inversion-2km-budd-b20k-ef2-vf-relax2014-year) carried 1,420 falling to 1,317 Gt/yr out of the front with dM/dt reaching +42.
 - **Notes:** issue #162 and issue #167: the relaxed initial state's relaxation year from RC's refit under the front-cell rule. The front carries about 110 Gt/yr more than Budd's at the year's end and the ice still loses 78 Gt/yr.
 
@@ -931,7 +931,7 @@ RC re-inversion on the relaxed geometry, 250 iterations (superseded), IU.
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 16 h, one link (afterok on the relaxation year): RC's production chain took 142 s an evaluation over its 107, so about 10.3 h for 260; ISMIP7_MAXITER=250, ISMIP7_CHAIN_MAX=0; 11487503 checks the production MAP's sha256 afterwards
 - **Job ids:** 11487502 11487503
-- **Code:** 8a55a20 (PR 163); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells
+- **Code:** 8a55a20 (PR 163); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells
 - **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_relax2014.h5 beside the production MAP, which is read only
 - **Notes:** First attempt (jobs 11487502 and its verify 11487503) cancelled on 7 Oct without starting: its relaxation year failed. The MAP is one of the initial-state options the forwards can start from in 2003 (INVERSION_PRIORS.md section 6); issue #162. Superseded on 8 Oct before it ran: IU's final MAPs are the exact_front version 2 refits, and inversion-2km-rc-b20k-ef2-relax2014 re-inverts from those
 
@@ -948,12 +948,12 @@ RC relaxation year of the relaxed initial state: 2014 to 2015 on OCX's 2014 forc
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h (projection.sbatch, ISMIP7_EXPERIMENT=relax)
 - **Job ids:** 11487501
-- **Code:** 8a55a20 (PR 163); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells
+- **Code:** 8a55a20 (PR 163); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 6 h of 32 ranks, no step
-- **Results path:** /N/scratch/dlilien/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_2000_final.h5, copied after the re-inversion to /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/relax_states/
-- **Audit:** timed out at the 6 h limit without a step: the first diagnostic solve from the MAP's state on the backdated geometry diverged under ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg (50 Newton iterations, \|\|F\|\| 5.9e13), and the fallback cold continuation from 0.1 u_obs sat in its n=1 step 1 for the rest of the job. Nothing was written beside the production MAPs. The production inversions run scpc_mumps or full_mumps because scpc_gamg stalls at this regularization; the forward's solver and the backdate have not been separated. Held by IU on 7 Oct; log /N/scratch/dlilien/ismip7_reinvert_relax/logs/ismip7_fwd_11487501.out
+- **Results path:** none: the job timed out before its first step (audit)
+- **Audit:** timed out at the 6 h limit without a step: the first diagnostic solve from the MAP's state on the backdated geometry diverged under ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_gamg (50 Newton iterations, \|\|F\|\| 5.9e13), and the fallback cold continuation from 0.1 u_obs sat in its n=1 step 1 for the rest of the job. Nothing was written beside the production MAPs. The production inversions run scpc_mumps or full_mumps because scpc_gamg stalls at this regularization; the forward's solver and the backdate have not been separated. Held by IU on 7 Oct; log /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/logs/ismip7_fwd_11487501.out
 - **Notes:** Started from the RC production MAP as it stood at 16:43 EDT on 6 Oct (iteration 95, a stop on failed trial forwards that return a zero gradient, which the production chain has since continued on full_mumps, job 11789630). Trigger 11487488. README, "The relaxed initial state"; issue #162
 
 ### inversion-2km-rc-b20k-rho7500-floating
@@ -973,7 +973,7 @@ RC final-product inversion on the 20 km buffered 2 km mesh: gamma x0.01, fluidit
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-08
 - **Cost per model year:** link 1 5 h 08 min (107 evaluations, 95 iterations); 11789630 8 h (147 evaluations); 11789631 8 h (141 evaluations); both full_mumps links ended at the wall
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating.h5; evaluation 1 copied to Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/plots/prod_*_eval1.h5
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating.h5; evaluation 1 copied to Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/plots/prod_*_eval1.h5
 - **Audit:** first checkpoint (check_phi_grounded.py, job 11469157): phi exactly 0 on all 658,217 held nodes of 969,764 (largest \|phi\| 0.0), and the MAP records fluidity_control=floating, phi_grounded=zero, h_visc_floor=2.5, drag_gate=vertex, exact_front=1; strict resume reproduced the recorded objective (relative gap 5.6e-12); total 5,546.0 at the resume, 3,572.8 seven evaluations later, 30 to 125 s an evaluation; link 1 stopped at evaluation 107 (total 1,743.7, misfit 1,399.6, \|grad\| 1.03, the objective falling about 1 an evaluation): three failed trial forwards in a row, the last two stalled at \|\|F\|\| 2.2e-4 and 2.5e-4 for 30 Newton iterations, and scipy's L-BFGS-B then reported CONVERGENCE: NORM OF PROJECTED GRADIENT <= PGTOL, read off the zero gradient a failed trial returns; the runner marked the MAP done. From that MAP full_mumps took 25 evaluations an hour and scpc_mumps stalled the same way (test-2km-rc-b20k-final-solver-probe), so the chain continued on full_mumps (11789630, strict, handoff gap 9.0e-5): 147 evaluations to total 1,662.9, then 11789631 to 1,648.13 (misfit 1,306.81, \|grad\| 0.41) in 141 evaluations, about 0.1 an evaluation, ending at its wall at 01:32 on 8 October, so the file holds that link's last periodic checkpoint (controls, no mixed state) and no done marker
 - **Notes:** issue #153: IU's option set for the final inversion products (Rice prepares its own). Started on full_mumps (jobs 11452512 and 11452521, cancelled after 18 min) and moved to scpc_mumps once test-2km-rc-b20k-rho7500-floating-scpc-mumps showed it 2.4x faster on the same iterates; the scpc_mumps chain resumed strictly from the full_mumps link's iteration-3 checkpoint. 8 h links at 480G. Memory under scpc_mumps levels off: peak rss_mib 3,796 MiB a rank after 71 evaluations, growing about 1 MiB an evaluation, so about 125 to 135 GB a job; projected to a full link with a 1.3 margin about 200 to 210 GB (mem_project.py). 7 Oct: the false stop led to PR 164's MAP-not-final rule (f57b053); held link 11461580 was cancelled and 11831163 (link 3) cancelled once RC moved to exact_front version 2 (inversion-2km-rc-b20k-rho7500-floating-ef2, issue #166); 11789631 ran to its wall as the version 1 fallback. Each link rewrites the timing JSON, so 11789630's per-evaluation record is in its log only (Quartz _s7/logs/ismip7_inv_11789630.out); link 1's is inversion_timing_rc_..._floating_link1.json. Superseded on 8 October by inversion-2km-rc-b20k-rho7500-floating-ef2, its exact_front version 2 refit from 11789631's evaluation 38 (issue #166)
 
@@ -985,7 +985,7 @@ RC final-product inversion under exact_front version 2 (issue #166), beside its 
 - **Period (yr):** 2015 state
 - **Friction law:** regularized_coulomb
 - **Mesh:** antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix
-- **Initial state / MAP:** inversion-2km-rc-b20k-rho7500-floating's version 1 chain at link 2 (11789631) evaluation 38, misfit 1,318.2 (copy Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/rc_v1_link2_eval38.h5, md5 matched); log-velocity weight 69946.22414285329; not strict on link 1 (exact_front 1 to 2)
+- **Initial state / MAP:** inversion-2km-rc-b20k-rho7500-floating's version 1 chain at link 2 (11789631) evaluation 38, misfit 1,318.2 (copy Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/rc_v1_link2_eval38.h5, md5 matched); log-velocity weight 69946.22414285329; not strict on link 1 (exact_front 1 to 2)
 - **Forcing versions:** observations sampled onto this mesh; the final-product objective (bilaplacian sigma 30, rho 7.5 km, no dH/dt term, log friction control, cell-wise friction, L-BFGS-B without a metric); ISMIP7_FLUIDITY_CONTROL=floating ISMIP7_DRAG_GATE=vertex ISMIP7_RC_HVISC_FLOOR=2.5 ISMIP7_TRANSFER_FILL=extend; ISMIP7_EXACT_FRONT=2; full_mumps
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 240G, 8 h; ISMIP7_MAXITER=120 so the link ends inside its wall and writes the full MAP, ISMIP7_CHAIN_MAX=1 as insurance, ISMIP7_DIRECT_FORWARD_MAXIT=100; a copy job saves the link's timing JSON (..._floating_ef2_11832709.json)
@@ -1101,7 +1101,7 @@ One more 8 h link of RC's version 2 final-product inversion, written beside its 
 - **Cost per model year:** ramp of 8 continuation steps under full_mumps; 1036 evaluations for 1000 L-BFGS-B iterations in 25.1 h; 67 s an evaluation (median: the forward 55 s, the adjoint 11 s), plus 19 s for the checkpoint each accepted iterate writes; the stopped TAO run took 260 to 320 s an iteration
 - **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_nomass_wsfinal0925.h5 (sha256 fea8debae9616f18, the full mixed state, published-state residual 4.06e-4) and inversion_timing_rc_2000_int5000_nomass_wsfinal0925.json beside it
 - **Audit:** ended at ITERATIONS REACHED LIMIT, 1000 iterations, 31 line-search trials that did not lower the objective, no failed forward. Evaluation 1 reproduces the stopped run's start to every printed digit. From evaluation 1 to 1036: misfit 3.315e4 to 2.249e3, velocity chi2 1.94e4 to 35.2, the log term 0.197 to 0.0316, smoothness 354 and 542 to 215 and 130, total 3.405e4 to 2.592e3. phi spans [-13.7, 2.5] (the warm start [-17.4, 0.17]); its 1st percentile fell from -0.95 to -4.57 and its 99th rose from 0.004 to 0.89. theta spans [-2.4, 5.3], 103 nodes above 3 and 6 above 5
-- **Notes:** issue #153, evidence for issue #24. The objective of inversion-2km-rc-nomass, which stopped on 1 October before its first checkpoint: Rice's with the prior's mass term removed (bilaplacian sigma 30 on both controls, rho 750 km) and no dH/dt term; misfit sigma with a 3 m/yr floor, the log-velocity term at the warm start's last-link weight, the log friction control, cell-wise friction (ISMIP7_SUBELEMENT_FRICTION=0, so no exact front push), ISMIP7_LAKE_ICE_BASE=0, the warm start's fluidity prior, ISMIP7_WARM_START_STRICT=0 on link 1 (strict on resume). What changed is how it is minimised: scipy L-BFGS-B without a metric (ISMIP7_GRAD_PRECOND=none) in place of TAO lmvm with the mass-consistent metric, the chains' optimizer since 3 October (INVERSION_PRIORS.md section 4); ISMIP7_INVERSION_LINEAR_SOLVER=scpc_gamg for the taped solves and the adjoint; the direct forward, one untaped Newton solve an evaluation (the default, so ISMIP7_EVAL_CONTINUATION no longer applies). The comparison with Rice's printed misfit carries the same 1.1e4 offset from PR #122's ocean drag gate as the stopped run. Submitted with submit_reinvert.sh stage1_rc from /N/scratch/dlilien/ismip7_reinvert_jobs, with every knob spelled out. Stage 2 moves the result to antarctica_5000_2000_buffered20000.
+- **Notes:** issue #153, evidence for issue #24. The objective of inversion-2km-rc-nomass, which stopped on 1 October before its first checkpoint: Rice's with the prior's mass term removed (bilaplacian sigma 30 on both controls, rho 750 km) and no dH/dt term; misfit sigma with a 3 m/yr floor, the log-velocity term at the warm start's last-link weight, the log friction control, cell-wise friction (ISMIP7_SUBELEMENT_FRICTION=0, so no exact front push), ISMIP7_LAKE_ICE_BASE=0, the warm start's fluidity prior, ISMIP7_WARM_START_STRICT=0 on link 1 (strict on resume). What changed is how it is minimised: scipy L-BFGS-B without a metric (ISMIP7_GRAD_PRECOND=none) in place of TAO lmvm with the mass-consistent metric, the chains' optimizer since 3 October (INVERSION_PRIORS.md section 4); ISMIP7_INVERSION_LINEAR_SOLVER=scpc_gamg for the taped solves and the adjoint; the direct forward, one untaped Newton solve an evaluation (the default, so ISMIP7_EVAL_CONTINUATION no longer applies). The comparison with Rice's printed misfit carries the same 1.1e4 offset from PR #122's ocean drag gate as the stopped run. Submitted with submit_reinvert.sh stage1_rc from /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, with every knob spelled out. Stage 2 moves the result to antarctica_5000_2000_buffered20000.
 
 ### inversion-32km-budd-dg0-dg1probe
 
@@ -1177,7 +1177,7 @@ Melt offsets at K 6.5e-5 refitted under the front-cell rule on the 1 km producti
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** serial, 4 min 15 s for the fit (11869836) and 3 min 52 s for the check (11871318); a 3 h backup of the fit on the general partition (11869845) was cancelled once the debug fit finished
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/i167/calib_vf/, tracked as antarctica/calibration/deltaT_per_basin_1000_K6.500e-05_vertex_front.npz (sha256 2ef9fad4) with its sidecar
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/i167/calib_vf/, tracked as antarctica/calibration/deltaT_per_basin_1000_K6.500e-05_vertex_front.npz (sha256 2ef9fad4) with its sidecar
 - **Audit:** 1,357,423 floating cells (1,511,859 km2) under the rule, against 1,399,171 under vertex; front cells rebuilt 58,368 and emptied 40,797. Every basin roots inside 3 K and the thermal forcing rule admits the K; the offsets run from -0.720 to +1.224 K (vertex: -0.684 to +1.200), 1,256.8 Gt/yr at zero offset. check_melt_bound.py with the forward's own callback melts 1,067.388 Gt/yr against the 1,067.386 fitted, every basin at ratio 1.0000 or 1.0001, maximum 42.1 m/yr, no cell past the libmassbffl bound; the ice-free cells that pass the flotation test (295,703 open ocean, 9,731 bare land) are left out, as under vertex.
 - **Notes:** issue #167 and issue #26: the second calibration, for runs under the front-cell rule; calibration-melt-refit-1km-rice-k50 stays the vertex calibration. The rule shrinks the 1 km melt-receiving area by 2.4 % (test-i167-front-probes).
 
@@ -5128,11 +5128,11 @@ Unforced one-year forward on the 1 km production mesh from RC's 2 km vertex-gate
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 64 ranks, 300G, 12 h
 - **Job ids:** 11412602
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 40 min, 40 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor1_amb0_1km_1000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor1_amb0_1km_1000_*
 - **Audit:** start-up ramp (8 continuation steps, scpc_gamg): 94 Newton and 16,628 Krylov iterations, 1,122 s, no failed step (the 2 km cold start's first ramp failed at step 2 and took 4.8 h in all). 40 steps with every solve converged and no rescue: 126 Newton iterations (at most 10 a step), 79 Krylov iterations a condensed solve, 27.9 s a solve; resid 0.00 every step; calving 551 Gt/yr over 2015; VAF 56,773.94 mm SLE at 2016 from 56,778.64. Against 10 m (18.2 s, 42 Krylov): 1.53x a solve, 1.88x the Krylov iterations
 - **Notes:** issue #153: the 1 m point of the 1 km floor check, run before the floor is chosen (at 2 km its cold start took 4.8 h under scpc_gamg)
 
@@ -5149,11 +5149,11 @@ Unforced one-year forward on the 1 km production mesh from RC's 2 km vertex-gate
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 64 ranks, 300G, 6 h
 - **Job ids:** 11142805
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 26 min, 40 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor10_amb0_1km_1000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor10_amb0_1km_1000_*
 - **Audit:** start-up ramp (8 continuation steps, scpc_gamg): 117 Newton and 12,396 Krylov iterations, 662 s. 40 steps with every solve converged and no rescue: 164 Newton iterations (at most 9 a step), 42 Krylov iterations a condensed solve, 18.2 s a solve; resid 0.00 every step; calving 425 Gt/yr over 2015; VAF 56,774.07 mm SLE at 2016 from 56,778.64. Against 10 m: 2.5 m costs 1.14x a solve (1.29x the Krylov iterations) and 5 m 1.10x, where the 2 km mesh on 32 ranks gave 1.4 to 1.9x and 1.0 to 1.3x
 - **Notes:** issue #153: whether the floor's forward cost on the 2 km mesh (test-2km-rc-b20k-forward-floor*-drift) carries to the 1 km production mesh before the floor is chosen; 1 m left out for its 4.8 h start at 2 km
 
@@ -5170,11 +5170,11 @@ Unforced one-year forward on the 1 km production mesh from RC's 2 km vertex-gate
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 64 ranks, 300G, 6 h
 - **Job ids:** 11142801
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 33 min, 40 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor2.5_amb0_1km_1000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor2.5_amb0_1km_1000_*
 - **Audit:** start-up ramp (8 continuation steps, scpc_gamg): 119 Newton and 18,318 Krylov iterations, 1,006 s. 40 steps with every solve converged and no rescue: 141 Newton iterations (at most 11 a step), 54 Krylov iterations a condensed solve, 20.8 s a solve; resid 0.00 every step; calving 523 Gt/yr over 2015; VAF 56,773.97 mm SLE at 2016 from 56,778.64. Against 10 m: 2.5 m costs 1.14x a solve (1.29x the Krylov iterations) and 5 m 1.10x, where the 2 km mesh on 32 ranks gave 1.4 to 1.9x and 1.0 to 1.3x
 - **Notes:** issue #153: whether the floor's forward cost on the 2 km mesh (test-2km-rc-b20k-forward-floor*-drift) carries to the 1 km production mesh before the floor is chosen; the 1 m point is test-1km-rc-forward-floor1-drift
 
@@ -5191,11 +5191,11 @@ Unforced one-year forward on the 1 km production mesh from RC's 2 km vertex-gate
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 64 ranks, 300G, 6 h
 - **Job ids:** 11142802
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 31 min, 40 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor5_amb0_1km_1000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor5_amb0_1km_1000_*
 - **Audit:** start-up ramp (8 continuation steps, scpc_gamg): 116 Newton and 15,040 Krylov iterations, 885 s. 40 steps with every solve converged and no rescue: 146 Newton iterations (at most 10 a step), 46 Krylov iterations a condensed solve, 20.0 s a solve; resid 0.00 every step; calving 484 Gt/yr over 2015; VAF 56,774.00 mm SLE at 2016 from 56,778.64. Against 10 m: 2.5 m costs 1.14x a solve (1.29x the Krylov iterations) and 5 m 1.10x, where the 2 km mesh on 32 ranks gave 1.4 to 1.9x and 1.0 to 1.3x
 - **Notes:** issue #153: whether the floor's forward cost on the 2 km mesh (test-2km-rc-b20k-forward-floor*-drift) carries to the 1 km production mesh before the floor is chosen; 1 m left out for its 4.8 h start at 2 km
 
@@ -5237,11 +5237,11 @@ One OCX step on the 1 km production mesh from transferred MAPs under the front-c
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 64 ranks, 400G, 2 h each; ISMIP7_DIAGNOSTIC_LINEAR_SOLVER=scpc_mumps, ISMIP7_MAP_CLIP=0 unless stated
 - **Job ids:** 11878241 11883140 11883169 11883520
-- **Code:** f910b3a (PR 163's gated head); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cells accept_t0_1km_* of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh
+- **Code:** f910b3a (PR 163's gated head); Quartz worktree ismip7_reinvert_s16, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16; cells accept_t0_1km_* of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-09
 - **Cost per model year:** 10 to 15 min of 64 ranks each
-- **Results path:** logs in /N/scratch/dlilien/ismip7_reinvert_s16/logs/ismip7_fwd_<job>.out; front_flux_check.py on the Rice state (job 11883151) in /N/scratch/dlilien/ismip7_reinvert_jobs/probe/front/front_rice_vf.json
+- **Results path:** logs in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16/logs/ismip7_fwd_<job>.out; front_flux_check.py on the Rice state (job 11883151) in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/front/front_rice_vf.json
 - **Audit:** IU's refit (11883140): rebuilt under vertex_front (58,368 front cells rebuilt, 40,797 emptied), the initial continuation converged in 14 Newton iterations (95 s), the melt provenance line names the vertex_front calibration (sha256 2ef9fad4), apparent MB net +161 Gt/yr (a_ref in [-17,137, +34,605] m/yr), first step SMB +2430, melt -1049, front -1822, dM/dt -269, resid 0.00. Rice's Budd snapshot under vertex_front (11878241): the same rebuild and calibration, but apparent MB net +9,004 Gt/yr (a_ref up to +4.1e6 m/yr) and the front at -6,959 Gt/yr; its floating ice ran about three times the observed speed in every distance band (1,080 to 1,675 against 380 to 482 m/yr), 10,317 Gt/yr out of the front, and a land-margin node at (-2,276,604, 967,127) reached 1.5e7 m/yr. With the default clip (11883169, 14 nodes bounded) nothing changed (front -6,974). Under vertex sampling (11883520), with the vertex calibration (sha256 4f525009): apparent MB net -473 Gt/yr (a_ref in [-6,870, +3,918] m/yr), front -1,276, resid 0.00.
 - **Notes:** issue #167: a MAP fitted under the rule transfers cleanly; Rice's snapshot, fitted on its buffer-0 mesh where the front is the boundary, does not, and the front rule is what moves it. Rice's current MAPs were not run.
 
@@ -5700,7 +5700,7 @@ Budd's final MAP at its own controls under exact_front version 1 (the free-cliff
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 10 min; ISMIP7_MAXITER=1
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/c166_budd_v1.h5 (one L-BFGS-B iteration past the MAP)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/c166_budd_v1.h5 (one L-BFGS-B iteration past the MAP)
 - **Audit:** evaluation 1: misfit 1,108.24, total 1,388.36, \|grad\| 0.66; first forward 6 Newton iterations. The 7 Oct pre arm on f57b053 gave 1,388.36 / 1,108.2 / 0.66
 - **Notes:** issue #166: the version 1 baseline for test-2km-budd-b20k-exact-front-v2-eval1, rerun on the version 2 code
 
@@ -5721,7 +5721,7 @@ Budd's final MAP through the forward's t = 0 solve under exact_front version 1 (
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 3 min; the solve 104 s
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/c166/score/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_t0.h5 and .json
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/c166/score/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_t0.h5 and .json
 - **Audit:** loaded \|\|F\|\| 6.69e13 re-solved in 15 Newton iterations to 3.87e5; grounded discharge 2,761 Gt/yr against 2,238 with the observed velocity (ratio 1.23)
 - **Notes:** issue #166: the version 1 reference for test-2km-budd-b20k-exact-front-v2-t0
 
@@ -5742,7 +5742,7 @@ Budd's final MAP at its own controls under exact_front version 2 (the push of th
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 11 min; ISMIP7_MAXITER=1
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/c166_budd_v2.h5 (one L-BFGS-B iteration past the MAP)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/c166_budd_v2.h5 (one L-BFGS-B iteration past the MAP)
 - **Audit:** evaluation 1: misfit 1,113.05 (+0.43 % on version 1), total 1,393.17, \|grad\| 1.70 (2.6 times version 1's); first forward converged in 12 Newton iterations against 6. Restricting the push to ocean facets (2441818, 7 Oct) gave misfit 1,146.8 and \|grad\| 3.28 at the same controls
 - **Notes:** issue #166: how far the final Budd MAP's controls lean on the free-cliff push into rock above the ice surface
 
@@ -5763,7 +5763,7 @@ Budd's final MAP through the forward's t = 0 solve under exact_front version 2 (
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** 3 min; the solve 121 s; the comparison (check_cliff_facets.py --compare, 16 ranks) 1.5 min
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/c166/score/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_t0.h5 and .json; comparison /N/scratch/dlilien/ismip7_reinvert_jobs/c166/compare_budd.txt; census /N/scratch/dlilien/ismip7_reinvert_jobs/c166/census_budd.txt and census_1km.txt (jobs 11825455, 11825456)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/c166/score/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_t0.h5 and .json; comparison /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/c166/compare_budd.txt; census /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/c166/census_budd.txt and census_1km.txt (jobs 11825455, 11825456)
 - **Audit:** converged in 22 Newton iterations to 1.26e5 (version 1: 15). Grounded discharge 2,758.7 Gt/yr against 2,761.3, -2.6 Gt/yr (-0.09 %); by IMBIE basin at most -0.99 % (basin 6, 48 Gt/yr) and -0.63 % (basin 7, 234 Gt/yr), every other basin within 0.5 %. Speed change by distance to the nearest facet whose push version 2 changes: grounded ice within 2 km p50/p99 0.17/22.9 m/yr, 2 to 6 km 0.06/12.6, 6 to 20 km 0.00/2.6, beyond 20 km 0.00/0.00; floating ice beyond 20 km 0.00/1.9. Grounded area changed by more than 10 m/yr: 494, 1,084, 439 and 0 km^2 in those bands; floating 55, 665, 645 and 39 km^2
 - **Notes:** issue #166: the Tier-1 check of version 2 at fixed controls. Census of the MAP's geometry: of 16,359 front facets, version 2 changes the push on 2,756 against rock above the ice surface (7,597 km, edge thickness p50/p90/p99 5/83/271 m), 239 partial walls (697 km) and 123 shoals (300 km), 89, 10 and 1 % of the change; 124 grounded edge cells (424 km^2) had a change larger than their own basal drag. On the 1 km production mesh (the 13 Sep timing cache's t = 0 geometry) the rock-above facets are longer (16,871 km) and thinner at the edge (p90 41 m), with 108 km of changed facets thicker than 200 m against 195 km at 2 km
 
@@ -5780,11 +5780,11 @@ Forwards from Budd's final MAP: which of the solver, the 1-year backdate and the
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G to 360G, 1 h each, ISMIP7_CHAIN=0
 - **Job ids:** 11789781 11789782 11789783 11789784 11795931
-- **Code:** 8a55a20 (the relaxation code); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s8
+- **Code:** 8a55a20 (the relaxation code); Quartz worktree ismip7_reinvert_s8, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s8
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** about 4 node hours
-- **Results path:** logs in Quartz /N/scratch/dlilien/ismip7_reinvert_s8/logs/ismip7_fwd_<job>.out
+- **Results path:** logs in Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s8/logs/ismip7_fwd_<job>.out
 - **Audit:** first solve, then a time step: scpc_mumps, 1 yr backdate, clip: converged in 14 Newton iterations, 130 s, steps about 34 s, budget residual 0.00; full_mumps, same: 14 iterations, 237 s, steps about 52 s; scpc_gamg, no backdate, clip (11795931): 28 iterations, 1,205 s, a step 867 s; scpc_gamg, 1 yr, no clip (11789783): 10 iterations, 773 s, then the job died of a PyOP2 cache KeyError; scpc_gamg, 12 yr (11789784, OCX starts in 2003 and backdates by default), clip: diverged, 50 iterations to \|\|F\|\| 2.3e13, as the relaxation's own scpc_gamg, 1 yr, clip forwards did (11487501, 11489435)
 - **Notes:** issue #153 and the relaxed initial state (issue #162): scpc_gamg, the forward runner's default, is what fails from these MAPs, and where it converges it is about 25 times slower a step than scpc_mumps; the backdate and the clip each move it from slow to divergent. Decided by IU on 8 Oct for forwards from IU's final MAPs (the exact_front version 2 refits, inversion-2km-budd-b20k-rho7500-floating-ef2 and inversion-2km-rc-b20k-rho7500-floating-ef2): ISMIP7_MAP_CLIP=0 with scpc_mumps for Budd and full_mumps for RC, passed at submission, so the forward runs the controls the inversion fitted; the repository defaults (scpc_gamg in projection.sbatch, the clip at 10 for n=3) stay. These runs started from the version 1 final. The relaxation years from the version 2 MAPs ran the settings with the clip off: Budd on scpc_mumps (11838241) at 7.8 Newton iterations a solve; RC on scpc_mumps (11838244) at 36 to 84, 13 to 34 min a step, so RC's forwards run full_mumps. IU expects the regularization to set the solver a MAP needs, so Rice's more strongly regularized MAPs may run scpc_mumps or scpc_gamg; this is untested, and the membrane floor also moves the start-up cost (a 1 m floor cold start from RC's stage 2 MAP took 4.8 h under scpc_gamg, test-2km-rc-b20k-vgate-floor1)
 
@@ -5805,7 +5805,7 @@ Stage-2 path smoke on the 20 km buffered mesh from Budd's stage-1 checkpoint, co
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** 16 min: load, ramp of 8 steps, 4 evaluations of 34 to 41 s
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/smoke2.h5
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/smoke2.h5
 - **Audit:** evaluation 1: misfit 5.68e3, smoothness 2.49e4 and 1.21e5, total 1.52e5, against 2.87e3 recorded on Rice's mesh: the step the constant fill puts at the outline. Evaluation 4: smoothness 4.5e3 and 2.5e4, misfit unchanged
 - **Notes:** issue #153; the reason for ISMIP7_TRANSFER_FILL=extend (3490914)
 
@@ -5826,7 +5826,7 @@ Stage-2 path smoke on the 20 km buffered mesh from Budd's stage-1 checkpoint, sm
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** 16 min: load, ramp of 8 steps, 3 evaluations of 32 to 54 s
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/smoke2_extend.h5 (records warm_start_fill extend)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/smoke2_extend.h5 (records warm_start_fill extend)
 - **Audit:** evaluation 1: smoothness 397 and 756, misfit 6.42e3, total 7.58e3 against 1.52e5 under the constant fill; total 7.04e3 at evaluation 3
 - **Notes:** issue #153
 
@@ -5846,7 +5846,7 @@ IU's final Budd controls under the front-cell rule: one evaluation on the curren
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 21 min each (Budd); RC (11850404) reached debug's 1 h wall before its first evaluation, as its state ramps from n = 1 under full_mumps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/i167/i167_eval1o_budd.h5 (current mesh), i167_eval1_budd.h5 (_frontbm), ff_eval1o_budd.json, ff_eval1_budd.json
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/i167/i167_eval1o_budd.h5 (current mesh), i167_eval1_budd.h5 (_frontbm), ff_eval1o_budd.json, ff_eval1_budd.json
 - **Audit:** against the recorded misfit 1,102 (total 1,382, \|grad\| 0.15): current mesh misfit 1,882.3, total 2,163.5, \|grad\| 24.9; _frontbm misfit 4,249.5, total 4,464.7, \|grad\| 37.6. Model floating front flux 1,334.4 Gt/yr (u.n 215.8 m/yr against 166.0 observed, front 190.9 m) on the current mesh and 1,243.6 (240.6 against 191.5, 183.8 m) on _frontbm, against 343 at the ef2 state; grounding-line flux 2,255.1 against 2,155.7 observed and 2,332.5 against 2,171.7.
 - **Notes:** issue #167; IU chose the current mesh (8 Oct), refit inversion-2km-budd-b20k-ef2-vf
 
@@ -5948,7 +5948,7 @@ The final MAPs under a cliff correction restricted to ocean facets (2441818), an
 - **Started:** 2026-10-07
 - **Finished:** 2026-10-07
 - **Cost per model year:** about 0.6 node hours
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/cliff_*.h5; facet count /N/scratch/dlilien/ismip7_reinvert_jobs/plots/cliff_budd.txt and cliff_budd_land.png (cliff_facets.py beside them)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/cliff_*.h5; facet count /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/plots/cliff_budd.txt and cliff_budd_land.png (cliff_facets.py beside them)
 - **Audit:** Budd at its controls: misfit 1,108.24, total 1,388.36, \|grad\| 0.66 ungated against 1,146.81, 1,426.93, 3.28 gated. RC under the gate: the first forward did not converge in 30 Newton iterations (the ungated code took 6). Land edges where the gate removes the correction: 5,108 facets, 14,461 km; where the rock rises above the ice surface (7,624 km) the facet push alone is a length-weighted median 13 times the free-cliff push back into the ice (p10 148 times), and where it lies below (6,837 km) 20 times outward (p90 153 times)
 - **Notes:** issue #153: on this evidence IU reverted the gate (97ac1d0) and filed the push into rock above the ice surface as issue #166, since fixed as exact_front version 2 (4426372)
 
@@ -6475,7 +6475,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 5296, velocity chi2 457; model minus observed speed on floating ice mean -110 m/yr (median ratio -25 %), floating within 25 km of the edge -130 m/yr, grounded -2.0 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6496,7 +6496,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: the cons
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 5199, velocity chi2 450; model minus observed speed on floating ice mean -105 m/yr (median ratio -24 %), floating within 25 km of the edge -124 m/yr, grounded -1.7 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6517,7 +6517,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 4485, velocity chi2 387; model minus observed speed on floating ice mean -100 m/yr (median ratio -23 %), floating within 25 km of the edge -118 m/yr, grounded -2.5 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6538,7 +6538,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 3473, velocity chi2 220; model minus observed speed on floating ice mean -68 m/yr (median ratio -16 %), floating within 25 km of the edge -86 m/yr, grounded -2.3 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6559,7 +6559,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 5509, velocity chi2 478; model minus observed speed on floating ice mean -115 m/yr (median ratio -26 %), floating within 25 km of the edge -132 m/yr, grounded -2.5 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6580,7 +6580,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 2672, velocity chi2 56; model minus observed speed on floating ice mean -4.7 m/yr (median ratio -1 %), floating within 25 km of the edge -17 m/yr, grounded -2.0 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6601,7 +6601,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: the smoo
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 5755, velocity chi2 500; model minus observed speed on floating ice mean -119 m/yr (median ratio -27 %), floating within 25 km of the edge -138 m/yr, grounded -2.7 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6622,7 +6622,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: as pre2 
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 3193, velocity chi2 108; model minus observed speed on floating ice mean -39 m/yr (median ratio -11 %), floating within 25 km of the edge -52 m/yr, grounded -2.1 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6643,7 +6643,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: the vert
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/
 - **Audit:** evaluation 1: misfit 3159, velocity chi2 76; model minus observed speed on floating ice mean -5.6 m/yr (median ratio -2 %), floating within 25 km of the edge -14 m/yr, grounded -1.8 m/yr (shelf_stats.py)
 - **Notes:** issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor
 
@@ -6664,7 +6664,7 @@ RC stage-1 controls on the 20 km buffered 2 km mesh, evaluation 1 only: the vert
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 28 min with the ramp; ISMIP7_MAXITER=1
-- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs, plots/film_vgf1_exact_eval1.h5
+- **Results path:** the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, plots/film_vgf1_exact_eval1.h5
 - **Audit:** evaluation 1: misfit 3,150.0, velocity chi2 74.3; model minus observed speed on floating ice mean -5.6 m/yr (median ratio -1 %), floating within 25 km of the edge -14.0 m/yr (median ratio -6 %), grounded -1.8 m/yr (shelf_stats.py). Without the push (test-2km-rc-b20k-eval1-vgate-floor1): misfit 3,159.2, -5.6 (-2 %), -13.6 (-7 %), -1.8
 - **Notes:** issue #153: what the exact push at internal grounded marine cliffs (dual_friction.front_cliff_correction) changes on the buffered mesh, where every front is internal: the misfit falls 0.3 %
 
@@ -6676,7 +6676,7 @@ RC's final-product MAP after its false stop: one hour of full_mumps against scpc
 - **Period (yr):** 2015 state
 - **Friction law:** regularized_coulomb
 - **Mesh:** antarctica_5000_2000_buffered20000 (IU's build, 969,764 vertices), DG0 geometry, vertex raster sampling, the lake fix
-- **Initial state / MAP:** inversion-2km-rc-b20k-rho7500-floating's link 1 checkpoint at evaluation 107 (Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/rc_prod_snap_eval107.h5, md5 matched), strict
+- **Initial state / MAP:** inversion-2km-rc-b20k-rho7500-floating's link 1 checkpoint at evaluation 107 (Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/rc_prod_snap_eval107.h5, md5 matched), strict
 - **Forcing versions:** observations sampled onto this mesh; the final-product objective (bilaplacian sigma 30, rho 7.5 km, no dH/dt term, log friction control, cell-wise friction, L-BFGS-B without a metric); ISMIP7_FLUIDITY_CONTROL=floating ISMIP7_DRAG_GATE=vertex ISMIP7_RC_HVISC_FLOOR=2.5 ISMIP7_TRANSFER_FILL=extend; ISMIP7_EXACT_FRONT=1; full_mumps (11487397) against scpc_mumps (11487398)
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 480G, 1 h 20 min each
@@ -6685,7 +6685,7 @@ RC's final-product MAP after its false stop: one hour of full_mumps against scpc
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 1 h 20 min (full_mumps, wall) and 1 h 13 min (scpc_mumps)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/rc_probe161_{full,scpc}_rc.{h5,json}
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/rc_probe161_{full,scpc}_rc.{h5,json}
 - **Audit:** both reproduced the recorded objective (1,743.88 against 1,743.72, gap 9.0e-5) and took identical iterates for 6 evaluations. full_mumps: 25 evaluations in 67 min to total 1,725.7, about 10 s a Newton step and 94 s an adjoint, one failed far trial recovered, mean RSS flat at 2.75 GB a rank, peak 5.1 GB. scpc_mumps: about 18 to 21 s a Newton step (about 8 outer Krylov iterations each), then four failed trials in a row (three stalled at \|\|F\|\| 1.7e-4 to 2.0e-4) and the false PGTOL stop at evaluation 6; its driver printed MAP not final, and its runner, stored at submission, still wrote the done marker
 - **Notes:** issue #153: the evidence for continuing RC's final on full_mumps (inversion-2km-rc-b20k-rho7500-floating, 11789630). A Slurm job runs the batch script it was submitted with, so a worktree update reaches a queued job's driver and leaves its runner as it was
 
@@ -6702,11 +6702,11 @@ Unforced, balanced five-year forward from RC's vertex-gate stage-2 MAP on the 20
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 10972250
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h 05 min in the start-up ramp, cancelled
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor1_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status); the job was cancelled in its start-up ramp and wrote no state
 - **Audit:** start-up ramp under scpc_gamg: step 1 (n = 1) converged in 35 Newton and 20,222 Krylov iterations, 1,140 s (10 m: 680 s, 12,377); step 2 (n = 1.29) had not returned after 1 h 30 min (10 m: 100 s). Cancelled as redundant with test-2km-rc-b20k-forward-floor1-drift, whose start is identical
 - **Notes:** issue #153: the start of a forward at the membrane floor the inversion now records (94d0398), against 10 m. Balanced and unforced, the state is a fixed point (dh/dt = 0 at t=0 and nothing moves it), so this times the start-up solve and checks the first step; test-2km-rc-b20k-forward-floor*-drift exercise the fronts
 
@@ -6723,11 +6723,11 @@ Unforced five-year forward from RC's vertex-gate stage-2 MAP on the 20 km buffer
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 10994758
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 5 h 52 min, 200 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor1_amb0_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor1_amb0_2000_*
 - **Audit:** start-up ramp under scpc_gamg: the 8-step ramp's second step (n = 1.29) hit 200 Newton iterations (204,435 Krylov, 12,594 s) and the 16-step retry converged; 18 solves, 379 Newton and 278,123 Krylov iterations, 17,218 s in all (10 m: 1,006 s). Then 200 steps with every solve converged and no rescue: 448 Newton iterations (at most 9 a step), 72 Krylov iterations a condensed solve, 18.6 s a solve; resid 0.00 every step; VAF 56,701.6868 mm SLE at 2020, the restart-started twin's value to every printed digit
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds
 
@@ -6744,11 +6744,11 @@ As test-2km-rc-b20k-forward-floor1-drift, started from the MAP's full mixed stat
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 11012470
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h 03 min, 200 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor1_amb0_rs_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor1_amb0_rs_2000_*
 - **Audit:** restart state re-solved, then 200 steps with every solve converged and no rescue: 645 Newton iterations (at most 11 a step), 98 Krylov iterations a condensed solve, 36.3 s a solve; resid 0.00 every step; VAF 56,701.69 mm SLE at 2020 from 56,723.78 (10 m: 723 Newton, 38 Krylov, 14.4 s a solve, 56,702.18)
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds. The restart start separates the per-step cost from the cold start's ramp, which at 1 m took hours under scpc_gamg
 
@@ -6765,11 +6765,11 @@ Unforced, balanced five-year forward from RC's vertex-gate stage-2 MAP on the 20
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 10972251
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 22 min: start-up ramp 1,010 s, then 200 steps in 194 s of solves
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor10_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor10_2000_*
 - **Audit:** start-up ramp (8 continuation steps, scpc_gamg): 106 Newton and 18,413 Krylov iterations, 1,010 s (the first, n = 1, step 680 s). 200 steps, every solve converged, no rescue: 71 Newton iterations in all, 21 Krylov iterations a condensed solve, 1.0 s a solve. The state holds: peak speed 4,338 m/yr at (-1607990, -325127) and peak thickness unchanged to seven digits, dM/dt 0, calving 296 Gt/yr against amb 297, resid 0.00 every step
 - **Notes:** issue #153: the start of a forward at the membrane floor the inversion now records (94d0398), against 10 m. Balanced and unforced, the state is a fixed point (dh/dt = 0 at t=0 and nothing moves it), so this times the start-up solve and checks the first step; test-2km-rc-b20k-forward-floor*-drift exercise the fronts
 
@@ -6786,11 +6786,11 @@ Unforced five-year forward from RC's vertex-gate stage-2 MAP on the 20 km buffer
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 10994759
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 57 min, 200 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor10_amb0_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor10_amb0_2000_*
 - **Audit:** start-up ramp (8 continuation steps, scpc_gamg): 106 Newton and 18,413 Krylov iterations, 1,006 s. 200 steps with every solve converged and no rescue: 539 Newton iterations (at most 5 a step), 39 Krylov iterations a condensed solve, 11.4 s a solve; resid 0.00 every step. The 1 m twin was still in its ramp's second step after 2 h
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds
 
@@ -6807,11 +6807,11 @@ As test-2km-rc-b20k-forward-floor10-drift, started from the MAP's full mixed sta
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 11012473
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 52 min, 200 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor10_amb0_rs_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor10_amb0_rs_2000_*
 - **Audit:** restart state re-solved, then 200 steps with every solve converged and no rescue: 723 Newton iterations (at most 7 a step), 38 Krylov iterations a condensed solve, 14.4 s a solve. Peak speed 4,258 m/yr at step 1, 3,401 by 2020; calving 429 Gt/yr in the first year rising to 703 by 2020; resid 0.00 every step. At 2 years the 1, 2.5 and 5 m runs took 37.6, 25.6 and 18.4 s a solve (95, 68, 53 Krylov iterations a condensed solve), none failing
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds. The restart start separates the per-step cost from the cold start's ramp, which at 1 m took hours under scpc_gamg
 
@@ -6828,11 +6828,11 @@ Unforced five-year forward from RC's vertex-gate stage-2 MAP on the 20 km buffer
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 11002797
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 1 h 23 min, 200 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor2.5_amb0_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor2.5_amb0_2000_*
 - **Audit:** start-up ramp (8 continuation steps, scpc_gamg): 113 Newton and 28,397 Krylov iterations, 1,561 s. 200 steps with every solve converged and no rescue: 430 Newton iterations (at most 8 a step), 59 Krylov iterations a condensed solve, 16.3 s a solve; resid 0.00 every step. The 1 m twin was still in its ramp's second step after 2 h
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds
 
@@ -6849,11 +6849,11 @@ As test-2km-rc-b20k-forward-floor2p5-drift, started from the MAP's full mixed st
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 11012471
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 1 h 35 min, 200 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor2.5_amb0_rs_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor2.5_amb0_rs_2000_*
 - **Audit:** restart state re-solved, then 200 steps with every solve converged and no rescue: 658 Newton iterations (at most 10 a step), 70 Krylov iterations a condensed solve, 27.8 s a solve; resid 0.00 every step; VAF 56,701.78 mm SLE at 2020 from 56,723.78 (10 m: 723 Newton, 38 Krylov, 14.4 s a solve, 56,702.18)
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds. The restart start separates the per-step cost from the cold start's ramp, which at 1 m took hours under scpc_gamg
 
@@ -6870,11 +6870,11 @@ Unforced five-year forward from RC's vertex-gate stage-2 MAP on the 20 km buffer
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 11002798
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 56 min, 200 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor5_amb0_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor5_amb0_2000_*
 - **Audit:** start-up ramp (8 continuation steps, scpc_gamg): 105 Newton and 20,009 Krylov iterations, 1,089 s. 200 steps with every solve converged and no rescue: 421 Newton iterations (at most 6 a step), 48 Krylov iterations a condensed solve, 11.0 s a solve; resid 0.00 every step. The 1 m twin was still in its ramp's second step after 2 h
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds
 
@@ -6891,11 +6891,11 @@ As test-2km-rc-b20k-forward-floor5-drift, started from the MAP's full mixed stat
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 6 h
 - **Job ids:** 11012472
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 1 h 04 min, 200 steps
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor5_amb0_rs_2000_*
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor5_amb0_rs_2000_*
 - **Audit:** restart state re-solved, then 200 steps with every solve converged and no rescue: 652 Newton iterations (at most 9 a step), 54 Krylov iterations a condensed solve, 18.5 s a solve; resid 0.00 every step; VAF 56,701.92 mm SLE at 2020 from 56,723.78 (10 m: 723 Newton, 38 Krylov, 14.4 s a solve, 56,702.18)
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds. The restart start separates the per-step cost from the cold start's ramp, which at 1 m took hours under scpc_gamg
 
@@ -6958,7 +6958,7 @@ Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 k
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h (TIMEOUT)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs, probe/rc_gamg_g01_r1.h5 and .json
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, probe/rc_gamg_g01_r1.h5 and .json
 - **Audit:** loaded residual \|\|F\|\| 5.9 (converged at this floor). Evaluation 1: forward 616 s, adjoint 561 s; evaluation 2: forward 3,561 s, adjoint 540 s; total 1,838.2 -> 1,837.8. Stopped by the 2 h limit. The starting state, converged at 1 m, holds phi down to -31.8 (fluidity e^-32 of the prior), a contrast that slows scpc_gamg at any floor; at rho 75 km the inversion needs full_mumps whatever the floor (test-2km-rc-b20k-g01-vgf1: about 145 s an evaluation)
 - **Notes:** issue #153: whether the membrane floor sets the scpc_gamg cost at rho 75 km (the 1 m run took 900 s forwards there, 57 s evaluations at rho 750 km)
 
@@ -6979,7 +6979,7 @@ Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 k
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h (TIMEOUT)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs, probe/rc_gamg_g01_r10.h5 and .json
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, probe/rc_gamg_g01_r10.h5 and .json
 - **Audit:** loaded residual \|\|F\|\| 2.6e8; no evaluation finished in the 2 h limit. The starting state, converged at 1 m, holds phi down to -31.8 (fluidity e^-32 of the prior), a contrast that slows scpc_gamg at any floor; at rho 75 km the inversion needs full_mumps whatever the floor (test-2km-rc-b20k-g01-vgf1: about 145 s an evaluation)
 - **Notes:** issue #153: whether the membrane floor sets the scpc_gamg cost at rho 75 km (the 1 m run took 900 s forwards there, 57 s evaluations at rho 750 km)
 
@@ -7000,7 +7000,7 @@ Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 k
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h (TIMEOUT)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs, probe/rc_gamg_g01_r2p5.h5 and .json
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, probe/rc_gamg_g01_r2p5.h5 and .json
 - **Audit:** loaded residual \|\|F\|\| 4.3e7; no evaluation finished in the 2 h limit. The starting state, converged at 1 m, holds phi down to -31.8 (fluidity e^-32 of the prior), a contrast that slows scpc_gamg at any floor; at rho 75 km the inversion needs full_mumps whatever the floor (test-2km-rc-b20k-g01-vgf1: about 145 s an evaluation)
 - **Notes:** issue #153: whether the membrane floor sets the scpc_gamg cost at rho 75 km (the 1 m run took 900 s forwards there, 57 s evaluations at rho 750 km); issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost
 
@@ -7021,7 +7021,7 @@ Three RC iterations under scpc_gamg from a converged rho 75 km state on the 20 k
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 2 h (TIMEOUT)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs, probe/rc_gamg_g01_r5.h5 and .json
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, probe/rc_gamg_g01_r5.h5 and .json
 - **Audit:** loaded residual \|\|F\|\| 1.1e8; no evaluation finished in the 2 h limit. The starting state, converged at 1 m, holds phi down to -31.8 (fluidity e^-32 of the prior), a contrast that slows scpc_gamg at any floor; at rho 75 km the inversion needs full_mumps whatever the floor (test-2km-rc-b20k-g01-vgf1: about 145 s an evaluation)
 - **Notes:** issue #153: whether the membrane floor sets the scpc_gamg cost at rho 75 km (the 1 m run took 900 s forwards there, 57 s evaluations at rho 750 km); issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost
 
@@ -7063,7 +7063,7 @@ The RC final-product inversion's first evaluations under scpc_mumps (speed and R
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 15 min 31 s, 8 evaluations
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs, probe/rc_prod_scpc_mumps.h5 and .json
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, probe/rc_prod_scpc_mumps.h5 and .json
 - **Audit:** held phi at 0 on 658,217 of 969,764 nodes; evaluation 1 total 6,643.9 (the warm start records 3,158.4 with grounded phi inverted), 3,780.4 by evaluation 8. The same iterates as full_mumps to every printed digit through evaluation 3. Per evaluation (forward / adjoint, s): scpc_mumps 141/24, 23/8, 89/8 against full_mumps 295/97, 35/91, 147/90, about 5.5 against 9 s a Newton iteration; rss_mib peak a rank 2,573 at evaluation 1 and 3,606 at 8 (full_mumps 4,131 and 4,640 at 3)
 - **Notes:** issue #153: scpc_mumps had never run an inversion at 2 km; if it is faster or lighter than full_mumps the production links switch to it (the solver is outside the objective)
 
@@ -7084,7 +7084,7 @@ RC stage 2 on the 20 km buffered mesh with the drag kept off every node of the i
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 309 evaluations in 6 h 08 min
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_vgf1.h5; maps in /N/scratch/dlilien/ismip7_reinvert_jobs/plots/s2x_vgf1_*.png
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_vgf1.h5; maps in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/plots/s2x_vgf1_*.png
 - **Audit:** evaluation 309: misfit 2,833, velocity chi2 61.0, total 3,170; floating ice mean -5.8 m/yr, median ratio -2 %, within 25 km of the edge -13.1 m/yr (stage 1 on Rice's mesh: -5.8, -2 %, -10.9; the production gate: misfit 3,074 and a shelf dipole; the drag off: misfit 2,412); 90th and 99th percentile speed misfit 34 and 173 m/yr (stage 1: 35 and 171); no failed forward
 - **Notes:** issue #153: the forward-compatible fix for the ring's hold on the shelves. The misfit left above the drag-off run (about 420) is outside floating ice, where both match stage 1; not located. Forward runs from this MAP at 1, 2.5, 5 and 10 m (test-2km-rc-b20k-forward-floor*) ran five unforced years with no failed solve; the 1 m cold start took 4.8 h under scpc_gamg
 
@@ -7101,11 +7101,11 @@ RC stage 2 on the 20 km buffered mesh with the drag kept off every node of the i
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 12 h
 - **Job ids:** 11002794
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 4 h 21 min, 310 evaluations, 37.9 s an evaluation
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_rc_vf10.h5; evaluation 1 copied by snap_iter1_long.sh to Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/plots/s2x_rc_vf10_eval1.h5
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_rc_vf10.h5; evaluation 1 copied by snap_iter1_long.sh to Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/plots/s2x_rc_vf10_eval1.h5
 - **Audit:** evaluation 1: misfit 3,192.9, velocity chi2 108.4; floating ice mean -39.2 m/yr (median ratio -11 %), within 25 km of the edge -52.2 m/yr (-17 %), grounded -2 m/yr (shelf_stats.py on the copied evaluation 1); evaluation 1 reproduces test-2km-rc-b20k-eval1-vgate (4e45d18) to every printed digit. Final: misfit 2,790.8, velocity chi2 64.7, total 3,129.7; floating mean -6.2 m/yr (median ratio -2 %), front band mean -18.5 m/yr (median -12.4, ratio -8 %); 90th and 99th percentile speed misfit 35.5 and 179 m/yr. Against the 1 m MAP (plot_floor_diff.py): floating phi 99th percentile +0.64 softer, front-band speed 1st percentile -95 m/yr; no failed forward
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost; the 1 m point is test-2km-rc-b20k-vgate-floor1
 
@@ -7122,11 +7122,11 @@ RC stage 2 on the 20 km buffered mesh with the drag kept off every node of the i
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 12 h
 - **Job ids:** 11002792
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 5 h 10 min, 308 evaluations, 47.4 s an evaluation
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_rc_vf2p5.h5; evaluation 1 copied by snap_iter1_long.sh to Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/plots/s2x_rc_vf2p5_eval1.h5
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_rc_vf2p5.h5; evaluation 1 copied by snap_iter1_long.sh to Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/plots/s2x_rc_vf2p5_eval1.h5
 - **Audit:** evaluation 1: misfit 3,132.4, velocity chi2 74.4; floating ice mean -12.7 m/yr (median ratio -4 %), within 25 km of the edge -22.2 m/yr (-9 %), grounded -2 m/yr (shelf_stats.py on the copied evaluation 1). Final: misfit 2,820.4, velocity chi2 61.3, total 3,158.4; floating mean -5.8 m/yr (median ratio -2 %), front band mean -14.0 m/yr (median -10.4, ratio -7 %); 90th and 99th percentile speed misfit 34.0 and 174 m/yr. Against the 1 m MAP (plot_floor_diff.py): floating phi 99th percentile +0.14 softer, front-band speed 1st percentile -22 m/yr; no failed forward
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost; the 1 m point is test-2km-rc-b20k-vgate-floor1
 
@@ -7143,11 +7143,11 @@ RC stage 2 on the 20 km buffered mesh with the drag kept off every node of the i
 - **Site / partition:** IU Quartz, general partition
 - **Ranks / memory:** 32 ranks, 160G, 12 h
 - **Job ids:** 11002793
-- **Code:** 94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5
+- **Code:** 94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5
 - **Started:** 2026-10-05
 - **Finished:** 2026-10-05
 - **Cost per model year:** 4 h 32 min, 309 evaluations, 38.9 s an evaluation
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_rc_vf5.h5; evaluation 1 copied by snap_iter1_long.sh to Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/plots/s2x_rc_vf5_eval1.h5
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_rc_vf5.h5; evaluation 1 copied by snap_iter1_long.sh to Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/plots/s2x_rc_vf5_eval1.h5
 - **Audit:** evaluation 1: misfit 3,121.8, velocity chi2 80.7; floating ice mean -22.9 m/yr (median ratio -7 %), within 25 km of the edge -34.0 m/yr (-12 %), grounded -2 m/yr (shelf_stats.py on the copied evaluation 1). Final: misfit 2,803.6, velocity chi2 62.2, total 3,142.4; floating mean -6.0 m/yr (median ratio -2 %), front band mean -15.5 m/yr (median -11.1, ratio -7 %); 90th and 99th percentile speed misfit 34.5 and 176 m/yr. Against the 1 m MAP (plot_floor_diff.py): floating phi 99th percentile +0.34 softer, front-band speed 1st percentile -51 m/yr; no failed forward
 - **Notes:** issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost; the 1 m point is test-2km-rc-b20k-vgate-floor1
 
@@ -7231,7 +7231,7 @@ One fresh scpc_gamg solver on Rice's mesh at RC's final stage-1 controls (Krylov
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-04
 - **Cost per model year:** three evaluations, 61 s forward and 13 s adjoint (median)
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/fresh_rc_s1.json
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/fresh_rc_s1.json
 - **Audit:** 152 Krylov iterations a condensed solve with a fresh solver, against 144 for stage 1's reused solver at the same controls and 68 for a fresh solver on the buffered mesh: the buffered setup, not solver reuse, halves stage 2's evaluation cost. Evaluation 1 reproduces stage 1's final objective (total 2.592786e3)
 - **Notes:** issue #153
 
@@ -7252,7 +7252,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP, curvature x0.01
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 158 evaluations in 6 h 22 min
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/lcurve/rc_lc_rc_g001.h5; maps in Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/lc_g001_*.png
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/lcurve/rc_lc_rc_g001.h5; maps in Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/lc_g001_*.png
 - **Audit:** evaluation 158: misfit 645 (stage 1 ended at 2,249), velocity chi2 10.7, total 894; mean absolute speed misfit 15.4 m/yr on floating ice and 2.6 m/yr on grounded ice. phi on the shelves shows narrow suture zones and margins, and on grounded ice a grid-scale speckle (2 to 5 km), which is noise; 90th and 99th percentile 14 and 72 m/yr
 - **Notes:** issue #153: is stage 1 over-regularized? gamma 2493 is Rice's curvature, so a 5 km wide, 300 km long soft band at phi +2 costs 1,450 in the prior, eleven times stage 1's whole reg_phi (130)
 
@@ -7273,7 +7273,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP, curvature x0.1 
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 157 evaluations in 5 h 30 min
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/lcurve/rc_lc_rc_g01.h5; maps in Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/lc_g01_*.png
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/lcurve/rc_lc_rc_g01.h5; maps in Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/lc_g01_*.png
 - **Audit:** evaluation 157: misfit 1,200 (stage 1 ended at 2,249), velocity chi2 14.8, total 1,415; mean absolute speed misfit 19.9 m/yr on floating ice and 4.0 m/yr on grounded ice. phi gains flow-aligned bands and shear margins on the shelves and 20 km blobs on grounded ice; 90th and 99th percentile speed misfit 19 and 104 m/yr (34 and 171 at x1)
 - **Notes:** issue #153: is stage 1 over-regularized? gamma 2493 is Rice's curvature, so a 5 km wide, 300 km long soft band at phi +2 costs 1,450 in the prior, eleven times stage 1's whole reg_phi (130)
 
@@ -7294,7 +7294,7 @@ RC continued 150 iterations on Rice's mesh from its stage-1 MAP, curvature x1 (r
 - **Started:** 2026-10-04
 - **Finished:** 2026-10-05
 - **Cost per model year:** 157 evaluations in 3 h 32 min
-- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/lcurve/rc_lc_rc_g1.h5; maps in Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/lc_g1_*.png
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/lcurve/rc_lc_rc_g1.h5; maps in Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/lc_g1_*.png
 - **Audit:** evaluation 157: misfit 2,244 (stage 1 ended at 2,249), velocity chi2 34.6, total 2,562; mean absolute speed misfit 34.8 m/yr on floating ice and 6.6 m/yr on grounded ice. phi as stage 1's: no structure under 30 to 50 km. The objective stayed at stage 1's (2,249): converged under this prior
 - **Notes:** issue #153: is stage 1 over-regularized? gamma 2493 is Rice's curvature, so a 5 km wide, 300 km long soft band at phi +2 costs 1,450 in the prior, eleven times stage 1's whole reg_phi (130)
 
@@ -9377,7 +9377,7 @@ t = 0 front thickness and observed front flux on the buffered meshes, by mesh an
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** 1 to 6 min each
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/i167/probe/ (*_probe.json, *_front.json and the t = 0 states)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/i167/probe/ (*_probe.json, *_front.json and the t = 0 states)
 - **Audit:** probe_front_cells.py then front_flux_check.py; floating front thickness and its flux under velocity_obs, against BedMachine's own front (163 m, 1,138 to 1,297 Gt/yr, bm_front_flux.py): 2 km vertex 47.7 m and 178.7 Gt/yr (band 39.5 m, issue #167's baseline), 2 km vertex_front 190.9 m and 997.8 (band 129.5 m), 2 km _frontbm vertex 40.3 m and 193.9, 2 km _frontbm vertex_front 183.8 m and 970.4; 1 km vertex 36.3 m and 179.4 (band 25.6 m), 1 km vertex_front 178.4 m and 1,036.8 (band 90.3 m), 1 km _frontbm vertex_front 172.3 m and 1,045.7. Grounding-line flux under velocity_obs 2,236 against 2,156 Gt/yr at 2 km and 2,405 against 2,336 at 1 km (vertex against vertex_front). vertex_front on the current 2 km mesh rebuilt 27,854 cells (20,021 thicker) and emptied 16,637; floating area 1,562,392 to 1,509,158 km2 and mass 650,181 to 648,499 Gt; the melt-receiving area falls 3.6 % at 2 km (1,565,771 to 1,509,163 km2) and 2.4 % at 1 km (1,548,707 to 1,511,859 km2).
 - **Notes:** issue #167; the rule is geometry.front_cells (ISMIP7_RASTER_SAMPLE=vertex_front)
 
@@ -9413,7 +9413,7 @@ Census of the Greene et al. (2022) 2015 ice mask against BedMachine v4.1 (done),
 - **Started:** 2026-10-08
 - **Finished:** 2026-10-08
 - **Cost per model year:** under a minute each, serial
-- **Results path:** Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/i167/census_2015.json; the cut mask antarctica/data/icemask_cache/icemask_greene_2015_AntarcticaObsISMIP7-v1.2.tif (sha256 8a587fa4)
+- **Results path:** Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/i167/census_2015.json; the cut mask antarctica/data/icemask_cache/icemask_greene_2015_AntarcticaObsISMIP7-v1.2.tif (sha256 8a587fa4)
 - **Audit:** mask ice 13,641,733 km2 against BedMachine ice 13,528,544 km2. Mask ice where BedMachine holds none: 51,373 km2 over BedMachine ocean (11,936 km2 within 0.5 to 1 km of BedMachine ice, 9,978 at 1 to 2, 13,641 at 2 to 5, 11,002 at 5 to 10, 4,605 at 10 to 20, 211 at 20 to 50) and 70,121 km2 over rock; Bedmap3 covers 70,189 km2 of it at 142.6 m. BedMachine ice outside the mask: 6,421 km2 floating (779 Gt) and 1,885 km2 grounded (86 Gt). The mask's marine front is 68,693 pixels, 43.2 % of them on BedMachine ice (mean 140.4 m, median 126.3 m).
 - **Notes:** issue #167: the mask's 2015 front lies up to 20 km seaward of BedMachine's ice, where BedMachine holds no thickness, so IU took the front from BedMachine's own marine edge instead (8 Oct). The mask stays an evaluation tool (obs_icemask.py, bm_front_flux.py --greene-tif).
 
@@ -9430,11 +9430,11 @@ Census of the Greene et al. (2022) 2015 ice mask against BedMachine v4.1 (done),
 - **Site / partition:** IU Quartz, debug partition
 - **Ranks / memory:** 8 ranks, 48G
 - **Job ids:** 11487461 11487462
-- **Code:** 8a55a20 (PR 163); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_smoke32 and reinv_smoke32
+- **Code:** 8a55a20 (PR 163); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_smoke32 and reinv_smoke32
 - **Started:** 2026-10-06
 - **Finished:** 2026-10-06
 - **Cost per model year:** 15 min for the year; 14 min for the re-inversion until it failed
-- **Results path:** /N/scratch/dlilien/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_budd_n3_dg0_logvelnet_32000_smoke_32000_final.h5; logs /N/scratch/dlilien/ismip7_reinvert_relax/logs/ismip7_fwd_11487461.out, ismip7_inv_11487462.out
+- **Results path:** /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_budd_n3_dg0_logvelnet_32000_smoke_32000_final.h5; logs /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/logs/ismip7_fwd_11487461.out, ismip7_inv_11487462.out
 - **Audit:** year: resid 0.00 on every step, SMB +2,335, melt -1,034, outflux -1,670 Gt/yr at the last step, chain finished at 2015.0. Re-inversion: 21 evaluations, then a taped solve raised an exception the driver does not catch and the job aborted (exit 137); it ran a deliberately mismatched objective (the issue #153 stage-1 prior on a MAP inverted otherwise, ISMIP7_WARM_START_STRICT=0)
 - **Notes:** Checks the relaxation path on Quartz with the real OCX product before the 2 km runs; issue #162
 

@@ -14,11 +14,11 @@
   "jobs": [
     "10972250"
   ],
-  "code": "94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5",
+  "code": "94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5",
   "started": "2026-10-05",
   "finished": "2026-10-05",
   "cost": "2 h 05 min in the start-up ramp, cancelled",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor1_2000_*",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status); the job was cancelled in its start-up ramp and wrote no state",
   "audit": "start-up ramp under scpc_gamg: step 1 (n = 1) converged in 35 Newton and 20,222 Krylov iterations, 1,140 s (10 m: 680 s, 12,377); step 2 (n = 1.29) had not returned after 1 h 30 min (10 m: 100 s). Cancelled as redundant with test-2km-rc-b20k-forward-floor1-drift, whose start is identical",
   "notes": "issue #153: the start of a forward at the membrane floor the inversion now records (94d0398), against 10 m. Balanced and unforced, the state is a fixed point (dh/dt = 0 at t=0 and nothing moves it), so this times the start-up solve and checks the first step; test-2km-rc-b20k-forward-floor*-drift exercise the fronts"
 }

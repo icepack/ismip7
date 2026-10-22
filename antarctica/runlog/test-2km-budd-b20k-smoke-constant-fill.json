@@ -18,7 +18,7 @@
   "started": "2026-10-04",
   "finished": "2026-10-04",
   "cost": "16 min: load, ramp of 8 steps, 4 evaluations of 34 to 41 s",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/smoke2.h5",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/smoke2.h5",
   "audit": "evaluation 1: misfit 5.68e3, smoothness 2.49e4 and 1.21e5, total 1.52e5, against 2.87e3 recorded on Rice's mesh: the step the constant fill puts at the outline. Evaluation 4: smoothness 4.5e3 and 2.5e4, misfit unchanged",
   "notes": "issue #153; the reason for ISMIP7_TRANSFER_FILL=extend (3490914)"
 }

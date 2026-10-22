@@ -21,7 +21,7 @@
  "started": "2026-10-08",
  "finished": "2026-10-08",
  "cost": "21 min each (Budd); RC (11850404) reached debug's 1 h wall before its first evaluation, as its state ramps from n = 1 under full_mumps",
- "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/i167/i167_eval1o_budd.h5 (current mesh), i167_eval1_budd.h5 (_frontbm), ff_eval1o_budd.json, ff_eval1_budd.json",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/i167/i167_eval1o_budd.h5 (current mesh), i167_eval1_budd.h5 (_frontbm), ff_eval1o_budd.json, ff_eval1_budd.json",
  "audit": "against the recorded misfit 1,102 (total 1,382, |grad| 0.15): current mesh misfit 1,882.3, total 2,163.5, |grad| 24.9; _frontbm misfit 4,249.5, total 4,464.7, |grad| 37.6. Model floating front flux 1,334.4 Gt/yr (u.n 215.8 m/yr against 166.0 observed, front 190.9 m) on the current mesh and 1,243.6 (240.6 against 191.5, 183.8 m) on _frontbm, against 343 at the ef2 state; grounding-line flux 2,255.1 against 2,155.7 observed and 2,332.5 against 2,171.7.",
  "notes": "issue #167; IU chose the current mesh (8 Oct), refit inversion-2km-budd-b20k-ef2-vf"
 }

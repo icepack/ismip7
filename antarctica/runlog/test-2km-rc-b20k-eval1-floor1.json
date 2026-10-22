@@ -18,7 +18,7 @@
   "started": "2026-10-04",
   "finished": "2026-10-04",
   "cost": "ramp of 8 continuation steps, then one evaluation of about 60 s; ISMIP7_MAXITER=1",
-  "results": "the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/",
+  "results": "the checkpoint of evaluation 1 copied aside by snap_iter1.sh: Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/",
   "audit": "evaluation 1: misfit 5509, velocity chi2 478; model minus observed speed on floating ice mean -115 m/yr (median ratio -26 %), floating within 25 km of the edge -132 m/yr, grounded -2.5 m/yr (shelf_stats.py)",
   "notes": "issue #153: which part of the buffered mesh's ice-free ring slows the shelves. Stage 1's final MAP on Rice's mesh: floating mean -5.8 m/yr, median ratio -2 %. Together the nine runs give the mechanism: the ocean drag reaches the ice through water cells that touch it at one vertex (front.ocean_drag_cells skips only edge neighbours) and, for the rest, through the first water row's 10 m membrane floor"
 }

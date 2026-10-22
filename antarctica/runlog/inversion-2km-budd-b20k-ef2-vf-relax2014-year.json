@@ -14,11 +14,11 @@
  "jobs": [
   "11883141"
  ],
- "code": "f910b3a (PR 163's gated head); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell relax_vf_budd of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh",
+ "code": "f910b3a (PR 163's gated head); Quartz worktree ismip7_reinvert_s16, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16; cell relax_vf_budd of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh",
  "started": "2026-10-09",
  "finished": "2026-10-09",
  "cost": "1 h 12 min of 32 ranks",
- "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_s16/antarctica/results/relax_inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_2000_final.h5",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16/antarctica/results/relax_inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_vf_2000_final.h5",
  "audit": "reached 2015.0 in one link, resid 0.00 every step; 81 diagnostic solves at 8 Newton iterations on average (15 at most), 51 s each; the MAP's state converged at ||F|| 9.5e-2 in 8 iterations; backdate +77 Gt over 1,287,008 grounded cells; the melt provenance line names the vertex_front calibration (sha256 2ef9fad4). Mass budget [Gt/yr]: SMB +2380, melt -1045 falling to -1019, flux out of the pinned front -1866 at the first step (the clearing of sub-1 m films), then -1420 falling to -1317, dM/dt -536, -59, then up to +42. The same year from the ef2 MAP (inversion-2km-budd-b20k-ef2-relax2014-year) carried 343 to 551 Gt/yr out of the front with dM/dt +830 to +989. The fastest node, a thin floating patch near Shirase Glacier at (1,385,927, 1,755,878) (34 m on a bed at -107 m, about 1 km behind the front), ran 54,165 m/yr at the first step and 14,377 by the eighth; the forward's unweighted whole-domain velocity misfit was 2.0e4 against 969 from the ef2 MAP; that metric covers the whole mesh, buffer included, unweighted, and how much of it the patch carries was not measured. On the ice the refit's speeds match velocity_obs in every distance band (inversion-2km-budd-b20k-ef2-vf).",
  "notes": "issue #167 acceptance: the forward from the refit carries the observed calving flux (about 1,265 to 1,321 Gt/yr published; 1,138 to 1,297 at BedMachine's own front under MEaSUREs) and holds dM/dt near zero without apparent MB. It is also the relaxed initial state's relaxation year from the refit (issue #162); its re-inversion is inversion-2km-budd-b20k-ef2-vf-relax2014."
 }

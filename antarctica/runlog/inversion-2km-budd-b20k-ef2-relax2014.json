@@ -16,7 +16,7 @@
   "11838242",
   "11838243"
  ],
- "code": "e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2",
+ "code": "e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2",
  "started": "2026-10-08",
  "results": "/N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_relax2014.h5 beside the version 2 MAP (the 300-iteration MAP finished at 20:36 EDT on 7 Oct), which is read only",
  "finished": "2026-10-08",

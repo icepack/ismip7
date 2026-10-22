@@ -18,7 +18,7 @@
   "started": "2026-10-04",
   "finished": "2026-10-05",
   "cost": "158 evaluations in 6 h 22 min",
-  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/lcurve/rc_lc_rc_g001.h5; maps in Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/lc_g001_*.png",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/lcurve/rc_lc_rc_g001.h5; maps in Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), plots/lc_g001_*.png",
   "audit": "evaluation 158: misfit 645 (stage 1 ended at 2,249), velocity chi2 10.7, total 894; mean absolute speed misfit 15.4 m/yr on floating ice and 2.6 m/yr on grounded ice. phi on the shelves shows narrow suture zones and margins, and on grounded ice a grid-scale speckle (2 to 5 km), which is noise; 90th and 99th percentile 14 and 72 m/yr",
   "notes": "issue #153: is stage 1 over-regularized? gamma 2493 is Rice's curvature, so a 5 km wide, 300 km long soft band at phi +2 costs 1,450 in the prior, eleven times stage 1's whole reg_phi (130)"
 }

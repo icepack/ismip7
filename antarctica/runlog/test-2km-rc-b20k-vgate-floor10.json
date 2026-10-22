@@ -14,11 +14,11 @@
   "jobs": [
     "11002794"
   ],
-  "code": "94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5",
+  "code": "94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5",
   "started": "2026-10-05",
   "finished": "2026-10-05",
   "cost": "4 h 21 min, 310 evaluations, 37.9 s an evaluation",
-  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_rc_vf10.h5; evaluation 1 copied by snap_iter1_long.sh to Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/plots/s2x_rc_vf10_eval1.h5",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/exp/rc_s2x_rc_vf10.h5; evaluation 1 copied by snap_iter1_long.sh to Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/plots/s2x_rc_vf10_eval1.h5",
   "audit": "evaluation 1: misfit 3,192.9, velocity chi2 108.4; floating ice mean -39.2 m/yr (median ratio -11 %), within 25 km of the edge -52.2 m/yr (-17 %), grounded -2 m/yr (shelf_stats.py on the copied evaluation 1); evaluation 1 reproduces test-2km-rc-b20k-eval1-vgate (4e45d18) to every printed digit. Final: misfit 2,790.8, velocity chi2 64.7, total 3,129.7; floating mean -6.2 m/yr (median ratio -2 %), front band mean -18.5 m/yr (median -12.4, ratio -8 %); 90th and 99th percentile speed misfit 35.5 and 179 m/yr. Against the 1 m MAP (plot_floor_diff.py): floating phi 99th percentile +0.64 softer, front-band speed 1st percentile -95 m/yr; no failed forward",
   "notes": "issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost; the 1 m point is test-2km-rc-b20k-vgate-floor1"
 }

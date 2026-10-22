@@ -17,9 +17,9 @@
   "11841115",
   "11841178"
  ],
- "code": "e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2",
+ "code": "e7b7121 (PR 163 with PR 164's head 4dea089 merged, so exact_front version 2); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_ef2_<law> and reinv_relax_ef2_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which take prod_settings() with ISMIP7_EXACT_FRONT=2",
  "started": "2026-10-08",
- "results": "/N/scratch/dlilien/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_2000_final.h5, copied to /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/relax_states/ by the verify job",
+ "results": "no end state (11838244 was cancelled after 2 steps and 11841115 never ran); 11838244's timeseries is /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax/antarctica/results/relax_inversion_icepack2_rc_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_ef2_2000_timeseries.csv.scpc_mumps_11838244",
  "finished": "2026-10-08",
  "cost": "73 min of 32 ranks (11838244, scpc_mumps, 2 steps)"
 }

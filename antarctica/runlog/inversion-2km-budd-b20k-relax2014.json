@@ -12,7 +12,7 @@
  "forcing": "inversion-2km-budd-b20k-rho7500-floating's objective, carried by the end state and held by the strict handoff",
  "resources": "32 ranks, 240G, 6 h, one link (afterok on the relaxation year): Budd's production chain took 53 s an evaluation over its first 330, so about 3.8 h for 260; ISMIP7_MAXITER=250, ISMIP7_CHAIN_MAX=0; a verify job checks the production MAP's sha256 afterwards",
  "notes": "First attempt (jobs 11489436 and its verify 11489437) cancelled on 7 Oct without starting: its relaxation year failed. The MAP is one of the initial-state options the forwards can start from in 2003 (INVERSION_PRIORS.md section 6); issue #162. Superseded on 8 Oct before it ran: IU's final MAPs are the exact_front version 2 refits, and inversion-2km-budd-b20k-ef2-relax2014 re-inverts from those",
- "code": "8a55a20 (PR 163); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells",
+ "code": "8a55a20 (PR 163); Quartz worktree ismip7_reinvert_relax, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_relax; cells relax_<law> and reinv_relax_<law> of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, which shares prod_settings() with the production cells",
  "results": "/N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/final/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_relax2014.h5 beside the production MAP, which is read only",
  "jobs": [
   "11489436",

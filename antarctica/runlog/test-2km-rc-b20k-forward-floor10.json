@@ -14,11 +14,11 @@
   "jobs": [
     "10972251"
   ],
-  "code": "94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5",
+  "code": "94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5",
   "started": "2026-10-05",
   "finished": "2026-10-05",
   "cost": "22 min: start-up ramp 1,010 s, then 200 steps in 194 s of solves",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor10_2000_*",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor10_2000_*",
   "audit": "start-up ramp (8 continuation steps, scpc_gamg): 106 Newton and 18,413 Krylov iterations, 1,010 s (the first, n = 1, step 680 s). 200 steps, every solve converged, no rescue: 71 Newton iterations in all, 21 Krylov iterations a condensed solve, 1.0 s a solve. The state holds: peak speed 4,338 m/yr at (-1607990, -325127) and peak thickness unchanged to seven digits, dM/dt 0, calving 296 Gt/yr against amb 297, resid 0.00 every step",
   "notes": "issue #153: the start of a forward at the membrane floor the inversion now records (94d0398), against 10 m. Balanced and unforced, the state is a fixed point (dh/dt = 0 at t=0 and nothing moves it), so this times the start-up solve and checks the first step; test-2km-rc-b20k-forward-floor*-drift exercise the fronts"
 }

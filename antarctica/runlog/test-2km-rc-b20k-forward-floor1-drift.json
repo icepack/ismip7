@@ -14,11 +14,11 @@
   "jobs": [
     "10994758"
   ],
-  "code": "94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5",
+  "code": "94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5",
   "started": "2026-10-05",
   "finished": "2026-10-05",
   "cost": "5 h 52 min, 200 steps",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor1_amb0_2000_*",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor1_amb0_2000_*",
   "audit": "start-up ramp under scpc_gamg: the 8-step ramp's second step (n = 1.29) hit 200 Newton iterations (204,435 Krylov, 12,594 s) and the 16-step retry converged; 18 solves, 379 Newton and 278,123 Krylov iterations, 17,218 s in all (10 m: 1,006 s). Then 200 steps with every solve converged and no rescue: 448 Newton iterations (at most 9 a step), 72 Krylov iterations a condensed solve, 18.6 s a solve; resid 0.00 every step; VAF 56,701.6868 mm SLE at 2020, the restart-started twin's value to every printed digit",
   "notes": "issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds"
 }

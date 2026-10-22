@@ -18,7 +18,7 @@
     "11825454"
   ],
   "cost": "11 min; ISMIP7_MAXITER=1",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/probe/c166_budd_v2.h5 (one L-BFGS-B iteration past the MAP)",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/probe/c166_budd_v2.h5 (one L-BFGS-B iteration past the MAP)",
   "audit": "evaluation 1: misfit 1,113.05 (+0.43 % on version 1), total 1,393.17, |grad| 1.70 (2.6 times version 1's); first forward converged in 12 Newton iterations against 6. Restricting the push to ocean facets (2441818, 7 Oct) gave misfit 1,146.8 and |grad| 3.28 at the same controls",
   "notes": "issue #166: how far the final Budd MAP's controls lean on the free-cliff push into rock above the ice surface"
 }

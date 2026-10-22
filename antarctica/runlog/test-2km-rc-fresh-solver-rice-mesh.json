@@ -18,7 +18,7 @@
   "started": "2026-10-04",
   "finished": "2026-10-04",
   "cost": "three evaluations, 61 s forward and 13 s adjoint (median)",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/fresh_rc_s1.json",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs (submit_reinvert.sh cells, probe/, plots/), probe/fresh_rc_s1.json",
   "audit": "152 Krylov iterations a condensed solve with a fresh solver, against 144 for stage 1's reused solver at the same controls and 68 for a fresh solver on the buffered mesh: the buffered setup, not solver reuse, halves stage 2's evaluation cost. Evaluation 1 reproduces stage 1's final objective (total 2.592786e3)",
   "notes": "issue #153"
 }

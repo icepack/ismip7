@@ -15,7 +15,7 @@
   "11894820",
   "11894821"
  ],
- "code": "f910b3a (PR 163's gated head, as the year); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s16; cell reinv_relax_vf_rc of /N/scratch/dlilien/ismip7_reinvert_jobs/submit_reinvert.sh, submitted by the trigger vf_rc_trigger.sh (stage reinv, job 11891809) once the year had reached 2015",
+ "code": "f910b3a (PR 163's gated head, as the year); Quartz worktree ismip7_reinvert_s16, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s16; cell reinv_relax_vf_rc of /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/submit_reinvert.sh, submitted by the trigger vf_rc_trigger.sh (stage reinv, job 11891809) once the year had reached 2015",
  "started": "2026-10-10",
  "finished": "2026-10-10",
  "cost": "10 h 12 min of 32 ranks",

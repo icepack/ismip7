@@ -18,7 +18,7 @@
     "11825457"
   ],
   "cost": "3 min; the solve 104 s",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/c166/score/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_t0.h5 and .json",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/c166/score/inversion_icepack2_budd_n3_dg0_logvel_2000_int5000_b20k_rho7500_floating_t0.h5 and .json",
   "audit": "loaded ||F|| 6.69e13 re-solved in 15 Newton iterations to 3.87e5; grounded discharge 2,761 Gt/yr against 2,238 with the observed velocity (ratio 1.23)",
   "notes": "issue #166: the version 1 reference for test-2km-budd-b20k-exact-front-v2-t0"
 }

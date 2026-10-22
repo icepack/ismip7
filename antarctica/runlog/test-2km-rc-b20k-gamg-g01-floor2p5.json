@@ -18,7 +18,7 @@
   "started": "2026-10-05",
   "finished": "2026-10-05",
   "cost": "2 h (TIMEOUT)",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs, probe/rc_gamg_g01_r2p5.h5 and .json",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs, probe/rc_gamg_g01_r2p5.h5 and .json",
   "audit": "loaded residual ||F|| 4.3e7; no evaluation finished in the 2 h limit. The starting state, converged at 1 m, holds phi down to -31.8 (fluidity e^-32 of the prior), a contrast that slows scpc_gamg at any floor; at rho 75 km the inversion needs full_mumps whatever the floor (test-2km-rc-b20k-g01-vgf1: about 145 s an evaluation)",
   "notes": "issue #153: whether the membrane floor sets the scpc_gamg cost at rho 75 km (the 1 m run took 900 s forwards there, 57 s evaluations at rho 750 km); issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost"
 }

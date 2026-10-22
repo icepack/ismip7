@@ -18,7 +18,7 @@
  "started": "2026-10-08",
  "finished": "2026-10-08",
  "cost": "1 to 6 min each",
- "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/i167/probe/ (*_probe.json, *_front.json and the t = 0 states)",
+ "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/i167/probe/ (*_probe.json, *_front.json and the t = 0 states)",
  "audit": "probe_front_cells.py then front_flux_check.py; floating front thickness and its flux under velocity_obs, against BedMachine's own front (163 m, 1,138 to 1,297 Gt/yr, bm_front_flux.py): 2 km vertex 47.7 m and 178.7 Gt/yr (band 39.5 m, issue #167's baseline), 2 km vertex_front 190.9 m and 997.8 (band 129.5 m), 2 km _frontbm vertex 40.3 m and 193.9, 2 km _frontbm vertex_front 183.8 m and 970.4; 1 km vertex 36.3 m and 179.4 (band 25.6 m), 1 km vertex_front 178.4 m and 1,036.8 (band 90.3 m), 1 km _frontbm vertex_front 172.3 m and 1,045.7. Grounding-line flux under velocity_obs 2,236 against 2,156 Gt/yr at 2 km and 2,405 against 2,336 at 1 km (vertex against vertex_front). vertex_front on the current 2 km mesh rebuilt 27,854 cells (20,021 thicker) and emptied 16,637; floating area 1,562,392 to 1,509,158 km2 and mass 650,181 to 648,499 Gt; the melt-receiving area falls 3.6 % at 2 km (1,565,771 to 1,509,163 km2) and 2.4 % at 1 km (1,548,707 to 1,511,859 km2).",
  "notes": "issue #167; the rule is geometry.front_cells (ISMIP7_RASTER_SAMPLE=vertex_front)"
 }

@@ -14,11 +14,11 @@
   "jobs": [
     "11012470"
   ],
-  "code": "94d0398; Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s5",
+  "code": "94d0398; Quartz worktree ismip7_reinvert_s5, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5",
   "started": "2026-10-05",
   "finished": "2026-10-05",
   "cost": "2 h 03 min, 200 steps",
-  "results": "Quartz /N/scratch/dlilien/ismip7_reinvert_jobs/fwd (timing record, status) and the worktree's antarctica/results/fwd2km_rc_vgf1_floor1_amb0_rs_2000_*",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_jobs/fwd (timing record, status) and /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s5/antarctica/results/fwd2km_rc_vgf1_floor1_amb0_rs_2000_*",
   "audit": "restart state re-solved, then 200 steps with every solve converged and no rescue: 645 Newton iterations (at most 11 a step), 98 Krylov iterations a condensed solve, 36.3 s a solve; resid 0.00 every step; VAF 56,701.69 mm SLE at 2020 from 56,723.78 (10 m: 723 Newton, 38 Krylov, 14.4 s a solve, 56,702.18)",
   "notes": "issue #153: the membrane floor's misfit-vs-cost curve (1, 2.5, 5, 10 m), asked for on 5 October in case the floor has to trade misfit against solver cost. With the apparent mass balance off and no forcing every cell moves at its flux divergence from t=0, which exercises the fronts and thin cells the floor damps; the MAP was inverted at 1 m, so the other floors also start from slightly mismatched speeds. The restart start separates the per-step cost from the cold start's ramp, which at 1 m took hours under scpc_gamg"
 }

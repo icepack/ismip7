@@ -11,7 +11,7 @@
   "forcing": "the relaxation experiment (ISMIP7_RELAX_START=2014, OCX 2014 forcing, the geometry backdated 1 yr by the Smith dH/dt) or OCX with ISMIP7_GEOMETRY_BACKDATE=0; ISMIP7_APPARENT_MB=0, front pinned, no calving, dt 0.025 yr, exact_front 1 from the MAP",
   "site": "IU Quartz, general partition",
   "resources": "32 ranks, 160G to 360G, 1 h each, ISMIP7_CHAIN=0",
-  "code": "8a55a20 (the relaxation code); Quartz worktree /N/scratch/dlilien/ismip7_reinvert_s8",
+  "code": "8a55a20 (the relaxation code); Quartz worktree ismip7_reinvert_s8, its files kept in /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s8",
   "jobs": [
     "11789781",
     "11789782",
@@ -22,7 +22,7 @@
   "started": "2026-10-07",
   "finished": "2026-10-07",
   "cost": "about 4 node hours",
-  "results": "logs in Quartz /N/scratch/dlilien/ismip7_reinvert_s8/logs/ismip7_fwd_<job>.out",
+  "results": "logs in Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/reinvert_2km/scratch_results/ismip7_reinvert_s8/logs/ismip7_fwd_<job>.out",
   "audit": "first solve, then a time step: scpc_mumps, 1 yr backdate, clip: converged in 14 Newton iterations, 130 s, steps about 34 s, budget residual 0.00; full_mumps, same: 14 iterations, 237 s, steps about 52 s; scpc_gamg, no backdate, clip (11795931): 28 iterations, 1,205 s, a step 867 s; scpc_gamg, 1 yr, no clip (11789783): 10 iterations, 773 s, then the job died of a PyOP2 cache KeyError; scpc_gamg, 12 yr (11789784, OCX starts in 2003 and backdates by default), clip: diverged, 50 iterations to ||F|| 2.3e13, as the relaxation's own scpc_gamg, 1 yr, clip forwards did (11487501, 11489435)",
   "notes": "issue #153 and the relaxed initial state (issue #162): scpc_gamg, the forward runner's default, is what fails from these MAPs, and where it converges it is about 25 times slower a step than scpc_mumps; the backdate and the clip each move it from slow to divergent. Decided by IU on 8 Oct for forwards from IU's final MAPs (the exact_front version 2 refits, inversion-2km-budd-b20k-rho7500-floating-ef2 and inversion-2km-rc-b20k-rho7500-floating-ef2): ISMIP7_MAP_CLIP=0 with scpc_mumps for Budd and full_mumps for RC, passed at submission, so the forward runs the controls the inversion fitted; the repository defaults (scpc_gamg in projection.sbatch, the clip at 10 for n=3) stay. These runs started from the version 1 final. The relaxation years from the version 2 MAPs ran the settings with the clip off: Budd on scpc_mumps (11838241) at 7.8 Newton iterations a solve; RC on scpc_mumps (11838244) at 36 to 84, 13 to 34 min a step, so RC's forwards run full_mumps. IU expects the regularization to set the solver a MAP needs, so Rice's more strongly regularized MAPs may run scpc_mumps or scpc_gamg; this is untested, and the membrane floor also moves the start-up cost (a 1 m floor cold start from RC's stage 2 MAP took 4.8 h under scpc_gamg, test-2km-rc-b20k-vgate-floor1)"
 }
