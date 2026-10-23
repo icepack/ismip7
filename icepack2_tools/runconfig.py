@@ -482,6 +482,35 @@ def ramp_slide_fixed():
     return os.environ.get("ISMIP7_RAMP_SLIDE_FIXED", "0").strip() not in ("", "0")
 
 
+def geometry_ramp_steps():
+    r"""``ISMIP7_GEOMETRY_RAMP=N``: a cold start from a relaxed MAP carries
+    the MAP's mixed state from the relaxed geometry it was solved on to the
+    forward's BedMachine geometry in ``N`` steps, each solved at the full
+    exponents from the last, in place of one solve on the BedMachine geometry
+    from that state on the MAP's own mesh, and of the continuation from
+    0.1 u_obs on another, which takes the state and the relaxed geometry
+    interpolated onto its own mesh. Thickness and bed move linearly and the surface
+    follows them by flotation; the last step is the forward's own geometry.
+    ``0``, the default, is the one solve. RC's relaxed MAP on the 2 km mesh
+    failed that solve (50 iterations to ||F|| 5.7e8, jobs 11899765 and
+    11899767) and then the n = m = 1 continuation in all three rungs."""
+    raw = os.environ.get("ISMIP7_GEOMETRY_RAMP", "0").strip() or "0"
+    steps = int(raw)
+    if steps < 0:
+        raise ValueError(f"ISMIP7_GEOMETRY_RAMP is a step count, not {raw}")
+    return steps
+
+
+def seed_state():
+    r"""``ISMIP7_SEED_STATE``: a forward checkpoint whose mixed state
+    (velocity, membrane and basal stress) a cold start takes as its first
+    guess, interpolated onto this mesh, in place of the MAP's; under
+    ``ISMIP7_GEOMETRY_RAMP`` the ramp starts from that checkpoint's geometry.
+    Only the first guess changes: the solve that ends the ramp is this run's
+    own problem. Unset or empty, the MAP's state seeds as before."""
+    return os.environ.get("ISMIP7_SEED_STATE", "").strip() or None
+
+
 def warm_start_state(*, geometry_taken, same_mesh):
     r"""Whether an inversion loads its warm start's mixed state, and whether
     it is only a first guess: ``(load, guess)``.

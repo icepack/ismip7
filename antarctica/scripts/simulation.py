@@ -124,6 +124,8 @@ from icepack2_tools.runconfig import (
     front_hmin as _front_hmin,
     GEOMETRY_YEAR,
     mesh_build_check,
+    geometry_ramp_steps as _geometry_ramp_steps,
+    seed_state as _seed_state,
 )
 DATA_DIR = obs_data_root()
 from icepack2_tools.solverconfig import (
@@ -797,6 +799,9 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     H_init = None
     phi_eff = None
     u_guess = None
+    # The relaxed MAP's own (thickness, bed, surface), where its state was
+    # solved: the start of the cold start's ISMIP7_GEOMETRY_RAMP.
+    geometry_ramp_from = None
     map_state_name = None   # the MAP's mixed state seeding a cold start
     map_geometry_taken = False  # a cold start took the MAP's own geometry
     M_guess = None
@@ -1084,13 +1089,16 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 geometry_source = os.path.realpath(source_chk)
                 geometry_source_method = "checkpoint-native-v1"
                 map_geometry_taken = True
-            if not target_mesh_differs:
+            _geometry_ramp = relaxed_controls and _geometry_ramp_steps() > 0
+            if not target_mesh_differs or _geometry_ramp:
                 # The mixed state the MAP was accepted at (a final MAP's
                 # velocity/membrane_stress/basal_stress, a periodic
                 # checkpoint's ckpt_* copies) seeds the cold-start solve
                 # below in place of 0.1 u_obs. On a relaxed MAP's own mesh
                 # it is solved on the relaxed geometry, so from BedMachine's
-                # it is a perturbation, as the backdate is.
+                # it is a perturbation, as the backdate is. Under
+                # ISMIP7_GEOMETRY_RAMP another mesh takes it too,
+                # interpolated with that geometry, and the ramp starts there.
                 for _pre in ("", "ckpt_"):
                     _u = load_checkpoint_field(chk, f"{_pre}velocity", V, optional=True)
                     _M = load_checkpoint_field(chk, f"{_pre}membrane_stress", Sigma, optional=True)
@@ -1099,6 +1107,10 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                         u_guess, M_guess, tau_guess = _u, _M, _tau
                         map_state_name = f"{_pre}velocity"
                         break
+                if map_state_name is not None and _geometry_ramp:
+                    geometry_ramp_from = tuple(
+                        load_checkpoint_field(chk, _name, Q_g)
+                        for _name in ("thickness", "bed", "surface"))
             _uo = load_checkpoint_field(
                 chk, "velocity_obs", V,
                 fill=u_obs, fill_label="the raster-sampled velocity_obs",
@@ -1107,6 +1119,38 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
             if h_clamp_init > 0.0:
                 H.interpolate(max_value(H, Constant(h_clamp_init)))
                 s.interpolate(max_value(b + H, (Constant(1.0) - rho_ratio) * H))
+
+    # ISMIP7_SEED_STATE: another forward's checkpoint seeds the cold start
+    # in place of the MAP's state, and starts the geometry ramp from its own
+    # geometry. RC's controls on BedMachine geometry would not converge from
+    # the relaxed MAP's state interpolated onto the 1 km mesh (job
+    # 11904915), nor ramp from 0.1 u_obs; RC's 2 km refit converged from
+    # Budd's state. The momentum balance is a convex minimization, so the
+    # seed moves only the iterations, not the solution the ramp ends on.
+    _seed_path = _seed_state()
+    if _seed_path and not is_restart:
+        with fd.CheckpointFile(_seed_path, "r") as _seed_chk:
+            _seed_mesh = _seed_chk.load_mesh()
+
+            def _seed_field(name, space):
+                target = Function(space, name=name)
+                interpolate_with_fill(
+                    target, _seed_chk.load_function(_seed_mesh, name=name),
+                    0.0, mesh.comm)
+                return target
+
+            u_guess = _seed_field("velocity", V)
+            M_guess = _seed_field("membrane_stress", Sigma)
+            tau_guess = _seed_field("basal_stress", T)
+            map_state_name = "seed velocity"
+            geometry_ramp_from = (
+                tuple(_seed_field(_name, Q_g)
+                      for _name in ("thickness", "bed", "surface"))
+                if _geometry_ramp_steps() > 0 else None)
+        PETSc.Sys.Print(
+            f"  First guess: the mixed state of {_seed_path} (ISMIP7_SEED_STATE)"
+            + (", and its geometry as the geometry ramp's start"
+               if geometry_ramp_from is not None else ""))
 
     # The initial state the chain began from (icepack2_tools.relaxation):
     # a relaxed MAP gives only its controls, on any mesh, and the forward
@@ -1936,8 +1980,42 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         _bounds = final_solve_bounds()
         slvr.snes.setTolerances(stol=_bounds["snes_stol"],
                                 max_it=_bounds["snes_max_it"])
+        # ISMIP7_GEOMETRY_RAMP: the state is carried from the relaxed
+        # geometry it was solved on to this one in steps, each a solve at the
+        # full exponents; the last step is this geometry, restored exactly.
+        _geom_target = None
+        _ramp_n = 0
+        if geometry_ramp_from is not None:
+            _geom_target = tuple(f.copy(deepcopy=True) for f in (h, b, s))
+            _ramp_n = _geometry_ramp_steps()
         try:
-            solve_diagnostic("cold-start-from-map-state", state=map_state_name)
+            if _geom_target is None:
+                solve_diagnostic("cold-start-from-map-state", state=map_state_name)
+            else:
+                PETSc.Sys.Print(
+                    f"Initial diagnostic solve: the MAP's {map_state_name} state "
+                    f"carried from its relaxed geometry to this one in {_ramp_n} "
+                    "steps at the full exponents (ISMIP7_GEOMETRY_RAMP)")
+                _h0, _b0, _s0 = geometry_ramp_from
+                _h1, _b1, _s1 = _geom_target
+                for _k in range(_ramp_n + 1):
+                    _w = _k / _ramp_n
+                    if _k == 0:
+                        h.assign(_h0)
+                        b.assign(_b0)
+                        s.assign(_s0)
+                    elif _k == _ramp_n:
+                        h.assign(_h1)
+                        b.assign(_b1)
+                        s.assign(_s1)
+                    else:
+                        h.assign((1.0 - _w) * _h0 + _w * _h1)
+                        b.assign((1.0 - _w) * _b0 + _w * _b1)
+                        s.interpolate(
+                            max_value(b + h, (Constant(1.0) - rho_ratio) * h))
+                    solve_diagnostic("cold-start-geometry-ramp",
+                                     state=map_state_name,
+                                     step=f"{_k}/{_ramp_n}", w=f"{_w:.4g}")
             restart_solved = True
             fnorm_conv = slvr.snes.getFunctionNorm()
             run_atol = (
@@ -1948,8 +2026,13 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 f"Initial diagnostic solve: from the MAP's {map_state_name} "
                 f"state at the full exponents (||F|| -> {fnorm_conv:.2e}; "
                 f"run atol={run_atol:.2e}), no continuation"
+                + (f", after a {_ramp_n}-step geometry ramp" if _ramp_n else "")
             )
         except fd.ConvergenceError:
+            if _geom_target is not None:
+                h.assign(_geom_target[0])
+                b.assign(_geom_target[1])
+                s.assign(_geom_target[2])
             slvr.snes.setTolerances(atol=_atol0, stol=_stol0, max_it=_max_it0)
             z.assign(z_cold_seed)
             z_init.assign(z_cold_seed)
