@@ -180,10 +180,14 @@ cleared by `resume STAGE`) instead of resubmitted when:
 
 | trigger | knob | applies to |
 |---|---|---|
-| the newest link ended on a driver error, or stalled where it resumed | | every routine |
+| the newest link ended on a driver error, or stalled where it resumed; a forward link whose `.err` shows a linear-solver abort (`PBLAS ERROR`, `MUMPS error in solve`, `INFOG(1)=-`, `MPI_ERR_BUFFER`, `error code 98`) is resubmitted once instead, its node left off `OUT/exclude_nodes`, and a second such abort in a row parks naming both job ids | | every routine |
 | a RUNNING forward link has logged `ISMIP7_ROUTINE_FROZEN_MAX` zero-iteration momentum solves (`snes_its=0`, a frozen velocity); the link is cancelled | `ISMIP7_ROUTINE_FROZEN_MAX` (5; `0` disables the check, a negative or non-numeric count is refused) | every routine |
 | the newest link stalled anywhere, or ended in a state the scheduler does not impose (anything but `TIMEOUT`, `PREEMPTED`, `NODE_FAIL`, `CANCELLED`, `BOOT_FAIL`) | `ISMIP7_ROUTINE_STRICT=1` (default `0`) | strict routines |
 
+The granted retry is recorded in `OUT/<stage>.solver_retry` (the aborted
+job id), removed when a later link of the stage ends any other way and by
+`resume STAGE`, so each isolated abort gets its own one retry, strict
+routines included.
 Under `ISMIP7_ROUTINE_STRICT=1` a link the accounting still reports as
 `RUNNING`, `COMPLETING`, `PENDING` or `REQUEUED` is left for the next pass.
 `ISMIP7_RESTART_RESOLVE=cold` on a `resume` re-solves the restarted momentum

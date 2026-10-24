@@ -156,6 +156,40 @@ def test_the_configured_law_drives_the_front(calving_env, bed, sigma_max):
         "one small step must not carry the front past a whole ice cell"
 
 
+def test_the_restart_check_rebuilds_the_gate_a_level_set_front_writes():
+    r"""A level-set front writes its own ocean-drag gate (drag only more than
+    a cell diameter beyond its front) and a checkpoint records its residual
+    under that gate. ``front.levelset_drag_gate`` is what a restart rebuilds
+    from the saved level set before it measures the loaded state: it has to
+    equal the level set's own gate, at the start and after the front has
+    retreated inside the t=0 extent, where the cold start's t=0-extent rule
+    (``ocean_drag_cells``) leaves the retreated cells drag-free and the two
+    gates disagree (every production restart of October 2026 read ||F||
+    about 1e8 there against a recorded 1e-3)."""
+    from firedrake import CellDiameter
+    from icepack2_tools.front import (facet_neighbours, levelset_drag_gate,
+                                      ocean_drag_cells)
+    mesh, Q0, h, b, u, ls = _state("prescribed")
+    diam = Function(Q0).interpolate(CellDiameter(mesh)).dat.data_ro
+    extent0 = h.dat.data_ro >= HMIN
+    gate = levelset_drag_gate(ls.phi.dat.data_ro, diam)
+    assert np.array_equal(gate, ls.drag_mask.dat.data_ro)
+    assert gate.sum() > 0, "the open half of the square carries drag"
+    # the ice retreats by two cell columns: the t=0 extent is unchanged, the
+    # level set follows the thickness on its next advance
+    xc = _xc(mesh)
+    h.dat.data[(xc > 0.25) & (xc < 0.5)] = 0.0
+    ls.advance(0.1, u, rate=Function(Q0).interpolate(Constant(0.0)))
+    gate = levelset_drag_gate(ls.phi.dat.data_ro, diam)
+    assert np.array_equal(gate, ls.drag_mask.dat.data_ro)
+    ice = h.dat.data_ro >= HMIN
+    cold = ocean_drag_cells(ice, facet_neighbours(Q0), extent0)
+    retreated = extent0 & ~ice
+    assert not cold[retreated].any(), "the t=0-extent rule never drags inside the t=0 extent"
+    assert gate[retreated].any(), "the level set drags the retreated cells beyond its strip"
+    assert not np.array_equal(gate, cold.astype(float))
+
+
 def test_the_shed_fraction_is_the_swept_area_over_the_cell():
     r"""``min(1, c dt L / A)``: the fraction a front cell loses is the area the
     front sweeps through it, which is what makes the tally a volume. Every

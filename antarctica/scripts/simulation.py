@@ -12,6 +12,7 @@ _T_PROCESS_START = perf_counter()
 
 import firedrake as fd
 from firedrake import (
+    CellDiameter,
     Constant,
     Function,
     max_value,
@@ -87,7 +88,8 @@ from icepack2_tools.front import (
     held_calved,
     clamp_thickness, clear_reference_where_ice_free, retreat_slivers,
     front_removal_mask, unforced_cells, applied_forcing,
-    facet_neighbours, front_connected, ocean_drag_cells, vertex_neighbours,
+    facet_neighbours, front_connected, levelset_drag_gate, ocean_drag_cells,
+    vertex_neighbours,
     collapse_banner, collapse_cell_counts, collapse_csv_fields,
     COLLAPSE_CSV_COLUMNS, COLLAPSE_MARKER, FRONT_OWNER_MARKER,
 )
@@ -832,6 +834,7 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     fssa_tendency_ckpt = None
     calved_cells_ckpt = None
     levelset_ckpt = None
+    drag_mask_ckpt = None
     front_anchor_ckpt = None
     phys_div = None
     h_dg_state = None
@@ -977,6 +980,11 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
             # front from the thickness and never reads this.
             levelset_ckpt = load_checkpoint_field(
                 chk, "levelset", Q_dg, optional=True
+            )
+            # The ocean-drag gate the writer's residual was measured under
+            # (a level-set front writes its own; see the restart check).
+            drag_mask_ckpt = load_checkpoint_field(
+                chk, "drag_mask", Q_dg, optional=True
             )
             front_anchor_ckpt = (str(chk.get_attr("/", "front_anchor"))
                                  if chk.has_attr("/", "front_anchor") else None)
@@ -1390,6 +1398,37 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
             f"  Ocean drag gate: {_n_drag} of {_n_cells} cells, open water "
             f"outside the t=0 extent a cell away from any ice (h < {_drag_hmin:g} m)"
         )
+        # A checkpoint written under a level-set law records its residual
+        # under the gate the level set wrote: drag on the cells more than a
+        # cell diameter beyond ITS front (front.levelset_drag_gate), not the
+        # t=0-extent rule above. The restart check below has to measure the
+        # loaded state under the writer's gate, or a converged state reads as
+        # far from converged: every restart of the October 2026 production
+        # chains loaded ||F|| about 1e8 against a recorded 1e-3, the whole of
+        # it in the basal-stress block on the cells the two gates disagree on
+        # (probe of ssp126 MRI-ESM2-0 at 2071.2: 1.35e8 under this gate,
+        # 5.877e-3 = the recorded value under the level set's), and re-solved
+        # a converged state at the start of every link, which is where the
+        # chains' MUMPS aborts sat. The saved gate itself when the checkpoint
+        # carries one, else the gate rebuilt from the saved level set; the
+        # level set run_simulation builds writes the same gate before the
+        # first step. A run without a law keeps the cold-start rule.
+        if is_restart and _calving_law() != "none":
+            _gate_from = None
+            if drag_mask_ckpt is not None:
+                drag_mask.dat.data[:] = np.where(
+                    drag_mask_ckpt.dat.data_ro > 0.5, 1.0, 0.0)
+                _gate_from = "the saved gate"
+            elif levelset_ckpt is not None:
+                _phi_c = Function(_Q0).project(levelset_ckpt).dat.data_ro
+                _diam_c = Function(_Q0).interpolate(CellDiameter(mesh)).dat.data_ro
+                drag_mask.dat.data[:] = levelset_drag_gate(_phi_c, _diam_c)
+                _gate_from = "the saved level set"
+            if _gate_from is not None:
+                _n_drag = mesh.comm.allreduce(int(drag_mask.dat.data_ro.sum()))
+                PETSc.Sys.Print(
+                    f"  Ocean drag gate for the restart check: {_n_drag} cells, "
+                    f"the level-set rule from {_gate_from}")
         # Speed limiter: structurally present (threshold u_lim > 0) but INERT
         # by default - k_lim is a live Constant at 0 (term vanishes
         # identically; the cold continuation is unaffected, unlike a built-in
@@ -2468,6 +2507,8 @@ def save_model_state(ctx, final_path, t_now, extra_attrs=None):
             chk.save_function(ctx["calved_mask"], name="calved_cells")
         if ctx.get("level_set") is not None:
             chk.save_function(ctx["level_set"].phi, name="levelset")
+        if ctx.get("drag_mask") is not None:
+            chk.save_function(ctx["drag_mask"], name="drag_mask")
         if not ctx.get("geom_dg", False):
             h_dg = ctx.get("h_dg_state")
             if h_dg is None:

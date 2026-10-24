@@ -728,6 +728,8 @@ watch_pass() {
                 fi
             fi
             log "watch: stage $stage has no job in the queue; resubmitting"
+            [ -f "$OUT/$stage.solver_retry" ] && ! solver_abort "$(newest_link "$stage")" \
+                && rm -f "$OUT/$stage.solver_retry"
             mv "$OUT/$stage.jobs" "$OUT/$stage.jobs.$(date +%s)"
             launch "$stage"
             continue
@@ -807,8 +809,39 @@ newest_link() {
     echo "$jid"
 }
 
+# A link that aborted inside the linear solver (ScaLAPACK index errors, a
+# MUMPS INFOG(1) < 0, an MPI buffer fault): every one of the October 2026
+# production aborts, 7 of 199 links at 128G, all on nodes shared with other
+# jobs, in the factorizations of a link's first solves. A node fault, not
+# the model's: the next link resumes the same state elsewhere. Such a link
+# is resubmitted ONCE; a second such abort in a row parks the stage
+# (24 Oct 2026). OUT/<stage>.solver_retry holds the job id of the abort whose
+# retry was granted. Any later link of the stage that ends otherwise removes
+# it: a link the watchdog resubmits, or a self-resubmitted successor (a chain
+# resubmits only after a clean exit, so an aborted link outside
+# OUT/<stage>.jobs had a clean predecessor). An abort while it is present is
+# the second in a row.
+SOLVER_ABORT_RE='PBLAS ERROR|MUMPS error in solve|INFOG\(1\)=-|MPI_ERR_BUFFER|error code 98'
+solver_abort() {
+    local e="$REPO/logs/ismip7_fwd_$1.err"
+    [ -n "$1" ] && [ -f "$e" ] && grep -qE "$SOLVER_ABORT_RE" "$e"
+}
+# 0 when the newest link $2 of stage $1 aborted in the linear solver and is
+# owed its one retry, which is recorded before the resubmission.
+solver_abort_retry() {
+    local m="$OUT/$1.solver_retry"
+    is_inversion "$1" && return 1
+    solver_abort "$2" || return 1
+    if [ -f "$m" ]; then
+        [ "$(cat "$m")" = "$2" ] && return 0
+        cut -d' ' -f1 "$OUT/$1.jobs" | grep -qx "$2" && return 1
+    fi
+    echo "$2" > "$m"
+}
+link_node() { sacct -X -n -j "$1" -o NodeList 2>/dev/null | head -n 1 | awk '{print $1}'; }
+
 driver_failure() {
-    local jid kind logf err at from
+    local jid kind logf err at from node
     [ -f "$OUT/$1.jobs" ] || return 0
     jid=$(newest_link "$1")
     if is_inversion "$1"; then kind=inv; else kind=fwd; fi
@@ -824,6 +857,15 @@ driver_failure() {
         return 0
     fi
     if grep -qE "chain: stopping, driver exited [1-9]|inversion exit [1-9]" "$logf"; then
+        if solver_abort_retry "$1" "$jid"; then
+            node=$(link_node "$jid")
+            log "watch: job $jid ($1) aborted in the linear solver on ${node:-an unknown node}; a node fault, resubmitting once"
+            return 0
+        fi
+        if solver_abort "$jid"; then
+            echo "job $jid: aborted in the linear solver twice in a row (after $(cat "$OUT/$1.solver_retry")); see ${logf%.out}.err"
+            return 0
+        fi
         err=$(grep -hE "^[A-Za-z]*Error: " "${logf%.out}.err" "$logf" 2>/dev/null | tail -n 1 | cut -c1-300)
         echo "job $jid: ${err:-driver exited non-zero; see $logf}"
     fi
@@ -852,6 +894,8 @@ strict_block_reason() {
         echo "job $jid: the solver stalled at ${at:-?}"
         return 0
     fi
+    # the one retry of a linear-solver abort (driver_failure logged it)
+    solver_abort_retry "$1" "$jid" && return 0
     st=$(sacct -j "$jid" -X -n -o State 2>/dev/null | head -n 1 | awk '{print $1}')
     case "${st:-UNKNOWN}" in
         TIMEOUT|PREEMPTED|NODE_FAIL|CANCELLED*|BOOT_FAIL|UNKNOWN|"") return 0 ;;
@@ -878,7 +922,7 @@ cmd_resume() {
     ready "$stage" || die "$stage is not ready"
     with_lock
     [ -f "$OUT/$stage.jobs" ] && mv "$OUT/$stage.jobs" "$OUT/$stage.jobs.$(date +%s)"
-    rm -f "$OUT/$stage.blocked"
+    rm -f "$OUT/$stage.blocked" "$OUT/$stage.solver_retry"
     launch "$stage"
 }
 

@@ -34,6 +34,7 @@ PART=${ISMIP7_PARTITION:-scavenge}; ACCT=${ISMIP7_ACCOUNT:-commons}; CONSTR=${IS
 WALL=${ISMIP7_WALL:-01:00:00}
 MEMBERS="fixed|fixed||none
 hfb015|hfb|sigma_max=0.15|none
+hfb015free|hfb|sigma_max=0.15|free
 hfb0|hfb|sigma_max=0.0|free
 vm075|vonmises|sigma_max_fl=0.075,sigma_max_gr=1.0|free
 vm150|vonmises|sigma_max_fl=0.15,sigma_max_gr=1.0|free
@@ -60,6 +61,10 @@ thk235|thickness|hc=235|free"
 # diagnostic flux at the fixed front ran ~1.7x the flux the calvdg1h forwards
 # booked under the same law (an advancing front thins), so vm075 brackets
 # the von Mises fit from below.
+# hfb015free is the submission front's law let advance (24 Oct 2026 screen:
+# does a free front at 0.15 MPa hold the observed fronts, on the extent
+# anchor and on the advected front, with ISMIP7_CALVING_FLOATING_ONLY=1 set
+# in the environment as the production projections run it).
 # `nocalving` with a free front = the front carried by the ice and nothing
 # removed: the no-calving baseline every law has to beat. `fixed` is the
 # protocol's pinned front. The submission front is hfb015 with FRONT_ADVANCE
@@ -85,7 +90,7 @@ while IFS='|' read -r name law params advance; do
             --nodes=1 --ntasks-per-node=32 --cpus-per-task=1 --hint=nomultithread \
             --mem=240G --time="$WALL" --export=ALL \
             antarctica/scripts/batch_runners/projection.sbatch)
-    printf '%-8s %-15s %-36s advance=%-4s -> %s\n' "$name" "$law" "${params:-(defaults)}" "$advance" "$job"
+    printf '%-10s %-15s %-36s advance=%-4s -> %s\n' "$name" "$law" "${params:-(defaults)}" "$advance" "$job"
 done <<EOF
 $MEMBERS
 EOF

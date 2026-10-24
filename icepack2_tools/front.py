@@ -11,7 +11,7 @@ import numpy as np
 __all__ = ["retreat_slivers", "clear_reference_where_ice_free", "clamp_thickness",
            "front_removal_mask", "unforced_cells", "applied_forcing",
            "front_connected", "facet_neighbours", "vertex_neighbours",
-           "ocean_drag_cells",
+           "ocean_drag_cells", "levelset_drag_gate",
            "collapse_cell_counts",
            "collapse_banner", "collapse_csv_fields", "COLLAPSE_MARKER",
            "COLLAPSE_CSV_COLUMNS", "FRONT_OWNER_MARKER"]
@@ -262,6 +262,22 @@ def ocean_drag_cells(ice, neighbours_of, extent0):
     meets no drag either, before a restart and after.
     """
     return ~ice & ~neighbours_of(ice) & ~extent0
+
+
+def levelset_drag_gate(phi_cells, cell_diam):
+    r"""The ocean-drag gate a level-set front writes
+    (``icepack_tools.levelset.LevelSet.update_cell_fields``): 1.0 on the
+    cells more than one cell diameter beyond its front, ``phi > cell_diam``,
+    0.0 elsewhere, per cell.
+
+    A checkpoint written under a level-set law records its residual under
+    this gate, so a restart has to measure the loaded state under it too.
+    Measured under the cold start's t=0-extent gate (:func:`ocean_drag_cells`)
+    every restart of the October 2026 production chains read ||F|| about 1e8
+    against a recorded 1e-3 (the basal-stress block on the cells the two
+    gates disagree on) and re-solved a converged state.
+    """
+    return np.where(np.asarray(phi_cells) > np.asarray(cell_diam), 1.0, 0.0)
 
 
 def facet_neighbours(Q_dg):
