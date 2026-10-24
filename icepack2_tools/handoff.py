@@ -23,7 +23,7 @@ import math
 # than re-derived, so they appear here as plain values.
 OBJECTIVE_KEYS = (
     "misfit_norm", "misfit_scale", "log_vel_weight", "log_vel_eps",
-    "dhdt_weight", "dhdt_net_sigma",
+    "dhdt_weight", "dhdt_net_sigma", "dhdt_filter_l",
     "dhdt_speed_ratio", "dhdt_speed_slow", "dhdt_speed_fast",
     "prior_form", "gamma_theta", "gamma_phi",
     "prior_sigma_theta", "prior_sigma_phi", "prior_rho",
@@ -33,6 +33,7 @@ OBJECTIVE_KEYS = (
     "grad_precond", "subelement_friction", "subelement_scheme",
     "subelement_scheme_version", "exact_front", "fluidity_control",
     "drag_gate", "h_visc_floor", "phi_grounded", "raster_sample",
+    "vel_sample", "u_obs_max", "dhdt_reweight", "dhdt_reweight_scale", "kill_bergs",
     "velocity_sample",
 )
 

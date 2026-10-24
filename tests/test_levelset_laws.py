@@ -246,6 +246,33 @@ def test_a_law_without_its_input_is_refused(calving_env):
         law.rate(_front_state(mesh, h, b, u, ls), 0.0)
 
 
+def test_floating_only_confines_the_law_to_floating_ice(calving_env):
+    r"""``ISMIP7_CALVING_FLOATING_ONLY=1`` gates the configured law on
+    grounded ice (a marine grounded cliff no longer calves at the rate cap:
+    Kemp Land under ssp370, 22 Oct 2026); the recorded description says so,
+    so a resume under the other rule is refused; the knob takes only 1 or 0."""
+    law = _configured_law(calving_env, "hfb", "sigma_max=0.15")
+    assert not law.grounded_gate and "grounded ice does not calve" not in law.describe()
+    calving_env.setenv("ISMIP7_CALVING_FLOATING_ONLY", "1")
+    gated = runconfig.calving_law_object()
+    assert gated.grounded_gate and "grounded ice does not calve" in gated.describe()
+    assert gated.describe() != law.describe()
+    # a grounded cliff under a tensile membrane stress: the law's own rule
+    # calves it, the gated law does not
+    mesh, Q0, h, b, u, ls = _state(gated.front_mode, bed=BED_GROUNDED)
+    M = Function(TensorFunctionSpace(mesh, "DG", 0, symmetry=True)).interpolate(
+        Constant(((1.0, 0.0), (0.0, 0.0))))
+    grounded = FrontState(u, M, None, h, b, ls, rho_i=ice_density, rho_w=water_density)
+    ice = _xc(mesh) < 0.5
+    assert np.all(Function(Q0).interpolate(law.rate(grounded, 0.0)).dat.data_ro[ice] > 0.0)
+    assert np.all(Function(Q0).interpolate(gated.rate(grounded, 0.0)).dat.data_ro[ice] == 0.0)
+    calving_env.setenv("ISMIP7_CALVING_FLOATING_ONLY", "0")
+    assert not runconfig.calving_law_object().grounded_gate
+    calving_env.setenv("ISMIP7_CALVING_FLOATING_ONLY", "yes")
+    with pytest.raises(ValueError, match="ISMIP7_CALVING_FLOATING_ONLY"):
+        runconfig.calving_law_object()
+
+
 def test_the_parameters_are_the_laws_own(calving_env):
     r"""``ISMIP7_CALVING_PARAMS`` is checked against the law it configures when
     the law is made, which the forward does before its MAP load: a misspelt

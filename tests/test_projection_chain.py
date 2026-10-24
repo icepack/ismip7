@@ -54,6 +54,7 @@ print(f"driver: solver={diagnostic_solver_mode()} dt={os.environ.get('ISMIP7_DT'
 print(f"driver: srun export list={os.environ.get('SLURM_EXPORT_ENV', 'none')}")
 # the MPI-IO component the launcher selects (site_core.sh, ismip7_mpirun)
 print(f"driver: mpi io={os.environ.get('OMPI_MCA_io', 'unset')}")
+print(f"driver: wall_stop_min={os.environ.get('ISMIP7_WALL_STOP_MIN', 'unset')}")
 
 start = os.environ.get("FAKE_START_YEAR", "")
 if start:
@@ -171,7 +172,7 @@ def test_short_run_chains_once(sandbox):
     assert rc == 0, log
     assert "resubmitting" in log
     assert calls.count("ARGV:") == 1
-    assert "--dependency=afterok:424242" in calls
+    assert "--dependency=afterany:424242" in calls
     assert "ENV: ISMIP7_WALL_STOP_MIN" not in calls
     assert "ENV: ISMIP7_RESTART" not in calls
 
@@ -229,6 +230,29 @@ def test_the_successor_is_given_the_site_s_extra_flags(sandbox):
     argv = [line for line in calls.splitlines() if line.startswith("ARGV:")]
     assert len(argv) == 1, calls
     assert "--qos=long --mail-type=FAIL" in argv[0], argv[0]
+
+
+def test_the_successor_avoids_the_nodes_the_first_link_was_told_to(sandbox):
+    r"""The routine's watchdog blacklists a node a link hung on and passes
+    --exclude to the links it submits; a chain successor built its flags from
+    scontrol without that list, so on 21 October 2026 successors kept landing
+    on bb6u15g1, where five links had died in MUMPS. scontrol hands the list
+    back as ExcNodeList, or (null) when there is none."""
+    stub = sandbox / "bin" / "scontrol"
+    plain = stub.read_text()
+    stub.write_text(plain.replace("MinMemoryNode=240G", "MinMemoryNode=240G ExcNodeList=bb6u15g1,bb7u13g1"))
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000")
+    assert rc == 0, log
+    argv = [line for line in calls.splitlines() if line.startswith("ARGV:")]
+    assert len(argv) == 1, calls
+    assert "--exclude=bb6u15g1,bb7u13g1" in argv[0], argv[0]
+    (sandbox / "sbatch_calls.txt").unlink()
+    stub.write_text(plain.replace("MinMemoryNode=240G", "MinMemoryNode=240G ExcNodeList=(null)"))
+    rc, log, calls = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000")
+    assert rc == 0, log
+    argv = [line for line in calls.splitlines() if line.startswith("ARGV:")]
+    assert len(argv) == 1, calls
+    assert "--exclude" not in argv[0], argv[0]
 
 
 def test_reaching_t_end_finishes(sandbox):
@@ -445,7 +469,7 @@ def test_a_finished_run_queues_its_follow_ons(sandbox):
         # each follow-on's driver owns its period
         assert "ISMIP7_T_START" not in sub
         assert "ISMIP7_T_END" not in sub
-        assert f"--dependency=afterok:{JOB_ID}" in sub
+        assert f"--dependency=afterany:{JOB_ID}" in sub
         assert "-J ismip7_fwd" in sub
 
 
@@ -514,3 +538,77 @@ def test_an_explicit_apparent_mb_still_reaches_the_relaxation(sandbox):
                          ISMIP7_APPARENT_MB="1", ISMIP7_OUTPUT="1")
     assert rc == 0, log
     assert "apparent_mb=balance ismip7_output=True" in log
+
+
+def test_reaching_t_end_runs_the_follow_on_command_once(sandbox):
+    r"""The link that reaches the end year runs ISMIP7_CHAIN_THEN_CMD, after
+    queueing the follow-on runs, which start chains of their own without it."""
+    hook = sandbox / "hook_ran"
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="2015", FAKE_START_YEAR="2010", ISMIP7_T_END="2015",
+        ISMIP7_EXPERIMENT="hist_mri_esm2", ISMIP7_CHAIN_THEN="control",
+        ISMIP7_CHAIN_THEN_CMD=f"touch {hook}")
+    assert rc == 0, log
+    assert hook.exists()
+    assert "chain: follow-on command done" in log
+    submits = _submits(calls)
+    assert len(submits) == 1, calls
+    assert "ISMIP7_CHAIN_THEN_CMD" not in submits[0]
+
+
+def test_a_run_short_of_its_end_carries_the_follow_on_command_on(sandbox):
+    r"""Any link may be the one that finishes, so the successor inherits the
+    command; a link short of the end year does not run it."""
+    hook = sandbox / "hook_ran"
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="2012", FAKE_START_YEAR="2010", ISMIP7_T_END="2015",
+        ISMIP7_CHAIN_THEN_CMD=f"touch {hook}")
+    assert rc == 0, log
+    assert not hook.exists()
+    assert "resubmitting" in log
+    assert f"ENV: ISMIP7_CHAIN_THEN_CMD=touch {hook}\n" in calls
+
+
+def test_a_failing_follow_on_command_does_not_change_the_verdict(sandbox):
+    rc, log, _ = run_job(
+        sandbox, FAKE_T_YR="2015", FAKE_START_YEAR="2010", ISMIP7_T_END="2015",
+        ISMIP7_CHAIN_THEN_CMD="exit 3")
+    assert rc == 0, log
+    assert "WARNING the follow-on command exited 3" in log
+
+
+def test_the_wall_budget_counts_from_the_job_s_start(sandbox):
+    r"""The driver counts its budget from its own start, the wall limit from
+    the job's. A one-hour link that spent nine minutes before the driver
+    (NOTS 2297586, 21 October 2026) ran its budget into the limit and its
+    successor never started; the minutes already used come off the budget."""
+    import datetime
+    start = (datetime.datetime.now() - datetime.timedelta(minutes=9, seconds=30))
+    stub = sandbox / "bin" / "scontrol"
+    stub.write_text(stub.read_text().replace(
+        "TimeLimit=1-00:00:00",
+        f"TimeLimit=01:00:00 StartTime={start.strftime('%Y-%m-%dT%H:%M:%S')}"))
+    rc, log, _ = run_job(sandbox, FAKE_T_YR="2050", FAKE_START_YEAR="2000")
+    assert rc == 0, log
+    assert "driver: wall_stop_min=26.0" in log, log
+
+
+@pytest.mark.parametrize("then", [None, "control"])
+def test_a_cold_re_solve_does_not_reach_the_stages_a_finished_run_launches(sandbox, then):
+    r"""ISMIP7_RESTART_RESOLVE=cold is one run's one-off. The run that reaches
+    its end year hands the routine's ``next`` its environment through the
+    follow-on command (a routine stage queues no follow-on runs), and the
+    stages that launches would re-solve their writer's state cold; neither
+    the command nor a follow-on run sees it."""
+    dump = sandbox / "then_env.txt"
+    rc, log, calls = run_job(
+        sandbox, FAKE_T_YR="2015", FAKE_START_YEAR="2010", ISMIP7_T_END="2015",
+        ISMIP7_EXPERIMENT="hist_mri_esm2", ISMIP7_CHAIN_THEN=then,
+        ISMIP7_RESTART_RESOLVE="cold", ISMIP7_CHAIN_THEN_CMD=f"env > {dump}")
+    assert rc == 0, log
+    assert "chain: follow-on command done" in log
+    assert "ISMIP7_RESTART_RESOLVE" not in dump.read_text()
+    follows = _submits(calls)
+    assert len(follows) == (1 if then else 0), calls
+    for follow in follows:
+        assert "ISMIP7_RESTART_RESOLVE" not in follow

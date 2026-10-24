@@ -47,6 +47,27 @@ and accepts an estimate no larger than the one that rejected it; a larger one
 rejects and tests refining again, and a macro step within the tolerance ends
 the rule. A non-finite thickness always rejects, so a real blow-up still
 climbs to the ceiling and stalls.
+
+The increment is the transport's own: the thickness the implicit upwind
+step leaves, before the positivity floor and the front's removals act on it
+(the caller passes that state as ``h_after``, as the free-surface
+stabilization takes its tendency). The removals are events, not a time
+discretization. Under an advected front a cell the front retreats off keeps
+the part of it still behind the front, a fraction set by where the front
+lies in the cell and not by the step; a band cell hands its excess back to
+the ice it came from; icebergs and collapsed cells are emptied. Read into the
+increment, such a jump after a gain is a reversal that grows, tens to
+hundreds of metres that no substep count reduces. A cell whose side of an
+advected front changed in the substep changes the transport itself, which
+exports from the cells inside the front only, so the caller names those cells
+(``skip``) and they sit out that comparison and the next.
+
+At the ceiling a finite estimate within ``ceiling`` times the tolerance is
+accepted rather than stalling the run. On the 2 km screening of 11 October
+every member that stalled did so at one Thwaites front cell, with 1 to 4 m
+against a 1 m tolerance at 64 substeps, a time-discretization estimate on a
+cell whose mass the transport conserves exactly either way; a run stopped
+there has no better step to take. ``ceiling`` 0 restores the stall.
 """
 
 import math
@@ -56,9 +77,11 @@ import numpy as np
 
 class SubstepController:
     def __init__(self, *, tol, m_init=1, m_max=64, quiet_steps=20, hmin=10.0,
-                 ineffective=0.7, comm=None):
+                 ineffective=0.7, ceiling=20.0, comm=None):
         if tol <= 0:
             raise ValueError("substep tolerance must be positive")
+        if ceiling < 0:
+            raise ValueError("the ceiling multiple must be nonnegative")
         if not 1 <= m_init <= m_max:
             raise ValueError("need 1 <= initial substeps <= maximum substeps")
         if quiet_steps < 1:
@@ -86,6 +109,9 @@ class SubstepController:
         self._tolerated_now = False
         self.rejections = 0
         self.tolerated = 0           # retries accepted above tol (ineffective)
+        self.ceiling = float(ceiling)  # accept this multiple of tol at m_max
+        self.ceiling_accepted = 0    # attempts accepted at the ceiling
+        self.ceiling_now = False
 
     def begin_attempt(self):
         r"""Mark the start of an attempt at a macro step, so a rejection can
@@ -94,15 +120,20 @@ class SubstepController:
         self.err_step = 0.0
         self._tolerated_now = False
 
-    def observe(self, h_before, h_after, tau, xy=None):
+    def observe(self, h_before, h_after, tau, xy=None, skip=None):
         r"""Record one substep's thickness change and return its error
         estimate (metres, the same on every rank). The first substep of a
         run has no predecessor and returns 0. ``xy`` (one row of coordinates
-        per entry of ``h``) locates the largest estimate in ``err_xy``."""
+        per entry of ``h``) locates the largest estimate in ``err_xy``.
+        ``skip`` (one boolean per entry of ``h``) leaves entries out of this
+        comparison and the next, as a thin cell is left out: the cells an
+        advected front crossed in the substep (see the module docstring)."""
         h_before = np.asarray(h_before)
         h_after = np.asarray(h_after)
         dh = h_after - h_before
         keep = (h_before >= self.hmin) & (h_after >= self.hmin)
+        if skip is not None:
+            keep &= ~np.asarray(skip, dtype=bool)
         where = None
         if not np.all(np.isfinite(h_after[h_before >= self.hmin])):
             err = math.inf                 # a blown-up state, whatever its history
@@ -147,6 +178,10 @@ class SubstepController:
             self.tolerated_against = ref
             self._tolerated_now = True
             return False
+        if self.m >= self.m_max and self.ceiling > 0 and err <= self.ceiling * self.tol:
+            self.ceiling_accepted += 1
+            self.ceiling_now = True
+            return False
         return True
 
     def refine(self, err=None):
@@ -186,6 +221,7 @@ class SubstepController:
         self.last_reject = None
         self._m_rejected = None
         self._tolerated_now = False
+        self.ceiling_now = False
         if self.err_step < 0.25 * self.tol:
             self._quiet += 1
         else:

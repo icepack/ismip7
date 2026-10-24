@@ -8,6 +8,14 @@ ISMIP7_SITE_MATCH="nots* login*.nots.rice.edu bb*"
 # the gmsh wheel dlopens libGLU.so.1 at import and the compute nodes lack it.
 ISMIP7_FIREDRAKE="${ISMIP7_FIREDRAKE:-/projects/ah301/sw/venv-firedrake/bin/activate}"
 ISMIP7_MODULES="${ISMIP7_MODULES:-foss/2023b Python/3.11.5 CMake/3.27.6 M4/1.4.19 flex/2.6.4 Bison/3.8.2 libevent/2.1.12 zstd/1.5.5 Szip/2.1.1 libaec/1.0.6 libGLU/9.0.3}"
+# The tree those modules live in, named because only the login nodes' login
+# shell puts it on MODULEPATH: a login shell on a compute node gets the
+# system's /etc/modulefiles and /usr/share/modulefiles, and a job submitted
+# from there carries that path, so foss/2023b is "unknown", libbz2 is missing
+# and the import of PETSc fails (the 16 October 2026 dH/dt continuation,
+# submitted by a chain's follow-on command through `env -i bash -l`, failed
+# eight links in a row that way).
+ISMIP7_MODULE_USE="${ISMIP7_MODULE_USE:-/opt/apps/modules/Core}"
 
 # The default account (commons) is granted and needs no -A. It gives commons
 # (1 day, 142 nodes), long (3 days, 61 nodes, the only one that fits a 2 km

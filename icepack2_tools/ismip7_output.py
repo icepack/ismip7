@@ -464,7 +464,7 @@ class AnnualOutput:
         self.step_time = 0.0
 
     def book_advance(self, dt, accum, ocean_melt, a_ref, h_dg, u, grounded_cells,
-                     withheld=None):
+                     withheld=None, exporting=None):
         r"""Called by ``_advance`` after the transport solve, BEFORE removal:
         books the sources this advance APPLIED (the SMB, the melt and the
         apparent-mass-balance reference where there can be ice, which the
@@ -480,7 +480,13 @@ class AnnualOutput:
         source minus the requested one. It comes off the three sinks, the
         negative SMB, the melt and the negative reference, in proportion to
         their sizes, so the booked sources sum to the source the transport
-        applied. ``None`` books the requested sources."""
+        applied. ``None`` books the requested sources.
+
+        ``exporting`` is the DG0 indicator of the cells the transport let
+        export ice, when only some do: under an advected front only the cells
+        inside it (icepack_tools.front_transport), and the transport books
+        the ice that crosses the front without following it as calving
+        itself. ``None``: every cell exports."""
         grounded_cells = self._grounded(grounded_cells)
         smb = assemble(accum * self._phi * dx).dat.data_ro / self.cell_area        # m/yr, cell mean
         melt = assemble(ocean_melt * self._phi * dx).dat.data_ro / self.cell_area
@@ -506,6 +512,8 @@ class AnnualOutput:
         # throughput cancels instead of counting as loss.
         g = Function(self.Q_dg); g.dat.data[:] = grounded_cells.astype(float)
         un = fd.dot(u, self._n); un_plus = (un + abs(un)) / 2
+        if exporting is not None:
+            un_plus = exporting * un_plus
         flux = un_plus("+") * h_dg("+") - un_plus("-") * h_dg("-")   # upwind, "+" to "-"
         phi = self._phi
         form = (flux * g("+") * (1 - g("-")) * phi("-")

@@ -1341,6 +1341,57 @@ than a cell from the front. Thin cells inside the t=0 extent are damped by
 a free law advances into, `C_w0` comes from the t=0 geometry where `H = 0`, so
 `tau_b = 0` under both laws and the damping is `h_visc_floor` and the collar.
 
+**An advected front (`ISMIP7_FRONT_ANCHOR=advect`).** The level set above is
+anchored at the extent: it is rebuilt from the thickness every step, the
+transport advances the front and the law only retreats it. Under `advect` the
+level set carries the front itself, `phi_t + u . grad(phi) - c |grad(phi)| = 0`,
+and the transport moves the ice with it (`icepack_tools.front_transport`,
+through `icepack2_tools.transport.front_transport_form`):
+
+- only the cells inside the front (`phi <= 0`) export ice. A cell beyond it
+  receives what follows the front's own advance, `h ((u - c n_f) . n)+`, and the
+  rest of the ice crossing the front is calving, booked by the transport;
+- after the solve, a cell beyond the front that shares an edge with the ice
+  keeps what the advance carried into it, or the part of it still behind a
+  front that retreated off it, and hands back any excess over the ice it came
+  from. Every other cell beyond the front is emptied;
+- water the level set encloses in the ice joins the ice (nunataks, lakes: 293
+  cells on the 5 km buffered mesh), and ice that no path through ice connects
+  to grounded ice is an iceberg;
+- the momentum balance reads the thickness inside the front only (a copy,
+  `thickness_dynamic`, zeroed beyond the level set after every advance). The
+  ice the advance deposits beyond the front waits there for the front to cross
+  it; seen by the momentum balance it is a wedge 30-80 m at its thick node,
+  pinned through the vertices it shares with the ocean-drag cells, and on the
+  2 km calving screen (calvdg1h, 18 Oct 2026) it buttressed every shelf to
+  half its speed within a decade, halving the calving the free laws booked
+  while the front cells kept their thickness. With the rule the free-front
+  push stays on the level-set front and the deposit has no dynamics until the
+  front claims it, as under the `fixed` law, whose band cells are empty;
+- under `ISMIP7_FRONT_ADVANCE=none` the front is held at the t=0 extent: it
+  retreats but never advances past it, and the ice reaching it calves. The
+  collapse mask's removals retreat the level set with them. Under
+  `ISMIP7_FRONT_MARINE` (the default) it is held only on the sea: a
+  land-terminating front does not calve, it advances with the ice, and what
+  it carries into the sea calves there;
+- the level set is reinitialised every `ISMIP7_FRONT_REINIT_YR` model years
+  (2.5). The forward advances it at every substep, and every reinitialisation
+  costs part of the sub-cell motion since the one before: reinitialised every
+  fifth advance, the level set's own default, the front moved about 4 m
+  between them on the 2 km mesh and stood still;
+- the adaptive substep controller reads the transport's own increment, before
+  the rules above, and leaves out the cells the front crossed in the substep.
+  Read after the rules, the cut of a cell the front retreated off, after a
+  substep of accumulation, is a reversal that grows by tens to hundreds of
+  metres at any substep count: five of the six free members of the 2 km
+  buffered screen of 16 October stalled on it within their first 0.75 yr.
+
+Every removal is booked in `calv`, and the transport's mass check includes the
+calving flux. The plain transport followed by emptying every cell beyond the
+level set, which the anchor first ran with, booked all the ice reaching the
+front as calving whatever the law: 6,650 Gt/yr in the first step on the 5 km
+buffered mesh, where the extent anchor booked 1,370.
+
 **The laws have one home, `icepack_tools.calving`,** beside the level set that
 moves the front with their rate. The CalvingMIP project runs from the same
 registry and tunes against Antarctic fronts with it (`calving/tune_greene.py`,
@@ -1348,7 +1399,11 @@ per-Mouginot-basin flux against the Greene et al. 2022 fronts), so a tuned
 parameter means the same thing there and here. `ISMIP7_CALVING` names the law,
 `ISMIP7_CALVING_PARAMS` gives its parameters as `key=value,key=value`, checked
 against the law's own when the forward starts (before the MAP load), and
-`ISMIP7_CALVING_MODULE` registers a law from a file first:
+`ISMIP7_CALVING_MODULE` registers a law from a file first. Two parameters
+every law takes: `marine_only` (the land-front rule, `ISMIP7_FRONT_MARINE`)
+and `scale`, a global factor on the law's rate (`c -> scale c`, default 1),
+the knob that turns a law up for the continent as a whole when its fronts
+advance where the record holds them:
 
 | `ISMIP7_CALVING` | rate `c` [m/yr] | parameters (defaults) |
 |---|---|---|
@@ -1372,9 +1427,11 @@ rate. The `Calving front owner:` line and every checkpoint's `calving_law`
 attribute record the law with every parameter at full precision, and
 `core_report.py` lifts the line into the report.
 
-The level set is checkpointed as `levelset` for diagnostics; a restart
-rebuilds the front from the thickness. The exception is `fixed`, which anchors
-on `H_init` so a resumed run does not re-freeze the front where it restarted.
+The level set is checkpointed as `levelset`. An extent-anchored restart
+rebuilds the front from the thickness, and an advected one continues from the
+saved field; a restart refuses a state written under the other anchor. The
+exception is `fixed`, which anchors on `H_init` so a resumed run does not
+re-freeze the front where it restarted.
 The laws and the shared level set are tested in `icepack_tools`
 (`test/calving_test.py`, `test/levelset_test.py`); the ISMIP7-side rules
 (retreat-sliver mask, apparent-MB extent masking, the `fixed` law's t=0
@@ -1405,6 +1462,146 @@ defined only on the t=0 ice extent under every law. Under a free law it is also
 cleared each step wherever the level set reports ice-free, irreversibly, so a
 calved cell is not regrown and an advanced-into cell is not re-emptied. The run
 log prints one `Calving front owner:` line naming the mechanism in force.
+
+### A calving campaign (`submit_calving_campaign.sh`, `score_front.py`)
+
+The forward suite run once per calving-law member, each member its own run
+tag, the way the Pine Island study ran its laws. The member table in
+`antarctica/scripts/batch_runners/submit_calving_campaign.sh` is the one knob:
+each line is name, law (any name in `icepack_tools.calving`: `fixed`, `hfb`,
+`vonmises`, `vonmises_strain`, `thickness`, `eigencalving`, `nocalving`), its
+parameters and the front-advance mode. The parameters shipped are the Pine
+Island calibrations against the Greene record where that study fitted them,
+the submission front's own value for `hfb`, and published Antarctic values
+otherwise; `fixed` (the protocol's pinned front) and `nocalving` (free
+advance, nothing removed) bound every law. The `vm130`, `vm130g`, `hfb086`,
+`eig5e6`, `eig1e7` and `thk235` members run each law at its own parameter
+fitted to a flux-balance target (calvingMIP's `tune_greene.py --target
+balance` on a yearly state of the `fixed` member): per Mouginot basin, the
+flux a stationary front at the model's own front would remove, less what the
+Greene record says the basin's front did over 2003-2015 (ice density times
+front thickness times the area trend). On the 2 km buffered mesh every free
+law at its published value calved less than the ice reaching the front (hfb
+0: 800 Gt/yr, von Mises 0.15: 630, 0.275: 275, against ~1,190 for the pinned
+front and ~1,265 observed), so its fronts advanced; the fits say von Mises
+0.13 MPa, hfb 0.086 MPa, eigencalving K 4.9e6 m yr and hc 235 m hold the
+basins' fronts as the record did, at the fixed front. The diagnostic flux at
+that front runs ~1.7x what the forwards booked under the same law, so the
+forward members are the test of the fit, scored on ice area and front rms.
+Every law also takes `scale`, a global factor on its rate, kept as a knob.
+
+```sh
+. ./fwd_env_sep1.sh                                   # the production environment
+antarctica/scripts/batch_runners/submit_calving_campaign.sh screen        # every member: historical 2003-2015, every yearly state kept
+antarctica/scripts/batch_runners/submit_calving_campaign.sh suite vm075 fixed   # named members: historical, then control and projections chained
+```
+
+`score_front.py` scores a run's front against the Greene record: for each
+state checkpoint it puts the run's ice extent (the sign of its level set)
+and the Greene mask of the nearest epoch on the kit's grid at 1 km, takes
+the front of each as the edge of its ice against the ocean it is connected
+to (the level set also bounds every rock outcrop and ice-free pocket
+inland, which the record does not draw), and reports on the model's front,
+front-length weighted, the rms distance to the observed coast, its bias
+(positive where the model front lies seaward of the observed one), the
+seaward and inland shares and the share within 1 and 2 km, then the same
+from the observed coast to the model's front, in total and per Mouginot
+basin; a member is judged on the mean front rms over the epochs its run
+covers, against `fixed` and `nocalving`. Each state also carries the ice
+area of the run and of the record on the kit grid, and the summary their
+change over the scored epochs, the measure a continent-wide `scale` is set
+by. Where the full kit is absent,
+`--kit` takes the front subset (`AntarcticaObsISMIP7-v1.2-front.nc`, 9 MB:
+the Greene masks, their dates and the Mouginot basins; on NOTS at
+`ISMIP7/AIS/obs/front/`, NOT under `obs/mipkit/`: the forward's dH/dt reader
+takes any `AntarcticaObsISMIP7*.nc` there for the full kit and fails on the
+subset).
+
+```sh
+mpiexec -n 8 python antarctica/scripts/score_front.py --out calv_vm075.json \
+    antarctica/results/hist_cesm2_waccm_calv_vm075_2000_t20*.h5
+```
+
+`campaign_table.py` puts the members side by side from their time series
+and, where they exist, their front scores: the ice leaving through the mesh
+boundary and the ice a law removed inside the mesh (on a mesh without a
+buffer the boundary is the front, so the first is nearly all of the front
+flux), their sum against the observed 1,138 to 1,297 Gt/yr (BedMachine's
+front under MEaSUREs, icepack/ismip7#167), the mass and VAF rates after the
+first year, the budget residual, and the front rms, bias, reverse rms and
+inland ice-free change from `score_front.py`. A pinned front also removes the
+ice that advances into ice-free cells inside the mesh, which a free front
+keeps, so `fixed` removes more than a weak rate law on the same mesh.
+
+```sh
+python antarctica/scripts/campaign_table.py --tag calv75 --results antarctica/results --scores scores/
+```
+
+`boundary_front_flux.py` reads a MAP or forward state on a mesh without a
+buffer and assembles the ice flux through the exterior facets holding ice
+under the state's own velocity and under the observed velocity it carries,
+all ice and split floating and grounded, with the front's mean thickness and
+normal speed: the front flux the budget books as outflux, and how far the
+front speed overshoots the observations (BedMachine's front under MEaSUREs
+carries 1,138 to 1,297 Gt/yr).
+
+```sh
+mpiexec -n 4 python antarctica/scripts/boundary_front_flux.py --out flux.json \
+    map=MAP.h5 t2010=antarctica/results/hist_cesm2_waccm_calv75_vm150_2000_t2010.0.h5
+```
+
+`compare_hist_dhdt.py` scores a historical's thickness change (the state's
+`thickness` minus its `H_init`, over the elapsed years; pass `--t0 2003` since
+the states record no start year) against the Smith et al. ICESat dH/dt in the
+observations kit, on the kit's 1 km grid: bias, rms, correlation and the
+implied mass rate over grounded ice and all ice, per Mouginot basin, with
+`--plot` for the observed, modelled and difference maps.
+`tendency_by_basin.py` reads the same state's `a_ref_mb` (the field that
+cancelled the t = 0 tendency), rebuilds the upwind flux divergence under the
+model and the observed velocity, and reports per basin the divergence under
+each and the model's t = 0 imbalance; with the RACMO climatology SMB per
+basin (`forcing.load_racmo_smb_climatology` on the start geometry) that
+separates a gain the forcing causes from one the velocity field causes.
+
+```sh
+mpiexec -n 4 python antarctica/scripts/compare_hist_dhdt.py --t0 2003 --plot dhdt.png --out dhdt.json \
+    amb_on=antarctica/results/hist_cesm2_waccm_lcr75_2000_final.h5
+mpiexec -n 4 python antarctica/scripts/tendency_by_basin.py --smith dhdt.json \
+    antarctica/results/hist_cesm2_waccm_lcr75_2000_final.h5
+```
+
+### Figures of a screen (`figures/`)
+
+`scripts/figures/` builds publication figures of a screen in the layout of
+the ISMIP6 Antarctica projection paper (Seroussi et al. 2020) and in the
+house style of `figures/figstyle.py`, which restates the figure grammar of
+Morrow, Ghelichkhan and Kramer (2026) that the group's papers follow: serif
+text, one colour and marker per series with a marker on every point, panel
+letters in grey circles at the top left, one framed legend across the top,
+attached tickless map panels with ten discrete colour bands, and files
+written without timestamps so an unchanged figure gives an empty diff.
+Import it from every new figure script rather than restyling by hand.
+
+The pinned-front member plays the part the control run plays in the
+projections: every relative quantity is member minus pinned front, and
+sea-level contributions are positive for loss. `extract_screen_fields.py`
+runs once per screen on the cluster (serial, one rank, where the states are)
+and writes the cell means and regional volume above flotation of each member
+at one year, the triangulation, and the extent of the members on the
+observations kit's grid against the Greene mask of that year;
+`calving_screen_figures.py` then builds, from those files plus the budget
+time series and `score_front.py` outputs, the budget of every member (SMB,
+basal melt, calving flux against Rignot et al. 2013, VAF), the extent
+agreement and ice area against the record, the contribution relative to the
+pinned front with a thick mean per law and the spread at the end, its
+regional split (Peninsula, West, East by the kit's Mouginot basins), and the
+mean and spread across the free members of the thickness and speed change.
+
+```sh
+python antarctica/scripts/figures/extract_screen_fields.py --kit $KIT --tag calvdg1h --year 2013 \
+    --out screen_data antarctica/results
+python antarctica/scripts/figures/calving_screen_figures.py --data screen_data --tag calvdg1h --out figures/calvdg1h
+```
 
 ### The whole matrix in one command (`run_core_matrix.sh`)
 
@@ -1544,8 +1741,17 @@ mesh and record `relaxed`; their restarts keep it.
 | `ISMIP7_SIGMA_U_FLOOR` | floor on the per-component MEaSUREs error (m/yr), so near-zero errors cannot let a few nodes dominate | `1.0` |
 | `ISMIP7_SIGMA_U_UNOBS` | sigma (m/yr) where MEaSUREs reports no error. Those nodes carry a zero-filled `u_obs`, so they need a large sigma when `ISMIP7_OBS_MASK=0` | `1e4` |
 | `ISMIP7_OBS_MASK` | `0` drops the velocity-observation mask | `1` |
+| `ISMIP7_VEL_SAMPLE` | how MEaSUREs lands on a node. `point` is the bilinear value at the vertex, one 450 m pixel standing for the node's patch, with that pixel's formal error as sigma. `patch` is the hat-weighted patch mean (`patchmean.py`), the datum a CG1 nodal value can represent, with the patch rms of the formal error as sigma (no 1/N reduction: MEaSUREs errors are correlated over far more than a cell); a node is observed when over half its patch is, and the sub-patch spread of the velocity is printed as the representativeness error the point sample carries. Recorded in the MAP (`vel_sample`) and part of the objective | `point` |
+| `ISMIP7_U_OBS_MAX` | observed-speed cap (m/yr): nodes faster than it carry no weight in the velocity misfit and stay in the regularisation; the fastest MEaSUREs pixels sit on shear margins and fronts where the product is noisiest. `0` is off. Recorded as `u_obs_max`; part of the objective | `0` |
+| `ISMIP7_DHDT_REWEIGHT` / `ISMIP7_DHDT_REWEIGHT_SCALE` | the velocity chi^2 of a node is multiplied by 1 + a min(abs(dH/dt_obs) / scale, 1) on grounded ice (a = the first knob, scale in m/yr), so the observed thinning steers where the velocity fit is spent instead of entering the objective as a tendency to match (`ISMIP7_DHDT_WEIGHT`); the two combine. Recorded as `dhdt_reweight`; part of the objective | `0` / `1.0` |
+| `ISMIP7_KILL_BERGS` | `1` removes ice that no chain of ice cells connects to grounded ice from the initial geometry (`geometry.remove_unconnected_ice`): a detached fragment carries the terminus push on every facet and nothing holds it. Recorded as `kill_bergs`; part of the objective | `0` |
+| `ISMIP7_PHI_BOUNDS` | `lo,hi`: box bounds on the fluidity control under TAO's bounded LMVM (`blmvm`); theta stays unbounded. A shelf-first stage from a cold start ran phi away (prior term 1e6 after 13 iterations at 32 km) without them. Recorded as `phi_bounds` | off |
+| `ISMIP7_FLUIDITY_CONTROL=floating` on the TAO path | (13 Oct 2026) allowed: the forward reads phi (1 - He) so the grounded dofs have no misfit gradient, and the metric action zeroes their part of every step and of the gradient norm, so they stay at zero; with `ISMIP7_INVERT=phi` / `theta` this is the sequential shelf-rheology then grounded-friction staging | |
+| `ISMIP7_ACCEPT_UNCONVERGED` (forward) | `1`: a diagnostic solve stopped by the iteration cap or the line search with a finite residual is taken as it stands, the way a fixed-iteration Picard scheme takes its last iterate, and counted on the result line (`accepted_unconverged`); a diverged residual still fails. A robustness experiment, not for a published budget | `0` |
 | `ISMIP7_DHDT_WEIGHT` | weight on the dH/dt chi^2; `0` disables the transient constraint. Under `ISMIP7_GEOMETRY_SPACE=dg1` it scores the cell means of the tendency; CG1 geometry is refused | `0` |
 | `ISMIP7_DHDT_SIGMA` | assumed dH/dt uncertainty (m/yr), hand set since the MIPkit ships no uncertainty field | `0.1` |
+| `ISMIP7_DHDT_FILTER_L` | Helmholtz length (m) applied to the masked residual before it is scored, normalised by the filtered mask so the grounding line and the coverage edge are not attenuated; kernel std is about 1.4 L per axis. The one-step tendency of a MAP carries cell-scale divergence checkerboard with several times the variance of the Smith field, and the pointwise term spends its budget on it. `0` scores the residual pointwise. Refused under `ISMIP7_GEOMETRY_SPACE=dg1` | `0` |
+| `ISMIP7_DHDT_FORCING` | the source of the term's prognostic step: `climatology` (the RACMO2.4p1 climatology SMB with the OI-climatology melt), `control` (the control experiment's RACMO2.4p1 climatology and the ESM's ctrl ocean, averaged over the window) or `ocx` (the ISMIP7 OCX acabf and expert-judgment ocean, the forcing core 11 runs on). `control` and `ocx` are refused under `ISMIP7_GEOMETRY_SPACE=dg1` | `climatology` |
 | `ISMIP7_DHDT_DT` | timestep of the prognostic step (yr) | `1.0` |
 | `ISMIP7_DHDT_SPEED_RATIO` | how many times the weight the dH/dt term carries against the velocity in ice slower than `ISMIP7_DHDT_SPEED_SLOW` that it carries in ice faster than `ISMIP7_DHDT_SPEED_FAST`: both velocity terms (the chi^2 and the log term) are multiplied by `obs_dhdt.speed_weight` of the observed speed, 1 at and above the fast speed, the inverse of the ratio at and below the slow one, log-linear in speed between; the dH/dt term and the prior keep their weights, and the area the velocity terms are normalised by stays the observed area. Needs `ISMIP7_DHDT_WEIGHT > 0`; recorded in the MAP and compared at a warm start's handoff. Each run prints its data terms by observed speed band at its first evaluation and at the published state | `1` (off) |
 | `ISMIP7_DHDT_SPEED_SLOW`, `ISMIP7_DHDT_SPEED_FAST` | the two speeds of `ISMIP7_DHDT_SPEED_RATIO` (m/yr) | `10`, `100` |
@@ -1573,12 +1779,14 @@ redeclare those literals.
 | `ISMIP7_LC` / `ISMIP7_LC_COARSE` | fine and coarse mesh resolution tags, selecting mesh and MAP | `1000` / `10000`, the production pair (`2500` / `64000` until 2026-09-19) |
 | `ISMIP7_BUFFER_M` | outline buffer (m) the mesh is built with and named by (`runconfig.BUFFER_M_DEFAULT`, which the outline extraction and the mesh and sidecar names all read) | `20000` |
 | `ISMIP7_MESH_FRONT` | the ice edge whose marine front the production mesh's nodes follow. `bm` names the `_frontbm` build (`mesh_antarctica.py --front bm`), whose nodes and edges lie on BedMachine's marine front with lc-sized cells along it; built and measured for issue #167 and kept as an option, since under `vertex_front` it carries the current meshes' front flux within 3 % at 6 % (2 km) and 8 % (1 km) more cells (run records `test-i167-frontbm-meshes`, `test-i167-front-probes`). Adaptation refuses a front mesh | `none` |
-| `ISMIP7_MESH` | mesh path for the inversion and tools. A forward takes its mesh from the checkpoint unless this names another mesh, in which case the MAP is transferred onto it; a file with the checkpoint mesh's name and another triangulation is refused (`ISMIP7_MESH_BUILD_CHECK`). `checkpoint` means the mesh embedded in the MAP or restart file: `site_env.sh` always exports a derived path, so this is how a job submitted through `submit.sh projection` runs MAP-native. For the inversion, `checkpoint` is the mesh inside `ISMIP7_WARM_START`, under the `mesh_basename` that file records, so a MAP released without its .msh can be continued on its own mesh. Its recorded `lc`, `lc_coarse` and `buffer_m`, or values derived from a standard basename, supply the output MAP and timing provenance and the derived output names. A contradiction or incomplete mesh identity is refused | `mesh/antarctica_<COARSE>_<LC>_buffered<BUFFER_M>.msh` |
-| `ISMIP7_RASTER_SAMPLE` | how BedMachine lands on a DG0 cell. `vertex_front` (issue #167) is `vertex` with the marine front rebuilt from BedMachine's mask (`geometry.front_cells`): a cell holds ice when half its samples are BedMachine ice, an ice-free cell holding ocean is emptied, and the ice cells beside it take BedMachine's mean thickness and bed over their ice. Under `vertex` alone the cells the front crosses hold a fraction of the front's thickness on a buffered mesh (2 km front band 39.5 m against BedMachine's 163 m, 179 against 998 Gt/yr out of the front under `velocity_obs`). `vertex` projects the CG1 vertex interpolant; `cell_mean` takes the raster's true cell mean. `cell_mean` measured rougher: neighbouring cells share two of three vertex samples, so `vertex` damps jumps by construction. Cell means raised interior surface jumps 6% and bed and thickness jumps 35%, and at 2 km the momentum solve did not converge within 60 minutes. It does classify flotation better (32 km misclassification 9.1% to 3.2%), so the knob stays. Stamped into the MAP and read back by a forward on the MAP's mesh; a transfer rebuilds under the run's own. Each sampling melts with the calibration fitted under it (`runconfig.MELT_CALIBRATIONS`). Reproduce with `probe_raster_sampling.py` and `probe_front_cells.py` | `vertex_front` |
+| `ISMIP7_MESH` | mesh path for the inversion and tools. A forward takes its mesh from the checkpoint unless this names another triangulation, in which case the MAP is transferred onto it; a file holding the checkpoint's own triangulation (`transfer.meshes_match`) solves on the checkpoint's mesh, so every field, a DG1 thickness at the front included, loads exactly; a file with the checkpoint mesh's name and another triangulation is refused (`ISMIP7_MESH_BUILD_CHECK`). `checkpoint` means the mesh embedded in the MAP or restart file: `site_env.sh` always exports a derived path, so this is how a job submitted through `submit.sh projection` runs MAP-native. For the inversion, `checkpoint` is the mesh inside `ISMIP7_WARM_START`, under the `mesh_basename` that file records, so a MAP released without its .msh can be continued on its own mesh. Its recorded `lc`, `lc_coarse` and `buffer_m`, or values derived from a standard basename, supply the output MAP and timing provenance and the derived output names. A contradiction or incomplete mesh identity is refused | `mesh/antarctica_<COARSE>_<LC>_buffered<BUFFER_M>.msh` |
+| `ISMIP7_RASTER_SAMPLE` | how BedMachine lands on a DG0 cell. `vertex_front` (issue #167) is `vertex` with the marine front rebuilt from BedMachine's mask (`geometry.front_cells`): a cell holds ice when half its samples are BedMachine ice, an ice-free cell holding ocean is emptied, and the ice cells beside it take BedMachine's mean thickness and bed over their ice. Under `vertex` alone the cells the front crosses hold a fraction of the front's thickness on a buffered mesh (2 km front band 39.5 m against BedMachine's 163 m, 179 against 998 Gt/yr out of the front under `velocity_obs`). `vertex` projects the CG1 vertex interpolant; `cell_mean` takes the raster's true cell mean. `cell_mean` measured rougher: neighbouring cells share two of three vertex samples, so `vertex` damps jumps by construction. Cell means raised interior surface jumps 6% and bed and thickness jumps 35%, and at 2 km the momentum solve did not converge within 60 minutes. It does classify flotation better (32 km misclassification 9.1% to 3.2%), so the knob stays. Stamped into the MAP and read back by a forward on the MAP's mesh; a transfer rebuilds under the run's own. Each sampling melts with the calibration fitted under it (`runconfig.MELT_CALIBRATIONS`). `patch` (13 Oct 2026, `icepack2_tools/patchmean.py`) is the hat-weighted patch mean, the lumped L2 projection of the raster onto CG1 projected to the cell: as smooth as `vertex` (neighbouring cells share two of three patches) and its DG0 field carries the raster's mass exactly, where `vertex` rests a 2 km cell on three of its sixteen pixels; `patch_front` adds the front rule. A DG1 geometry holds the patch-mean field exactly and keeps the mass too. Reproduce with `probe_raster_sampling.py` and `probe_front_cells.py` | `vertex_front` |
+| `ISMIP7_PATCH_QDEGREE` | quadrature degree of the patch means: about (d + 2)^2 / 4 raster lookups per cell, 25 at the default, of the order of the 500 m pixels in a 2 km cell | `10` |
 | `ISMIP7_INVERSION` | explicit MAP path for a forward or preflight. The forward checks the MAP's recorded `friction`, `n_flow` and `geometry_space` against the run and aborts on a mismatch, warning only when the MAP predates those attributes; `preflight.py` checks that the file exists. Use it to A/B MAPs on one mesh, or, with `ISMIP7_MESH` also set (the timing matrix, `make map-check`), to run a MAP on a different mesh: its continuous fields are then interpolated onto `ISMIP7_MESH` by strict point location (`icepack2_tools/transfer.py`), and a target dof outside the MAP's outline takes a stated fill (0 for the log controls, the constant baseline for the fluidity prior, the raster sample for `velocity_obs`), counted and printed as `Transfer fill:` lines (`MAP_CHECK.md`) | derived |
 | `ISMIP7_MAP_CLIP` | bound on the absolute value of a MAP's log controls: a forward clips theta and phi to it when it loads a MAP and prints the count as `MAP clip:`, and an inversion clips its warm start's theta to it when it is set. `0` disables it. Unset, an inversion's warm start keeps the controls its writer fitted, so a chain link continues the same minimisation: under the old default of 10 each of the 19 warm-started 2 km DG1 links of 15 to 17 October 2026 bounded 29 to 59 nodes, started from a residual of 2.8e9 to 1.4e12 against a recorded 4e-5 to 5e2, and missed its recorded objective by up to 1.1e-2; with the clip off the warm start of job 12293346 reproduced its recorded 2300.923 to 3.2e-12, so at 2 km the clip was the cause. A DG1 warm start on a synthetic cap still misses its recorded objective with no clipping, on main as well, which points to the DG1 geometry not surviving a write and reload through the MAP (`INVERSION_PRIORS.md`). Set it for a warm start from another configuration, such as a log MAP whose grounding-line spikes (theta up to 19) seed a sub-element sqrt run. Forwards from IU's final 2 km MAPs (the exact_front version 2 Budd and RC MAPs on the 20 km buffered mesh, issues #153 and #166) run `0`, with `ISMIP7_DIAGNOSTIC_LINEAR_SOLVER` `scpc_mumps` for Budd and `full_mumps` for RC, passed at submission, so the forward runs the controls the inversion fitted: RC's theta reaches 13.0, and 856 floating nodes of Budd's phi lie beyond 10. From Budd's version 1 final, `scpc_gamg` diverged under the clip from a backdated geometry, and without the backdate its step took about 25 times as long as one under `scpc_mumps`; from RC's version 2 final, `scpc_mumps` took 36 to 84 Newton iterations a solve and 13 to 34 min a step (run record `test-2km-budd-b20k-final-forward-diagnostics`). IU expects the regularization to set the solver a MAP needs, so Rice's more strongly regularized MAPs may run `scpc_mumps` or `scpc_gamg`; this is untested, and the membrane floor also moves the start-up cost (a 1 m floor cold start from RC's stage 2 MAP took 4.8 h under `scpc_gamg`, `test-2km-rc-b20k-vgate-floor1`) | `10`, or `6` at `ISMIP7_N_FLOW=4`, in a forward; unset (no clip) in an inversion |
 | `ISMIP7_CALVING` | `none`, or a law in `icepack_tools.calving`: `fixed`, `velocity`, `thickness`, `vonmises`, `vonmises_strain`, `hfb` (see above) | `none` |
 | `ISMIP7_CALVING_PARAMS` | the law's parameters, `key=value,key=value` (e.g. `sigma_max_fl=0.2,sigma_max_gr=1`), checked against the law at startup. Replaces `ISMIP7_CALVING_SIGMA_MAX_GROUNDED` / `_FLOATING`, which are refused when a law is set | the law's defaults |
+| `ISMIP7_CALVING_FLOATING_ONLY` | `1` confines the configured law to floating ice through the law's own grounded gate (`Law.gated`, the friction's grounded measure); the recorded law description says so, so a resume under the other rule is refused. `0` or empty: the law's own rule. The routine sets it from `ISMIP7_ROUTINE_CALVING_FLOATING_ONLY` (`INITIALIZATION_ROUTINE.md`) | unset |
 | `ISMIP7_CALVING_MODULE` | a Python file whose `@icepack_tools.calving.register` laws join the registry before `ISMIP7_CALVING` is looked up | unset |
 | `ISMIP7_FRACTURE` | `mask` applies the ISMIP7 collapse forcing to every floating cell it flags, booked as calving; `mask_front` only to the flagged cells open water has reached, so no hole opens behind a standing front (the two end-members of discussion #30). Masks exist for the SSPs only, so the control, historicals and OCX abort on either. Needs `dg0` or `dg1`. Every run prints its mode once (`Ice-shelf collapse forcing: ISMIP7_FRACTURE=...`, `none` included). Under a mask mode the timeseries columns `collapse_flagged_cells`, `collapse_removed_cells` and `collapse_held_cells` count the flagged floating cells, the ones the mode has emptied and the ones it leaves standing (always 0 under `mask`), all ranks summed; the budget lines, a closing log line and the core report repeat them | `none` |
 | `ISMIP7_OCX_FORCING` | what core 11 runs on. `protocol` is the ISMIP7 OCX product (RACMO2.3p2-ERA SDBN1 `acabf`, expert-judgment ocean `tf`/`so`), and the run refuses to start without it, or on an ocean older than v2: the v1 was built on an earlier extrapolated climatology (discussion #48, `forcing.OCEAN_MIN_VERSION`). `stopgap` is RACMO2.4p1 actual-year SMB with the constant OI ocean climatology, what the core ran on before the product was readable here. K is fitted to the climatology, and `check_melt_bound.py --ocx` compares the OCX ocean with it per basin | `protocol` |
@@ -1596,6 +1804,7 @@ redeclare those literals.
 | `ISMIP7_OUTPUT_INTERVAL` | budget log line every N steps; the timeseries gets a row every step | `10` |
 | `ISMIP7_CHECKPOINT_EVERY_YR` / `ISMIP7_KEEP_CHECKPOINTS` | checkpoint cadence in model years, and how many to keep besides `_final.h5` | `5` / `3` |
 | `ISMIP7_RESTART` | restart checkpoint | `hist_<esm>[_<tag>]_<lc>_final.h5` if present; refused when it is short of the branch year |
+| `ISMIP7_RESTART_RESOLVE` | `cold`: a one-off that ignores the restart checkpoint's recorded `full_state_residual` and re-solves the loaded momentum state to the cold-start tolerance, for a checkpoint written from a frozen velocity. `projection.sbatch` drops it for every successor, follow-on and follow-on command | unset |
 | `ISMIP7_MESH_BUILD_CHECK` | refuse a MAP or restart whose mesh has the `ISMIP7_MESH` file's name and another triangulation (vertex and cell counts and two centroid sums, `transfer.meshes_match`), the way two sites' builds of the production mesh differ; `0` transfers across them on purpose | `1` |
 | `ISMIP7_AUTO_RESUME` | resume from this experiment's newest checkpoint when no `ISMIP7_RESTART` is given. An integer flag, `=0` disables it, since the runners export it unconditionally and `--export=ALL` cannot unset. `projection.sbatch` refuses to chain when it is off | unset |
 | `ISMIP7_RUN_TAG` | experiment-name suffix for a parallel method line | unset |
@@ -1603,7 +1812,10 @@ redeclare those literals.
 | `ISMIP7_EXPERIMENT_NAME` | the run's identity, used by `adapt_mesh.py` to name adapted meshes and sidecars so parallel experiments cannot overwrite each other. Set by `run_adaptive.py --experiment-name`. See `../ADAPTIVE_MESH.md` | unset |
 | `ISMIP7_APPARENT_MB` | `1` or `balance` zeroes the t=0 thickness tendency; `div` cancels only the flux divergence; `0`, `off`, `none` and empty disable it | unset |
 | `ISMIP7_FIXED_FRONT` | hold the calving front at the t=0 extent, tallying inflow beyond it as calving. `=0` disables. Ignored whenever an `ISMIP7_CALVING` law is configured | unset |
-| `ISMIP7_FRONT_ADVANCE` | `free` (default): a level-set law's front advances wherever the transport carries ice into an empty cell the law does not remove; `none`: retreat-only, nothing advances past the t=0 extent, ice reaching it is removed each step and booked as calving (the ISMIP6 retreat-only scheme; the ISMIP7 submission's front). Under `none` a cell a front rule has emptied (beyond the law's front, shed whole, or a retreat sliver in a front cell) stays ice-free for the rest of the run, its inflow booked as calving; the mask is saved in checkpoints as `calved_cells` (`front.held_calved`, `tests/test_front_advance.py`). Needs `ISMIP7_CALVING`. |
+| `ISMIP7_FRONT_REINIT_YR` | model years between reinitialisations of an advected front (`ISMIP7_FRONT_ANCHOR=advect`); a positive number | `2.5` |
+| `ISMIP7_FRONT_ANCHOR` | where a level-set law's front lives. `extent` (default): rebuilt from the thickness every step, the transport advancing it and the law retreating it, with the sub-cell shed. `advect`: carried by the level set (`phi_t + u . grad(phi) - c |grad(phi)| = 0`), the transport moving the ice with it (only cells inside the front export, the rest of the ice crossing it calves, enclosed water joins the ice, icebergs go; see "An advected front" above). A restart keeps the anchor it started with. Needs `ISMIP7_CALVING` | `extent` |
+| `ISMIP7_FRONT_ADVANCE` | `free` (default): a level-set law's front advances wherever the transport carries ice into an empty cell the law does not remove; `none`: retreat-only, nothing advances past the t=0 extent, ice reaching it is removed each step and booked as calving (the ISMIP6 retreat-only scheme; the ISMIP7 submission's front). Under `none` a cell a front rule has emptied (beyond the law's front, shed whole, or a retreat sliver in a front cell) stays ice-free for the rest of the run, its inflow booked as calving; the mask is saved in checkpoints as `calved_cells` (`front.held_calved`, `tests/test_front_advance.py`). Under `ISMIP7_FRONT_ANCHOR=advect` the advected front's barrier at the t=0 extent does this instead, and no mask is kept. Needs `ISMIP7_CALVING`. |
+| `ISMIP7_FRONT_MARINE` | a land-terminating front does not calve. On unless `0`: the law's rate is zero where the bed is at or above sea level (every law's `marine_only`, `icepack_tools.calving`), and under `ISMIP7_FRONT_ADVANCE=none` the t=0 extent is held only where the bed is below sea level, so a land margin deforms under its own weight and advances with the ice, and what it carries into the sea calves there (`front.front_removal_mask`, the advected front's `sea` barrier). On BedMachine v4.1 the front facing ice-free land is 129,000 km, three times the ocean-facing front, and carries up to ~90 Gt/yr that the front of every law booked as calving; `0` restores that. A law's own `marine_only` in `ISMIP7_CALVING_PARAMS` stands for its rate. Needs `ISMIP7_CALVING` | `1` |
 | `ISMIP7_TRIPWIRE_U_MAX` / `ISMIP7_TRIPWIRE_H_MAX` / `ISMIP7_TRIPWIRE_DH_RATE` / `ISMIP7_TRIPWIRE_HMIN` | runaway tripwire: fail the step when max speed exceeds `U_MAX` [m/yr], max thickness exceeds `H_MAX` [m], or a cell that entered the step at least `HMIN` thick thickens at a relative rate `(dh/h)/dt` above `DH_RATE` [1/yr] (a rate so every dt scores the same physics alike; thinner cells are reported, never tripped: buffer cells fill by more than their own thickness); every step prints a `tripwire step-k:` line with the worst cells; unset = off (timing lanes export 2e4 / 5000 / 20 / 100) | _(unset)_ |
 | `ISMIP7_LEGACY_TRANSPORT` | restore the pre-July-2026 CG-projection transport (needs `cg1`) | unset |
 | `ISMIP7_SNES_TYPE` / `ISMIP7_SNES_MAXIT` | diagnostic Newton type and iteration cap | `newtonls` / `200` |
@@ -1640,6 +1852,7 @@ redeclare those literals.
 | `ISMIP7_SUBCYCLES` / `ISMIP7_RESCUE_MAXIT` | dt-subcycle rescue ladder, and the Newton cap on its rungs | `1,4,16` / `600` |
 | `ISMIP7_SUBSTEP_ADAPT` | `1` splits each macro step into `m` substeps chosen from a backward-Euler error estimate on the DG0 thickness, in place of the `ISMIP7_SUBCYCLES` retry list; forcing, output, checkpoints and budgets keep the macro step. The rules are in `icepack2_tools/substep.py`; regression test `tests/test_substep.py` | `0` |
 | `ISMIP7_SUBSTEP_TOL` / `_INIT` / `_MAX` / `_QUIET` / `_HMIN` | the adaptive controller's tolerance (m), starting and largest substep count, quiet macro steps before `m` halves, and the thickness (m) below which a cell is left out of the estimate | `1.0` / `1` / `64` / `20` / `10` |
+| `ISMIP7_SUBSTEP_CEILING` | at the largest substep count, a finite estimate within this multiple of the tolerance is accepted instead of stalling the run (the 11 October screening stalled at one Thwaites front cell with 1 to 4 m at 64 substeps); 0 stalls as before | `20` |
 | `ISMIP7_FSSA_THETA` | weight of the free-surface stabilization of the lagged thickness-velocity coupling (`icepack2_tools/fssa.py`): the momentum balance carries the gravity load at the surface the step is about to produce, as a bulk viscosity on `div(u - u_ref)` with `u_ref` set by `ISMIP7_FSSA_REFERENCE`. `1`, the default since 6 October 2026, makes the lagged step stable at any size; `0` leaves the term out of the residual. `u_ref` and the step travel in checkpoints, and a restart from a checkpoint stepped without the stabilization keeps it off unless this knob is set (`solverconfig.forward_fssa_theta`); a prepared timing or map-check cache starts like a cold start. The forward logs the weight it steps with, and `core_report.py` lifts that line; regression test `tests/test_fssa.py` | `1` |
 | `ISMIP7_FSSA_REFERENCE` | the velocity the stabilization measures the surface change from. `start`: the velocity the apparent mass balance was built from (the starting velocity when there is none), so t=0 reproduces the MAP velocity. `step`: the velocity of the last advance, with that advance's thickness tendency as a load (saved in checkpoints as `fssa_tendency`), so the load vanishes at every steady state of the transport. `auto`: `start` under `ISMIP7_APPARENT_MB`, `step` without it. A restart stops when the reference resolves to another one than its checkpoint was stepped with; a checkpoint that records only `fssa_tau` counts as `start`, and one whose `fssa_tau` is 0 was never stepped and loads under either | `auto` |
 | `ISMIP7_SUBSTEP_TRACE` | `x,y;x,y` in km: after every transport advance, print thickness, source, flux divergence, front flags and calving rate for each cell within 2.3 km of each point | unset |
@@ -1941,8 +2154,10 @@ The stages and contracts are:
    `full_state_residual`; a restart accepts a mixed state without a solve
    only when its residual is within `ISMIP7_SNES_ATOL_SCALE ×` that record,
    and otherwise re-solves from the loaded guess (bounded, step-size exit
-   live) before the first step. `FOLLOW_PREPARE=1` queues each invert behind
-   its active prepare job; a running invert is never resubmitted, even with
+   live) before the first step, to the recorded residual itself. The run
+   atol after a re-solve is capped at that acceptance limit, and a re-solve
+   that floors above the limit keeps the loaded state for the rescue ladder.
+   `FOLLOW_PREPARE=1` queues each invert behind its active prepare job; a running invert is never resubmitted, even with
    `FORCE_TIMING=1`.
 4. **Cache audit / contract probe** — optional diagnostics on a prepared cache:
    ```console

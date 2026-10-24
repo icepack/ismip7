@@ -583,5 +583,7 @@ def test_the_dg1_budd_reference_starts_n_hat_where_the_inversion_does():
     inversion = nhat(None)
     pointwise = nhat(budd_reference_pressure(H, s))
     nodal = nhat(Function(Q1).interpolate(budd_reference_pressure(H, s)))
-    np.testing.assert_array_equal(pointwise, inversion)
+    # the two N expressions are built separately, so the form compiler may
+    # order their arithmetic differently: equal to roundoff, not bitwise
+    np.testing.assert_allclose(pointwise, inversion, rtol=1e-12, atol=0.0)
     assert np.abs(nodal - inversion).max() > 0.01

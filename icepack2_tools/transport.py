@@ -17,7 +17,7 @@ either space.
 
 from firedrake import FacetNormal, dS, ds, dot, dx, grad, inner, jump
 
-__all__ = ["upwind_divergence", "transport_form"]
+__all__ = ["upwind_divergence", "transport_form", "front_transport_form"]
 
 
 def upwind_divergence(h, phi, u):
@@ -41,3 +41,19 @@ def transport_form(h, h_old, phi, u, dt, src):
     ``src``; solve ``lhs == rhs`` for ``h`` (a TrialFunction)."""
     return ((h - h_old) / dt * phi * dx + upwind_divergence(h, phi, u)
             - src * phi * dx)
+
+
+def front_transport_form(h, h_old, phi, dt, src, front):
+    r"""The same backward-Euler step with the calving front as a moving
+    boundary, for a front an advected level set carries
+    (``ISMIP7_FRONT_ANCHOR=advect``). ``front`` is an
+    :class:`icepack_tools.front_transport.FrontTransport`: only the cells
+    inside the front export ice, a cell beyond it receives what follows the
+    front's own advance, and the rest of the ice crossing the front is the
+    calving flux ``front.calving(h)``, which leaves the cells it crosses from.
+    Tested against the constant 1, the form leaves the outflow across the
+    domain edge (``front.outflow(h)``) and that calving flux, so the
+    transport residual is mass change minus source plus both."""
+    return ((h - h_old) / dt * phi * dx + front.divergence(h, phi)
+            - src * phi * dx)
+

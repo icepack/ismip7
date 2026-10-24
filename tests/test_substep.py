@@ -107,6 +107,27 @@ def test_removed_cells_do_not_count():
     assert ctrl.observe(h - 1.0, calved, 0.05) == pytest.approx(1.05)
 
 
+def test_skipped_cells_sit_out_this_comparison_and_the_next():
+    """A cell an advected front crossed changes its transport with its side
+    (only the cells inside export): it is left out of the comparison of the
+    substep that crossed it and of the next one, which measures against it."""
+    ctrl = SubstepController(tol=1.0)
+    h = np.full(2, 400.0)
+    ctrl.begin_attempt()
+    ctrl.observe(h, h + 0.5, 0.05)
+    ctrl.accept()
+    ctrl.begin_attempt()
+    crossed = np.array([False, True])
+    flipped = h + 0.5 + np.array([0.6, -4.0])        # cell 1 stops importing
+    err = ctrl.observe(h + 0.5, flipped, 0.05, skip=crossed)
+    assert err == 0.0
+    # the next comparison is against the skipped increment: still out
+    assert ctrl.observe(flipped, flipped + np.array([0.6, 9.0]), 0.05) == 0.0
+    # and the one after that counts it again
+    later = flipped + np.array([0.6, 9.0])
+    assert ctrl.observe(later, later + np.array([0.6, -20.0]), 0.05) == pytest.approx(14.5)
+
+
 def test_ceiling_and_nonfinite():
     ctrl = SubstepController(tol=1.0, m_init=4, m_max=4)
     ctrl.begin_attempt()
@@ -158,7 +179,32 @@ def test_settings_from_environment(monkeypatch):
     monkeypatch.setenv("ISMIP7_SUBSTEP_INIT", "4")
     s = substep_settings()
     assert s["tol"] == 0.5 and s["m_init"] == 4 and s["m_max"] == 64
+    assert s["ceiling"] == 20.0
     SubstepController(**s)
+
+
+def test_a_finite_estimate_at_the_ceiling_is_accepted():
+    # refining helps a little each time but never enough: at m_max a finite
+    # estimate within the ceiling multiple is accepted instead of stalling
+    ctrl = SubstepController(tol=1.0, m_init=2, m_max=4, ceiling=20.0)
+    ctrl.begin_attempt()
+    assert ctrl.exceeds(3.0)
+    assert ctrl.refine(3.0) == 4
+    ctrl.begin_attempt()
+    # 1.5 m: refining halved the estimate (so not the ineffective rule) but it is still above tol
+    assert not ctrl.exceeds(1.5) and ctrl.ceiling_now and ctrl.ceiling_accepted == 1
+    ctrl.accept()
+    assert not ctrl.ceiling_now
+    # beyond the multiple, or non-finite, it still rejects and refine() is exhausted
+    ctrl.begin_attempt()
+    assert ctrl.exceeds(25.0) and ctrl.refine(25.0) is None
+    assert ctrl.exceeds(float("inf"))
+    # ceiling 0 is the old stall
+    ctrl = SubstepController(tol=1.0, m_init=4, m_max=4, ceiling=0.0)
+    ctrl.begin_attempt()
+    assert ctrl.exceeds(2.0) and ctrl.refine(2.0) is None
+    with pytest.raises(ValueError):
+        SubstepController(tol=1.0, ceiling=-1.0)
 
 
 def test_refinement_that_does_not_help_is_accepted():

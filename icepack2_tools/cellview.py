@@ -117,6 +117,17 @@ class CellView:
             return
         f.dat.data[self.dofs] = values
 
+    def node_mask(self, mask):
+        r"""A per-cell boolean ``mask`` (DG0 indexing) on the owned dofs of
+        the geometry space: True on every dof of the cells in ``mask``. Under
+        DG0, ``mask`` itself."""
+        mask = np.asarray(mask, dtype=bool)
+        if self.dofs is None:
+            return mask
+        out = np.zeros(self.Q_g.dof_dset.size, dtype=bool)
+        out[self.dofs[mask]] = True
+        return out
+
     def solve_mass(self, cof, out, cell_area):
         r"""Write into ``out`` the field whose integral against every basis
         function of ``Q_g`` is the assembled ``cof``: ``M^-1 cof`` with the

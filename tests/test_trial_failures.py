@@ -120,21 +120,34 @@ def _minimise_recorded(fails, regularisation=0.0, scale_from="total"):
 def test_the_returned_controls_are_an_evaluation_other_than_the_last():
     r"""Every trial past the wall ``x.sum() < wall`` fails, as a forward that
     stops converging past some controls (the minimiser at 0 lies past it).
-    At 5 L-BFGS-B stops right after a failed trial, at 2 it stops ABNORMAL
-    with none trailing. Both times result.x is an earlier evaluation than the
-    last good one, whose state the publishing solve used to start from, and
-    the record publishes that evaluation; after the failure stop result.fun
-    is the failed trial's inflated value."""
-    for wall, stopped in ((5.0, True), (2.0, False)):
+    At some walls L-BFGS-B stops right after a failed trial, at others it
+    stops ABNORMAL with none trailing. Which wall does which belongs to the
+    installed scipy's L-BFGS-B: the test was written where 5 and 2 gave the
+    two stops, and scipy 1.15.3 stops right after a failed trial at 6.5 but
+    not at 5. So the test takes the first wall of each kind, trying 5 and 2
+    first. Both times result.x is an earlier evaluation than the last good
+    one, whose state the publishing solve used to start from, and the record
+    publishes that evaluation; after the failure stop result.fun is the
+    failed trial's inflated value."""
+    walls = [5.0, 2.0] + [float(w) for w in np.arange(0.5, 10.01, 0.5)
+                          if w not in (5.0, 2.0)]
+    seen = {}
+    for wall in walls:
         result, tracker, record, good = _minimise_recorded(
             lambda n, x: x.sum() < wall)
-        assert tracker.stopped_on_failures == stopped, wall
+        stopped = tracker.stopped_on_failures
+        if stopped in seen:
+            continue
+        seen[stopped] = wall
         assert not np.array_equal(result.x, good["x"]), wall
         x_pub, total, how = record.publish(result.x)
         assert how == "returned" and np.array_equal(x_pub, result.x), wall
         assert total == 0.5 * result.x @ HESSIAN @ result.x, wall
         if stopped:
             assert result.fun > total
+        if len(seen) == 2:
+            break
+    assert set(seen) == {True, False}, seen
 
 
 def test_a_failed_trial_returned_publishes_the_lowest_evaluation():

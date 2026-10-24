@@ -555,3 +555,101 @@ def test_a_checkpoint_file_returns_what_save_map_wrote(tmp_path):
         recorded = recorded_objective(chk)
     assert recorded == {**SIGMA, "log_vel_weight": 17451.9897644}
     assert resolve("auto", 2495.0, recorded) == (17451.9897644, "warm_start", "")
+
+
+# A driver for the iteration-budget tests: a real HDF5 checkpoint whose
+# objective_iteration is the count this process reached, FAKE_ITERS_PER_LINK
+# or ISMIP7_MAXITER, whichever is smaller. At its budget it finishes the way
+# the real driver does ("Saved MAP:" and the marker); short of it the wall
+# clock "kills" it (exit 137) with the checkpoint on disk; FAKE_SAVE_NOTHING=1
+# is a link killed before its first checkpoint.
+BUDGET_DRIVER = r'''
+import os
+import sys
+
+import h5py
+
+map_out = os.environ["ISMIP7_MAP_OUT"]
+maxiter = int(os.environ["ISMIP7_MAXITER"])
+its = min(maxiter, int(os.environ.get("FAKE_ITERS_PER_LINK", "1000")))
+print(f"driver: maxiter={maxiter} its={its} warm_start={os.environ.get('ISMIP7_WARM_START', 'none')}")
+if os.environ.get("FAKE_SAVE_NOTHING") == "1":
+    sys.exit(137)
+with h5py.File(map_out + ".tmp", "w") as h:
+    h["/"].attrs["objective_iteration"] = its
+os.replace(map_out + ".tmp", map_out)
+if its < maxiter:
+    sys.exit(137)
+print(f"Saved MAP: {map_out} (misfit_norm=sigma)")
+open(map_out + ".done", "w").close()
+'''
+
+
+def test_the_iteration_budget_spans_the_links_of_a_chain(sandbox):
+    r"""ISMIP7_CHAIN_ITER_BUDGET=40 over one-hour links that manage 15
+    iterations each: every link is handed the remainder as its ISMIP7_MAXITER,
+    a link that saved nothing is not counted twice, the link that completes
+    the budget finishes the MAP and runs the follow-on command, and a link
+    arriving after the marker runs neither the driver nor the command."""
+    (sandbox / "driver.py").write_text(BUDGET_DRIVER)
+    hook = sandbox / "hook_ran"
+    env = dict(ISMIP7_CHAIN_ITER_BUDGET="40", ISMIP7_MAXITER="500",
+               FAKE_ITERS_PER_LINK="15", ISMIP7_CHAIN_THEN_CMD=f"touch {hook}")
+    rc, log, _ = run_job(sandbox, job_id="1", **env)
+    assert rc == 137, log
+    assert "driver: maxiter=40 " in log
+    assert "iteration budget 40, 40 left" in log
+    assert not hook.exists()
+
+    rc, log, _ = run_job(sandbox, job_id="2", **env)
+    assert rc == 137, log
+    assert "iteration budget 40, 25 left" in log
+    assert "driver: maxiter=25 " in log
+    assert (map_out(sandbox).parent / "inversion_map.h5.iters").read_text().split()[0] == "15"
+
+    # killed before its first checkpoint: the MAP on disk is still link 2's
+    rc, log, _ = run_job(sandbox, job_id="3", FAKE_SAVE_NOTHING="1", **env)
+    assert rc == 137, log
+    assert "driver: maxiter=10 " in log
+
+    rc, log, _ = run_job(sandbox, job_id="4", **env)
+    assert rc == 0, log
+    assert "driver: maxiter=10 " in log, "link 3 saved nothing, so nothing was added"
+    assert (sandbox / "inversion_map.h5.done").exists()
+    assert hook.exists(), "the link that finished the MAP runs the follow-on command"
+    assert "chain: follow-on command done" in log
+
+    hook.unlink()
+    rc, log, _ = run_job(sandbox, job_id="5", **env)
+    assert rc == 0, log
+    assert "already finished; nothing to do" in log
+    assert "driver:" not in log
+    assert not hook.exists(), "a link after the marker runs no follow-on"
+
+
+def test_a_spent_budget_finishes_the_map_without_a_solve(sandbox):
+    r"""A checkpoint that already holds the budget (the last link was killed
+    after its final accepted iterate, before the MAP was published) is marked
+    done and handed on; no driver is launched and no successor queued."""
+    import h5py
+    with h5py.File(map_out(sandbox), "w") as h:
+        h["/"].attrs["objective_iteration"] = 40
+    hook = sandbox / "hook_ran"
+    rc, log, calls = run_job(
+        sandbox, ISMIP7_CHAIN_ITER_BUDGET="40", ISMIP7_CHAIN_THEN_CMD=f"touch {hook}")
+    assert rc == 0, log
+    assert "is spent" in log
+    assert (sandbox / "inversion_map.h5.done").exists()
+    assert hook.exists()
+    assert "driver:" not in log
+    assert calls == "", "no successor for a finished chain"
+
+
+def test_the_budget_leaves_a_plain_chain_alone(sandbox):
+    r"""Without ISMIP7_CHAIN_ITER_BUDGET the link runs ISMIP7_MAXITER as
+    before and no sidecar appears."""
+    rc, log, _ = run_job(sandbox, ISMIP7_MAXITER="7")
+    assert rc == 0, log
+    assert "driver: maxiter=7" in log
+    assert "iteration budget" not in log
+    assert not (sandbox / "inversion_map.h5.iters").exists()

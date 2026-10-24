@@ -37,6 +37,7 @@ the relevant subsystem:
 | `COMPOSITE_RHEOLOGY.md` | the composite viscous formulation |
 | `ADAPTIVE_MESH.md` | the adaptive remeshing port, the DG0 transfer rules, and what is validated |
 | `antarctica/N3_FRAMEWORK.md` | the n=3 rheology line |
+| `antarctica/INITIALIZATION_ROUTINE.md` | the staged shelf-then-friction inversion, relaxation, re-inversion and forwards, and the recipe `scripts/initialization_routine.sh` that runs them |
 | `antarctica/INVERSION_PRIORS.md` | the inversion's priors, friction controls and likelihood weight, what was measured, and where the chains are |
 | `antarctica/README.md` | what to install and download, drivers, env knobs, how to run a core experiment |
 | `antarctica/scripts/batch_runners/readme.md` | running on a cluster: site files, the runners, the build recipe, measured costs |

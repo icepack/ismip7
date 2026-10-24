@@ -373,12 +373,10 @@ if FLUIDITY_CONTROL not in ("all", "floating"):
     raise ValueError(
         f"ISMIP7_FLUIDITY_CONTROL must be all|floating, got {FLUIDITY_CONTROL!r}")
 PHI_GROUNDED = "zero" if FLUIDITY_CONTROL == "floating" else "inverted"
-if (FLUIDITY_CONTROL == "floating"
-        and os.environ.get("ISMIP7_GRAD_PRECOND", "none").lower()
-        in ("mass_consistent", "prior")):
-    raise ValueError(
-        "ISMIP7_FLUIDITY_CONTROL=floating holds grounded phi at zero on the "
-        "L-BFGS-B path only (ISMIP7_GRAD_PRECOND=none or mass)")
+# On the TAO path (13 Oct 2026) the control phi enters the objective, misfit
+# and prior alike, as phi * phi_free, so the grounded dofs are inert (zero
+# gradient) and the metric action zeroes them in every step; the MAP's
+# log_fluidity carries zeros there, as under L-BFGS-B.
 
 # ── Which controls move (ISMIP7_INVERT) ──────────────────────────────────
 # `both` (default): theta and phi descend together. `phi` / `theta`: only
@@ -395,6 +393,21 @@ if (FLUIDITY_CONTROL == "floating"
 INVERT = os.environ.get("ISMIP7_INVERT", "both").strip().lower()
 if INVERT not in ("both", "phi", "theta"):
     raise ValueError(f"ISMIP7_INVERT must be both|phi|theta, got {INVERT!r}")
+# ISMIP7_PHI_BOUNDS="lo,hi": box bounds on the fluidity control under TAO's
+# bounded LMVM (theta unbounded). exp(phi) excursions of 1e6 have been seen on
+# shelves; a bound in log units keeps A inside the range the temperature of
+# ice allows. Recorded as phi_bounds ("lo,hi", or "none" where no bound
+# applies: a theta-only stage or the scipy path).
+_phi_bounds_env = os.environ.get("ISMIP7_PHI_BOUNDS", "").strip()
+PHI_BOUNDS = (tuple(float(v) for v in _phi_bounds_env.split(",")) if _phi_bounds_env
+              else None)
+if PHI_BOUNDS is not None and (len(PHI_BOUNDS) != 2 or PHI_BOUNDS[0] >= PHI_BOUNDS[1]):
+    raise ValueError(f"ISMIP7_PHI_BOUNDS must be 'lo,hi' with lo < hi, got {_phi_bounds_env!r}")
+if INVERT == "theta" or os.environ.get("ISMIP7_GRAD_PRECOND", "none").lower() not in (
+        "mass_consistent", "prior"):
+    PHI_BOUNDS = None
+PHI_BOUNDS_RECORD = ("none" if PHI_BOUNDS is None
+                     else f"{PHI_BOUNDS[0]:g},{PHI_BOUNDS[1]:g}")
 
 # ── Likelihood scale (ISMIP7_MISFIT_SCALE) ───────────────────────────────
 # The data terms are normalised by the observed AREA, so the misfit is a mean
@@ -584,6 +597,17 @@ def main():
     # sink the surface by the water column (runconfig.lake_ice_base).
     LAKE_ICE_BASE = lake_ice_base()
     ANCHOR_LENGTH = anchor_length()     # read here: the warm start checks it too
+    # ISMIP7_KILL_BERGS=1: ice that no chain of ice cells connects to
+    # grounded ice is removed (geometry.remove_unconnected_ice): a floating
+    # island carries the full terminus push on every facet and no
+    # buttressing, and the momentum balance has nothing to hold it.
+    KILL_BERGS = os.environ.get("ISMIP7_KILL_BERGS", "0").strip() == "1"
+    if KILL_BERGS:
+        from icepack2_tools.geometry import remove_unconnected_ice
+        _n_berg, _a_berg = remove_unconnected_ice(H, b, Q_g)
+        PETSc.Sys.Print(
+            f"  Icebergs: {_n_berg} ice cells unconnected to grounded ice "
+            f"removed ({_a_berg / 1e6:.0f} km2) (ISMIP7_KILL_BERGS)")
     if LAKE_ICE_BASE:
         n_lake = raise_bed_to_lake_ice_base(b, H, bm_fn, Q_g, Q, method=raster_sample)
         PETSc.Sys.Print(f"  Lake ice base: bed raised to BedMachine's ice base on "
@@ -592,8 +616,40 @@ def main():
     s = Function(Q_g).interpolate(max_value(b + H, (Constant(1.0) - rho_ratio) * H))
 
     vel_fn = find_file(os.path.join(DATA_DIR, "velocity"), "*.nc")
+    # ISMIP7_VEL_SAMPLE: how MEaSUREs lands on a node. ``point`` (the
+    # default) is the bilinear value at the vertex, one 450 m pixel standing
+    # for the node's patch, with that pixel's formal error as sigma. ``patch``
+    # (patchmean.py, 13 Oct 2026) is the hat-weighted mean over the patch,
+    # the datum a CG1 nodal value can represent, with the patch rms of the
+    # formal error as sigma (no 1/N reduction: the errors are correlated
+    # over far more than a cell) and the sub-patch spread of the velocity
+    # printed as the representativeness error the point sample carries.
+    VEL_SAMPLE = os.environ.get("ISMIP7_VEL_SAMPLE", "point").strip().lower()
+    if VEL_SAMPLE not in ("point", "patch"):
+        raise ValueError(f"ISMIP7_VEL_SAMPLE must be point or patch, got {VEL_SAMPLE!r}")
     VELOCITY_SAMPLE = _velocity_sample()
-    if VELOCITY_SAMPLE == "cell_mean":
+    if VEL_SAMPLE == "patch" and VELOCITY_SAMPLE == "cell_mean":
+        raise ValueError("ISMIP7_VEL_SAMPLE=patch and ISMIP7_VELOCITY_SAMPLE=cell_mean "
+                         "each replace the point sample; set one")
+    _patch_repr = None
+    if VEL_SAMPLE == "patch":
+        from icepack2_tools.patchmean import patch_mean_velocity
+        from icepack2_tools.runconfig import patch_qdegree
+        _qdeg = patch_qdegree()
+        u_obs, (_sig_px, _sig_py), _observed_fn, _vel_cov, _patch_repr = patch_mean_velocity(
+            rasterio.open(f"netcdf:{vel_fn}:VX"), rasterio.open(f"netcdf:{vel_fn}:VY"),
+            rasterio.open(f"netcdf:{vel_fn}:ERRX"), rasterio.open(f"netcdf:{vel_fn}:ERRY"),
+            V, Q, degree=_qdeg)
+        observed = np.asarray(_observed_fn.dat.data_ro > 0.5)
+        # err carries the patch sigma so the normalisation below reads one
+        # field whichever sampling produced it.
+        err = Function(V, name="obs_err")
+        err.dat.data[:, 0] = np.nan_to_num(_sig_px.dat.data_ro)
+        err.dat.data[:, 1] = np.nan_to_num(_sig_py.dat.data_ro)
+        PETSc.Sys.Print(
+            f"  Velocity sampling: patch mean (quadrature degree {_qdeg}; "
+            f"a node is observed when over half its patch is)")
+    elif VELOCITY_SAMPLE == "cell_mean":
         # Patch means of the raster at each node (runconfig.velocity_sample):
         # nodes with no observed cell around them read 0, as the point
         # sampling's zero fill does, and are caught by the mask below.
@@ -603,6 +659,14 @@ def main():
         u_obs = Function(V)
         u_obs.dat.data[:, 0] = _patch["VX"].dat.data_ro
         u_obs.dat.data[:, 1] = _patch["VY"].dat.data_ro
+        # Velocity-observation mask: as for the point sample below, ERR > 0
+        # marks real observations.
+        err = Function(V)
+        err.dat.data[:, 0] = _patch["ERRX"].dat.data_ro
+        err.dat.data[:, 1] = _patch["ERRY"].dat.data_ro
+        emag = Function(Q, name="obs_err_mag").interpolate(
+            sqrt(err[0] ** 2 + err[1] ** 2))
+        observed = np.asarray(emag.dat.data_ro > 0.0)
         PETSc.Sys.Print("  Velocity obs: cell means of the raster averaged over each "
                         "node's cells (ISMIP7_VELOCITY_SAMPLE=cell_mean)")
     else:
@@ -612,30 +676,38 @@ def main():
             fillvalue=0.0,
         )
 
-    # Velocity-observation mask. icepack.interpolate zero-fills NODATA, so
-    # without a mask unobserved regions read as "observed stationary" and
-    # the inversion prescribes friction/stiff ice where there is no
-    # constraint (0.7% of grounded area for MEaSUREs 450m v2). MEaSUREs
-    # reports errors only where a velocity was measured, so ERR > 0 marks
-    # real observations. ISMIP7_OBS_MASK=0 reverts to the unmasked misfit.
-    if VELOCITY_SAMPLE == "cell_mean":
-        err = Function(V)
-        err.dat.data[:, 0] = _patch["ERRX"].dat.data_ro
-        err.dat.data[:, 1] = _patch["ERRY"].dat.data_ro
-    else:
+        # Velocity-observation mask. icepack.interpolate zero-fills NODATA, so
+        # without a mask unobserved regions read as "observed stationary" and
+        # the inversion prescribes friction/stiff ice where there is no
+        # constraint (0.7% of grounded area for MEaSUREs 450m v2). MEaSUREs
+        # reports errors only where a velocity was measured, so ERR > 0 marks
+        # real observations. ISMIP7_OBS_MASK=0 reverts to the unmasked misfit.
         err = icepack.interpolate(
             (rasterio.open(f"netcdf:{vel_fn}:ERRX"),
              rasterio.open(f"netcdf:{vel_fn}:ERRY")),
             V,
             fillvalue=0.0,
         )
-    # ONE definition of "this node carries a real velocity observation",
-    # consumed by both the mask below and the sigma normalization further down.
-    # The two used to derive it independently from `err` and could drift apart.
-    emag = Function(Q, name="obs_err_mag").interpolate(
-        sqrt(err[0] ** 2 + err[1] ** 2))
-    observed = np.asarray(emag.dat.data_ro > 0.0)
+        # ONE definition of "this node carries a real velocity observation",
+        # consumed by both the mask below and the sigma normalization further down.
+        # The two used to derive it independently from `err` and could drift apart.
+        emag = Function(Q, name="obs_err_mag").interpolate(
+            sqrt(err[0] ** 2 + err[1] ** 2))
+        observed = np.asarray(emag.dat.data_ro > 0.0)
+        PETSc.Sys.Print("  Velocity sampling: point (bilinear at the vertex)")
 
+    # ISMIP7_U_OBS_MAX (m/yr, 0 = off): nodes whose observed speed exceeds
+    # it carry no weight. The fastest MEaSUREs pixels sit on shear margins
+    # and fronts where the product is noisiest; a cap keeps the fit from
+    # being bought there. The nodes stay in the regularisation.
+    U_OBS_MAX = float(os.environ.get("ISMIP7_U_OBS_MAX", "0"))
+    if U_OBS_MAX > 0.0:
+        _speed_obs = np.hypot(u_obs.dat.data_ro[:, 0], u_obs.dat.data_ro[:, 1])
+        _capped = observed & (_speed_obs > U_OBS_MAX)
+        observed = observed & ~_capped
+        PETSc.Sys.Print(
+            f"  Obs speed cap: {COMM_WORLD.allreduce(int(_capped.sum()))} nodes "
+            f"faster than {U_OBS_MAX:g} m/yr carry no weight (ISMIP7_U_OBS_MAX)")
     obs_mask = Function(Q, name="obs_mask").assign(1.0)
     if os.environ.get("ISMIP7_OBS_MASK", "1") != "0":
         obs_mask.dat.data[:] = observed.astype(float)
@@ -700,6 +772,25 @@ def main():
             f"velocity sigma floor {sigma_u_floor:g} m/yr, "
             f"sigma_x median {_sig_med:.2f} p90 {_sig_p90:.2f} m/yr"
         )
+        if _patch_repr is not None:
+            # The sub-patch spread of the observed speed components: what a
+            # point sample is off by, on average, from the patch datum. Where
+            # it exceeds sigma the point-sampled chi^2 was counting
+            # representativeness as model error.
+            _rx = np.asarray(_patch_repr[0].dat.data_ro, dtype="f8")[observed]
+            _parts = COMM_WORLD.gather(_rx, root=0)
+            if COMM_WORLD.rank == 0:
+                _all = np.concatenate(_parts)
+                _all = _all[np.isfinite(_all)]
+                _r = (float(np.median(_all)), float(np.percentile(_all, 90)),
+                      float(np.percentile(_all, 99)))
+            else:
+                _r = None
+            _r = COMM_WORLD.bcast(_r, root=0)
+            PETSc.Sys.Print(
+                f"  Representativeness (sub-patch std of vx, observed nodes): "
+                f"median {_r[0]:.2f} p90 {_r[1]:.2f} p99 {_r[2]:.2f} m/yr "
+                f"(not added to sigma: the datum is the patch mean)")
         PETSc.Sys.Print(
             f"  Unobserved nodes (ERR==0): {_n_unobs} given "
             f"sigma={sigma_u_unobs:g} m/yr so the zero-filled velocity there "
@@ -1960,6 +2051,33 @@ def main():
     # Normalize by the OBSERVED area so the misfit magnitude stays
     # comparable between masked and unmasked runs.
     area_val = assemble(obs_mask * dx(mesh))
+
+    # ISMIP7_DHDT_REWEIGHT (a, 0 = off): the velocity chi^2 of a node is
+    # multiplied by 1 + a * min(|dH/dt_obs| / ISMIP7_DHDT_REWEIGHT_SCALE, 1)
+    # on grounded ice, so the observed thinning steers where the velocity
+    # fit is spent instead of entering the objective as a tendency to match
+    # (ISMIP7_DHDT_WEIGHT). The two can be combined. The Smith field is
+    # binned to the cells and lifted to the nodes; cells without coverage
+    # weigh 1. Recorded as dhdt_reweight; part of the objective.
+    DHDT_REWEIGHT = float(os.environ.get("ISMIP7_DHDT_REWEIGHT", "0"))
+    DHDT_REWEIGHT_SCALE = float(os.environ.get("ISMIP7_DHDT_REWEIGHT_SCALE", "1.0"))
+    vel_weight = None
+    if DHDT_REWEIGHT > 0.0:
+        from icepack2_tools.obs_dhdt import load_dhdt_obs as _load_dhdt_obs_w
+        _dobs, _dcov = _load_dhdt_obs_w(Q_g)
+        _haf_w = Function(Q_g).interpolate(height_above_flotation(H, b))
+        _k = Function(Q_g)
+        _k.dat.data[:] = np.where(
+            (_dcov.dat.data_ro > 0.5) & (_haf_w.dat.data_ro > 0.0) & (H.dat.data_ro > 1.0),
+            np.minimum(np.abs(_dobs.dat.data_ro) / DHDT_REWEIGHT_SCALE, 1.0), 0.0)
+        _k_cg = cg1_lift(_k) if geom_dg else _k
+        vel_weight = Function(Q, name="vel_weight").interpolate(
+            Constant(1.0) + Constant(DHDT_REWEIGHT) * _k_cg)
+        _wsum = assemble(obs_mask * vel_weight * dx(mesh)) / area_val
+        PETSc.Sys.Print(
+            f"  dH/dt re-weighting: velocity chi^2 x (1 + {DHDT_REWEIGHT:g} "
+            f"min(|dH/dt|/{DHDT_REWEIGHT_SCALE:g} m/yr, 1)) on grounded ice; "
+            f"mean weight over observed nodes {_wsum:.3f}")
     # ISMIP7_MISFIT_SCALE: the multiplier that turns the mean chi^2 into the
     # likelihood the prior is weighed against (see the knob's comment).
     if MISFIT_SCALE == "nodes":
@@ -2160,6 +2278,7 @@ def main():
     # cell's value is its mean and every piece below is what it always was.
     dhdt_w = float(os.environ.get("ISMIP7_DHDT_WEIGHT", "0.0"))
     use_dhdt = dhdt_w > 0.0
+    dhdt_forcing = "none"
     # Resolved (not merely requested) net-term provenance: ISMIP7_DHDT_NET_SIGMA
     # only reaches the objective when the dH/dt term itself is on, so these stay
     # at their off values unless the term is actually built below. save_map
@@ -2191,7 +2310,36 @@ def main():
         dhdt_view = CellView(Q_g)
         Q_c = dhdt_view.Q0
         dhdt_obs, dhdt_cov = load_dhdt_obs(Q_c)
-        smb_obs = load_racmo_smb_climatology(Q_c, clim_start=clim0, clim_end=clim1)
+        # The source of the prognostic step: the RACMO2.4p1 climatology SMB
+        # with the OI-climatology melt (``climatology``, the default); the
+        # control experiment's own forcing (``control``: the RACMO2.4p1
+        # climatology over the control's window and the ESM's ctrl ocean
+        # through the forward's callback, averaged over the years it holds
+        # in that window, so the step sees what the control runs on); or the
+        # ISMIP7 OCX product averaged over the window (``ocx``: the
+        # RACMO2.3p2-ERA acabf years and the expert-judgment ocean through
+        # the OCX callback, the forcing core 11 runs on).
+        dhdt_forcing = os.environ.get("ISMIP7_DHDT_FORCING", "climatology").strip().lower()
+        if dhdt_forcing not in ("climatology", "control", "ocx"):
+            raise ValueError(f"ISMIP7_DHDT_FORCING must be climatology, control or ocx, got {dhdt_forcing!r}")
+        if geom_dg1 and dhdt_forcing != "climatology":
+            # control and ocx average the forward's forcing callbacks on the
+            # geometry space; under DG1 the term's forcing lives on the DG0
+            # cells, a combination that has not been built or run.
+            raise RuntimeError(
+                f"ISMIP7_DHDT_FORCING={dhdt_forcing} is not implemented under "
+                "ISMIP7_GEOMETRY_SPACE=dg1 (the term scores DG0 cell means); "
+                "use climatology, or dg0")
+        if dhdt_forcing == "control":
+            from icepack2_tools.climatology import clim_start as _clim_start, clim_end as _clim_end
+            if "ISMIP7_DHDT_CLIM_START" not in os.environ:
+                clim0 = int(_clim_start())
+            if "ISMIP7_DHDT_CLIM_END" not in os.environ:
+                clim1 = int(_clim_end())
+        if dhdt_forcing == "ocx":
+            smb_obs = Function(Q_c, name="smb_ocx_mean")
+        else:
+            smb_obs = load_racmo_smb_climatology(Q_c, clim_start=clim0, clim_end=clim1)
 
         # Ocean melt for the prognostic step, from the SAME parameterisation
         # and forcing the experiments use: OI-climatology TF/so at draft depth
@@ -2205,7 +2353,84 @@ def main():
         # keeping the single prognostic step consistent with the forward
         # experiment. ISMIP7_DHDT_MELT=0 drops it (SMB-only source).
         melt_ref = Function(Q_c, name="ocean_melt_ref")
-        if os.environ.get("ISMIP7_DHDT_MELT", "1") != "0":
+        if dhdt_forcing == "ocx":
+            # Both fields from the OCX callback the forward and the relaxation
+            # year use, year by year over the window, averaged; the ocean
+            # melt at the frozen reference geometry like the climatology one.
+            _scripts_dir = os.path.dirname(os.path.abspath(__file__))
+            if _scripts_dir not in sys.path:
+                sys.path.insert(0, _scripts_dir)
+            from projections.ocx import protocol_forcing, ocx_forcing_callback
+            _W2 = VectorFunctionSpace(mesh, "DG", 0)
+            _xy = Function(_W2).interpolate(
+                fd.SpatialCoordinate(mesh)).dat.data_ro.reshape(-1, 2)
+            geom_xy = (_xy[:, 0].copy(), _xy[:, 1].copy())
+            readers = protocol_forcing(float(clim0), float(clim1 + 1))
+            dT_npz = deltat_per_basin_npz()
+            k_npz_used = dT_npz or k_per_basin_npz()
+            _ctx = {"mesh": mesh, "Q": Q, "V": V, "Q_g": Q_g, "geom_xy": geom_xy,
+                    "h": H, "b": b, "s": s, "accum": Function(Q_g), "ocean_melt": Function(Q_g),
+                    "raster_sample": os.environ.get("ISMIP7_RASTER_SAMPLE")}
+            if os.environ.get("ISMIP7_DHDT_MELT", "1") == "0":
+                readers = (readers[0], None)
+            _cb, _lines, _ocean = ocx_forcing_callback(_ctx, readers, None, dT_npz)
+            _years = list(range(clim0, clim1 + 1))
+            _smb_acc = np.zeros_like(smb_obs.dat.data_ro)
+            _melt_acc = np.zeros_like(melt_ref.dat.data_ro)
+            for _yr in _years:
+                _cb(_ctx, _yr + 0.5)
+                _smb_acc += _ctx["accum"].dat.data_ro
+                _melt_acc += _ctx["ocean_melt"].dat.data_ro
+            smb_obs.dat.data[:] = _smb_acc / len(_years)
+            melt_ref.dat.data[:] = _melt_acc / len(_years)
+            if _ocean is not None:
+                _ocean.close()
+            for _line in _lines:
+                PETSc.Sys.Print("  " + str(_line))
+            _smb_gt = float(assemble(smb_obs * dx)) * 917.0 / 1e12
+            _melt_gt = float(assemble(melt_ref * dx)) * 917.0 / 1e12
+            PETSc.Sys.Print(
+                f"  dH/dt source: OCX product averaged over {clim0}-{clim1}: SMB {_smb_gt:.0f} Gt/yr, "
+                f"melt {_melt_gt:.0f} Gt/yr at reference geometry (ISMIP7_DHDT_FORCING=ocx)")
+        elif dhdt_forcing == "control" and os.environ.get("ISMIP7_DHDT_MELT", "1") != "0":
+            # The control's ocean: the ESM's ctrl tf/so through the forward's
+            # callback with the run's melt calibration, at the frozen
+            # reference geometry, averaged over the window years the ctrl
+            # ocean holds (it starts in 2015).
+            from icepack2_tools.forcing import ISMIP7Ocean, make_forcing_callback
+            _esm = os.environ.get("ISMIP7_ESM", "CESM2-WACCM")
+            _ocean = ISMIP7Ocean(esm=_esm, scenario="ctrl")
+            _cover = _ocean.coverage("tf")
+            if _cover is None:
+                raise FileNotFoundError(f"no {_esm} ctrl ocean on disk for the dH/dt source")
+            _years = [y for y in range(clim0, clim1 + 1) if _cover[0] <= y <= _cover[1]]
+            if not _years:
+                _years = [_cover[0]]
+            dT_npz = deltat_per_basin_npz()
+            k_npz = None if dT_npz is not None else k_per_basin_npz()
+            k_npz_used = dT_npz or k_npz
+            _W2 = VectorFunctionSpace(mesh, "DG", 0)
+            _xy = Function(_W2).interpolate(
+                fd.SpatialCoordinate(mesh)).dat.data_ro.reshape(-1, 2)
+            geom_xy = (_xy[:, 0].copy(), _xy[:, 1].copy())
+            _ctx = {"mesh": mesh, "Q": Q, "V": V, "Q_g": Q_g, "geom_xy": geom_xy,
+                    "h": H, "b": b, "s": s, "accum": Function(Q_g), "ocean_melt": Function(Q_g),
+                    "raster_sample": os.environ.get("ISMIP7_RASTER_SAMPLE")}
+            _cb = make_forcing_callback(ocean=_ocean, K_per_basin_npz=k_npz)   # melt only: the SMB is the climatology above
+            _melt_acc = np.zeros_like(melt_ref.dat.data_ro)
+            for _yr in _years:
+                _cb(_ctx, _yr + 0.5)
+                _melt_acc += _ctx["ocean_melt"].dat.data_ro
+            melt_ref.dat.data[:] = _melt_acc / len(_years)
+            _ocean.close()
+            _melt_gt = float(assemble(melt_ref * dx)) * 917.0 / 1e12
+            _smb_gt = float(assemble(smb_obs * dx)) * 917.0 / 1e12
+            PETSc.Sys.Print(
+                f"  dH/dt source: the control's forcing, RACMO2.4p1 SMB climatology {clim0}-{clim1} "
+                f"({_smb_gt:.0f} Gt/yr) and the {_esm} ctrl ocean averaged over {_years[0]}-{_years[-1]} "
+                f"({_melt_gt:.0f} Gt/yr melt at reference geometry; {os.path.basename(k_npz_used)}) "
+                f"(ISMIP7_DHDT_FORCING=control)")
+        elif os.environ.get("ISMIP7_DHDT_MELT", "1") != "0":
             from icepack2_tools.forcing import (
                 load_K_per_basin, make_climatology_ocean_callback)
             # The forward's melt calibration: per-basin deltaT at one K, the
@@ -2274,6 +2499,68 @@ def main():
         if geom_dg1:
             PETSc.Sys.Print("  dH/dt term on DG1: the DG1 upwind step, scored on "
                             "its cell means against Smith binned onto the cells")
+
+        # ── Helmholtz filter on the residual (13 Oct 2026) ──────────────
+        # The one-step tendency of a MAP carries cell-scale flux-divergence
+        # checkerboard with ~7x the variance of the Smith field; pointwise,
+        # the term spends its budget on that noise (chi2/node 105 raw vs 18
+        # after a 5 km Gaussian on the 13 Oct dhdtctrl checkpoint). With
+        # ISMIP7_DHDT_FILTER_L = L > 0 (m) the residual r = mask*(model-obs)
+        # is passed through (1 - L^2 Laplacian) r_s = r on CG1 with natural
+        # boundary conditions (kernel std ~ sqrt(2) L per axis) and the term
+        # scores r_s / m_s, where m_s is the same filter applied to the mask,
+        # so the filtered residual is not attenuated by the zeros outside the
+        # grounded+observed cells (normalised convolution). The filter solve
+        # is an EquationSolver, so the adjoint carries it. L = 0 is the
+        # pointwise term.
+        dhdt_filter_l = float(os.environ.get("ISMIP7_DHDT_FILTER_L", "0"))
+        if dhdt_filter_l < 0.0:
+            raise ValueError("ISMIP7_DHDT_FILTER_L must be >= 0 (m)")
+        use_dhdt_filter = dhdt_filter_l > 0.0
+        if use_dhdt_filter and geom_dg1:
+            # the filter acts on the CG1 nodes and has only been run with DG0
+            # geometry; under DG1 the term scores cell means
+            raise RuntimeError(
+                "ISMIP7_DHDT_FILTER_L is not implemented under "
+                "ISMIP7_GEOMETRY_SPACE=dg1; set it to 0, or use dg0")
+        if use_dhdt_filter:
+            _L2 = Constant(dhdt_filter_l ** 2)
+            _dhdt_filter_sp = {
+                "snes_type": "ksponly",
+                "ksp_type": "cg",
+                "pc_type": "gamg",
+                "ksp_rtol": 1e-12,
+                "ksp_atol": 0.0,
+            }
+
+            def _helmholtz_form(out, src):
+                _v = TestFunction(Q)
+                return (
+                    (out * _v + _L2 * inner(fd.grad(out), fd.grad(_v))) * dx
+                    - src * _v * dx
+                )
+
+            # The filtered mask is a constant of the objective: a plain
+            # solve, outside the tape.
+            dhdt_mask_s = Function(Q, name="dhdt_mask_filtered")
+            fd.solve(_helmholtz_form(dhdt_mask_s, dhdt_mask) == 0, dhdt_mask_s,
+                     solver_parameters=_dhdt_filter_sp)
+            # Floor: the normalisation is only read on masked cells, where
+            # m_s is O(1) already; the floor keeps a stray mesh corner off
+            # the division.
+            dhdt_mask_s.dat.data[:] = np.maximum(dhdt_mask_s.dat.data_ro, 1e-3)
+            dhdt_resid_s = Function(Q, name="dhdt_resid_filtered")
+            # Mean of the filtered mask over the masked cells: 1 would be a
+            # mask with no edge; the shortfall is what the normalisation
+            # restores at the grounding line and the coverage edge.
+            _ms_mean = assemble(dhdt_mask * dhdt_mask_s * dx) / dhdt_area
+            PETSc.Sys.Print(
+                f"  dH/dt filter: Helmholtz L={dhdt_filter_l / 1e3:g} km on the "
+                f"residual (kernel std ~{dhdt_filter_l * 2 ** 0.5 / 1e3:.1f} km); "
+                f"filtered mask averages {_ms_mean:.3f} over the masked cells"
+            )
+        else:
+            PETSc.Sys.Print("  dH/dt filter: none (pointwise residual)")
 
         # ── Net (integral) mass-balance term -- OFF BY DEFAULT ──────────
         # Explored Aug 2026 and mechanically validated (it moves the grounded
@@ -2486,6 +2773,7 @@ def main():
             0.5
             / area_val
             * vel_mask
+            * (vel_weight if vel_weight is not None else Constant(1.0))
             * (
                 (u_sol[0] - u_obs[0]) ** 2 / sig_ux ** 2
                 + (u_sol[1] - u_obs[1]) ** 2 / sig_uy ** 2
@@ -2531,12 +2819,25 @@ def main():
                     form_compiler_parameters=fc_params,
                 ).solve()
                 dhdt_model = dhdt_cell
+            if use_dhdt_filter:
+                # Taped: the adjoint of the filter is the filter itself
+                # (self-adjoint operator), applied to the term's gradient.
+                EquationSolver(
+                    _helmholtz_form(dhdt_resid_s,
+                                    dhdt_mask * (dhdt_model - dhdt_obs)) == 0,
+                    dhdt_resid_s,
+                    solver_parameters=_dhdt_filter_sp,
+                    form_compiler_parameters=fc_params,
+                ).solve()
+                _dhdt_scored = dhdt_resid_s / dhdt_mask_s
+            else:
+                _dhdt_scored = dhdt_model - dhdt_obs
             integrand = integrand + (
                 0.5
                 * Constant(dhdt_w)
                 / dhdt_area
                 * dhdt_mask
-                * ((dhdt_model - dhdt_obs) / Constant(dhdt_sigma)) ** 2
+                * (_dhdt_scored / Constant(dhdt_sigma)) ** 2
             )
 
             if use_dhdt_net:
@@ -2621,9 +2922,13 @@ def main():
         _dhdt_rate = (dhdt_cell if geom_dg1
                       else (h_next - H) / Constant(dhdt_dt))
         _net_form = ((_dhdt_rate - dhdt_obs) * dhdt_mask * dx(mesh))
+        # The scored residual: the filtered one under ISMIP7_DHDT_FILTER_L
+        # (dhdt_resid_s holds the filter of the last trial, like h_next).
+        _dhdt_scored_now = (dhdt_resid_s / dhdt_mask_s if use_dhdt_filter
+                            else _dhdt_rate - dhdt_obs)
         _dhdt_density = (
             0.5 / dhdt_area * dhdt_mask
-            * ((_dhdt_rate - dhdt_obs) / Constant(dhdt_sigma)) ** 2)
+            * (_dhdt_scored_now / Constant(dhdt_sigma)) ** 2)
         _dhdt_chi2 = _dhdt_density * dx(mesh)
 
     # Each data term split by observed speed (the cell's |u_obs| at its
@@ -2703,8 +3008,10 @@ def main():
                 out += f" dhdt={float(assemble(_dhdt_chi2)):.4e}"
                 out += (f" net={float(assemble(_net_form)) * 917.0 / 1e12:+.0f}Gt/yr")
             return out
-        except Exception:
-            return ""
+        except Exception as exc:
+            # say why rather than silently dropping the breakdown: the 2 km
+            # transient chain of 12 October printed no vel/dhdt split at all
+            return f" (term report failed: {type(exc).__name__}: {str(exc)[:80]})"
 
     # ── MAP checkpoint writer ────────────────────────────────────────────
     # ONE writer for both the periodic checkpoint and the final save: the two
@@ -2863,6 +3170,8 @@ def main():
                 chk.set_attr("/", "prior_sigma_phi", float(PRIOR_SIGMA_PHI))
                 chk.set_attr("/", "prior_rho", float(PRIOR_RHO))
             chk.set_attr("/", "dhdt_weight", float(dhdt_w))
+            chk.set_attr("/", "dhdt_forcing", dhdt_forcing if use_dhdt else "none")
+            chk.set_attr("/", "dhdt_filter_l", float(dhdt_filter_l) if use_dhdt else 0.0)
             chk.set_attr("/", "dhdt_net_sigma", net_sigma_used)
             chk.set_attr("/", "dhdt_speed_ratio", float(dhdt_speed_ratio))
             if dhdt_speed_ratio != 1.0:
@@ -2884,6 +3193,12 @@ def main():
             # theta/phi absorb the bed representation just as they absorb the
             # front treatment, so a forward must reproduce it.
             chk.set_attr("/", "raster_sample", raster_sample)
+            chk.set_attr("/", "vel_sample", VEL_SAMPLE)
+            chk.set_attr("/", "u_obs_max", float(U_OBS_MAX))
+            chk.set_attr("/", "dhdt_reweight", float(DHDT_REWEIGHT))
+            chk.set_attr("/", "dhdt_reweight_scale", float(DHDT_REWEIGHT_SCALE))
+            chk.set_attr("/", "kill_bergs", int(KILL_BERGS))
+            chk.set_attr("/", "phi_bounds", PHI_BOUNDS_RECORD)
             # How the velocity target was put on the nodes
             # (runconfig.velocity_sample).
             chk.set_attr("/", "velocity_sample", VELOCITY_SAMPLE)
@@ -3010,6 +3325,13 @@ def main():
                 "min_iter": int(min_iter),
                 "dhdt_weight": float(dhdt_w),
                 "dhdt_net_sigma": float(net_sigma_used),
+                "dhdt_filter_l": float(dhdt_filter_l) if use_dhdt else 0.0,
+                "vel_sample": VEL_SAMPLE,
+                "u_obs_max": float(U_OBS_MAX),
+                "dhdt_reweight": float(DHDT_REWEIGHT),
+                "dhdt_reweight_scale": float(DHDT_REWEIGHT_SCALE),
+                "kill_bergs": int(KILL_BERGS),
+                "phi_bounds": PHI_BOUNDS_RECORD,
                 "grad_precond": os.environ.get(
                     "ISMIP7_GRAD_PRECOND", "none"
                 ).lower(),
@@ -3459,9 +3781,27 @@ def main():
             PETSc.Sys.Print("  GRAD_CHECK: stopped after the Taylor test; no MAP written")
             COMM_WORLD.barrier()
             sys.exit(0)
+        # A floating-only fluidity control: the forward already reads
+        # phi * (1 - He) (build_F), so the misfit does not depend on the
+        # grounded dofs; the metric action zeroes their part of every step
+        # and of the gradient norm, so they never leave zero (the prior's
+        # coupling across the grounding line enters the curvature pairs
+        # only through components the step cannot move). A recorded
+        # product of two Functions is not an assignment Firedrake allows,
+        # so the masking is not put on the tape.
+        if phi_free is not None:
+            def _A_inv_phi_masked(g_theta, g_phi):
+                # the action returns one entry per block that is not None,
+                # phi last
+                out = _A_inv(g_theta, g_phi)
+                if g_phi is not None:
+                    out[-1].dat.data[:] = out[-1].dat.data_ro * phi_free.dat.data_ro
+                return out
+        else:
+            _A_inv_phi_masked = _A_inv
         if INVERT == "both":
-            _tao_forward, _tao_spaces, _tao_x, _tao_action = (
-                forward_total, [Q, Q], [theta, phi], _A_inv)
+            _tao_forward = forward_total
+            _tao_spaces, _tao_x, _tao_action = [Q, Q], [theta, phi], _A_inv_phi_masked
         else:
             # One control moves. The other enters the forward as a fixed
             # coefficient (not a control: no gradient, its prior term a
@@ -3474,7 +3814,7 @@ def main():
                     return forward_total(_frozen, phi_ctrl)
 
                 def _tao_action(g_phi):
-                    return _A_inv(None, g_phi)
+                    return _A_inv_phi_masked(None, g_phi)
                 _tao_x = [phi]
             else:
                 def _tao_forward(theta_ctrl):
@@ -3490,7 +3830,7 @@ def main():
         solver = TAOSolver(
             _tao_forward, _tao_spaces,
             solver_parameters={
-                "tao_type": "lmvm",
+                "tao_type": "blmvm" if PHI_BOUNDS is not None else "lmvm",
                 "tao_max_it": max_iter,
                 # The gradient norm TAO tests is the one M_inv_action defines,
                 # i.e. sqrt(g' A^-1 g) -- mesh independent, unlike the raw l2
@@ -3502,6 +3842,26 @@ def main():
             },
             H_0_action=_tao_action, M_inv_action=_tao_action,
         )
+        if PHI_BOUNDS is not None:
+            # The TAO vector is the concatenation of the controls' owned dofs
+            # in _tao_x order (tlm_adjoint PETScVecInterface); theta's part
+            # is unbounded.
+            _lo_parts, _hi_parts = [], []
+            for _xc in _tao_x:
+                _nloc = _xc.dat.data_ro.size
+                if _xc is phi:
+                    _lo_parts.append(np.full(_nloc, PHI_BOUNDS[0]))
+                    _hi_parts.append(np.full(_nloc, PHI_BOUNDS[1]))
+                else:
+                    _lo_parts.append(np.full(_nloc, PETSc.NINFINITY))
+                    _hi_parts.append(np.full(_nloc, PETSc.INFINITY))
+            _lo_vec = PETSc.Vec().createWithArray(np.concatenate(_lo_parts), comm=solver.tao.comm)
+            _hi_vec = PETSc.Vec().createWithArray(np.concatenate(_hi_parts), comm=solver.tao.comm)
+            solver.tao.setVariableBounds(_lo_vec, _hi_vec)
+            phi.dat.data[:] = np.clip(phi.dat.data_ro, PHI_BOUNDS[0], PHI_BOUNDS[1])
+            PETSc.Sys.Print(
+                f"  Fluidity bounds: {PHI_BOUNDS[0]:g} <= phi <= {PHI_BOUNDS[1]:g} "
+                f"(TAO blmvm; ISMIP7_PHI_BOUNDS)")
 
         _t_last = [perf_counter()]
         _ftol_stop = FunctionalDecreaseStop(ftol, min_iter)
@@ -3570,7 +3930,7 @@ def main():
                                  reg_theta=reg_theta, reg_phi=reg_phi)
             PETSc.Sys.Print(
                 f"  iter {iteration_count[0]:3d}: "
-                f"misfit={f_val - reg_theta - reg_phi:.6e} "
+                f"misfit={f_val - reg_theta - reg_phi:.6e}{term_report()} "
                 f"reg_θ={reg_theta:.4e} reg_φ={reg_phi:.4e} "
                 f"total={f_val:.6e} |grad|_A={gnorm:.4e} "
                 f"dJ/J={_ftol_stop.criterion if _ftol_stop.criterion is not None else 0.0:.1e} "
@@ -3696,6 +4056,7 @@ def main():
         "misfit_norm": MISFIT_NORM, "misfit_scale": float(misfit_scale),
         "log_vel_weight": float(log_vel_w), "log_vel_eps": float(LOG_VEL_EPS),
         "dhdt_weight": float(dhdt_w), "dhdt_net_sigma": net_sigma_used,
+        "dhdt_filter_l": float(dhdt_filter_l) if use_dhdt else 0.0,
         "prior_form": PRIOR_FORM, "gamma_theta": float(GAMMA_THETA),
         "gamma_phi": float(GAMMA_PHI), "friction_control": FRICTION_CONTROL,
         "friction": str(FRICTION), "n_flow": float(n_flow_val),
@@ -3709,6 +4070,10 @@ def main():
         "fluidity_control": FLUIDITY_CONTROL,
         "drag_gate": DRAG_RECORD, "h_visc_floor": float(RC_HVISC_FLOOR),
         "phi_grounded": PHI_GROUNDED, "raster_sample": str(raster_sample),
+        "vel_sample": VEL_SAMPLE, "u_obs_max": float(U_OBS_MAX),
+        "dhdt_reweight": float(DHDT_REWEIGHT),
+        "dhdt_reweight_scale": float(DHDT_REWEIGHT_SCALE), "kill_bergs": int(KILL_BERGS),
+        "phi_bounds": PHI_BOUNDS_RECORD,
         "velocity_sample": VELOCITY_SAMPLE,
     })
     run_settings["dhdt_speed_ratio"] = float(dhdt_speed_ratio)

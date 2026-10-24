@@ -79,7 +79,8 @@ from icepack2_tools.geometry import (
     geometry_function_space, raise_bed_to_lake_ice_base, sample_bed_thickness,
 )
 from icepack2_tools.cellview import CellView, clamp_cells, floor_fill
-from icepack2_tools.transport import transport_form, upwind_divergence
+from icepack2_tools.transport import (
+    front_transport_form, transport_form, upwind_divergence)
 from icepack2_tools.naming import map_basename
 from icepack2_tools.handoff import check_subelement_record
 from icepack2_tools.front import (
@@ -115,6 +116,8 @@ from icepack2_tools.runconfig import (
     raster_base_method as _raster_base_method,
     calving_law as _calving_law, calving_law_object as _calving_law_object,
     front_advance as _front_advance,
+    front_anchor as _front_anchor, front_reinit_interval as _front_reinit_interval,
+    front_marine as _front_marine,
     fracture as _fracture_mode, ismip7_output as _ismip7_output,
     FRACTURE_MASK_MODES,
     # auto_resume is re-exported, not used here: every forward driver imports
@@ -521,11 +524,30 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     # None for unset, empty and the sentinel `checkpoint`: solve on the mesh
     # the checkpoint carries.
     mesh_fn = _mesh_override()
+    override_mesh = Mesh(mesh_fn) if mesh_fn else None
+    if override_mesh is not None and meshes_match(source_mesh, override_mesh):
+        # The named mesh is the triangulation the checkpoint carries, so
+        # solve on the checkpoint's own mesh and load every field exactly.
+        # Interpolating onto a second build of the same mesh evaluates each
+        # field at the target's nodes, and a DG1 thickness is discontinuous
+        # at the front: the node a cell shares with open water read the
+        # water's zero, and every link of a chained run that crossed its
+        # wall limit lost ~3,800 Gt unbooked at the restart, with the ice
+        # the same evaluation put beyond the level set emptied as another
+        # ~550 Gt of calving (calvdg1h, 18 Oct 2026). A cold start from a
+        # MAP on the same mesh takes the same exact path.
+        PETSc.Sys.Print(
+            f"  Compute mesh: {mesh_fn} is the triangulation "
+            f"{os.path.basename(source_chk)} carries; solving on the "
+            f"checkpoint's mesh, every field loaded exactly"
+        )
+        mesh_fn = None
+        override_mesh = None
     if mesh_fn:
         # The timing matrix deliberately solves on a mesh different from the
         # MAP mesh. Keep the checkpoint mesh as the interpolation source and
         # use the requested mesh only for the target finite-element spaces.
-        mesh = Mesh(mesh_fn)
+        mesh = override_mesh
         target_lc_coarse = lc_coarse
         target_buffer_m = buffer_m
         mesh_basename = os.path.basename(mesh_fn)
@@ -545,8 +567,7 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         # refused; a transfer between differently named meshes is the timing
         # matrix's and the MAP check's, and stays allowed.
         if (mesh_stem(mesh_fn) == mesh_stem(source_mesh_basename)
-                and mesh_build_check()
-                and not meshes_match(source_mesh, mesh)):
+                and mesh_build_check()):
             raise RuntimeError(
                 f"ISMIP7_MESH={mesh_fn} ({global_size(mesh.coordinates)} "
                 f"vertices, {mesh.comm.allreduce(mesh.cell_set.size)} cells) "
@@ -810,6 +831,8 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     u_ref_fssa_ckpt = None
     fssa_tendency_ckpt = None
     calved_cells_ckpt = None
+    levelset_ckpt = None
+    front_anchor_ckpt = None
     phys_div = None
     h_dg_state = None
     t_restart = None
@@ -949,6 +972,14 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
             calved_cells_ckpt = load_checkpoint_field(
                 chk, "calved_cells", Q_dg, optional=True
             )
+            # The advected front (ISMIP7_FRONT_ANCHOR=advect) is state: a
+            # restart continues it. An extent-anchored run re-derives its
+            # front from the thickness and never reads this.
+            levelset_ckpt = load_checkpoint_field(
+                chk, "levelset", Q_dg, optional=True
+            )
+            front_anchor_ckpt = (str(chk.get_attr("/", "front_anchor"))
+                                 if chk.has_attr("/", "front_anchor") else None)
             # An adapted checkpoint carries the transferred PHYSICAL divergence
             # instead of a_ref (icepack2_tools.adapt_mesh); a_ref is rebuilt
             # below with this mesh's own operator.
@@ -1565,6 +1596,37 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
     if geom_dg1:
         h_cell = cell_view.mean_function(h)
         h_cell.rename("thickness_cell_mean")
+    # The thickness the momentum balance reads. With an advected front the
+    # transport parks the ice the front's advance deposits in the cells
+    # beyond the level set until the front crosses them
+    # (icepack_tools.front_transport), and the momentum balance must not see
+    # it there: the free-front push belongs on the level-set front, and a
+    # wedge of that ice, 30-80 m at its thick node and pinned through the
+    # vertices it shares with the ocean-drag cells, buttressed every shelf of
+    # the 2 km calving screen to half its speed within a decade (calvdg1h,
+    # 18 Oct 2026), which halved the calving the free laws booked. So the
+    # residual reads a copy that run_simulation zeroes beyond the front after
+    # every advance; without an advected front the copy is h itself.
+    h_dyn, s_dyn, h_cell_dyn = h, s, h_cell
+    if geom_dg and _front_anchor() == "advect":
+        h_dyn = h.copy(deepcopy=True)
+        h_dyn.rename("thickness_dynamic")
+        s_dyn = s.copy(deepcopy=True)
+        s_dyn.rename("surface_dynamic")
+        if levelset_ckpt is not None:
+            # The writer recorded full_state_residual on this thickness, zero
+            # beyond its level set; the restart residual check below compares
+            # against it, so it reads the same field.
+            beyond_ckpt = levelset_ckpt.dat.data_ro > 0.0
+            if geom_dg1:
+                cell_view.set_cells(h_dyn, beyond_ckpt, 0.0)
+            else:
+                h_dyn.dat.data[beyond_ckpt] = 0.0
+            s_dyn.interpolate(
+                max_value(b + h_dyn, (Constant(1.0) - rho_ratio) * h_dyn))
+        if geom_dg1:
+            h_cell_dyn = cell_view.mean_function(h_dyn)
+            h_cell_dyn.rename("thickness_dynamic_cell_mean")
 
     u_s, M_s, tau_s = split(z)
     fields = {
@@ -1653,8 +1715,8 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 z_c if z_c is not None else z,
                 theta_c if theta_c is not None else theta_f,
                 phi_c if phi_c is not None else _map_phi(h_c if h_c is not None else h),
-                H=h_c if h_c is not None else h,
-                s=s_c if s_c is not None else s,
+                H=h_c if h_c is not None else h_dyn,
+                s=s_c if s_c is not None else s_dyn,
                 # the sqrt control's friction is alpha^2 pointwise (the
                 # inversion's own form), not its cell average
                 b=b, C_w0=(alpha_f ** 2 if alpha_f is not None else C_exp if C_exp is not None else C_w0),
@@ -1669,7 +1731,7 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 k_lim=k_lim, drag_mask=drag_mask,
                 calving_ids=calving_ids if use_calving_terminus else None,
                 exact_front=map_exact_front, front_hmin=_front_hmin(),
-                H_cell=h_cell if h_c is None else None,
+                H_cell=h_cell_dyn if h_c is None else None,
                 fssa_tau=fssa_tau if fssa_theta_val > 0 else None,
                 u_ref=u_ref_fssa if fssa_theta_val > 0 else None,
                 fssa_tendency=fssa_tendency,
@@ -1810,6 +1872,14 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
             getattr(context, "condensed_iterations", 0),
         )
 
+    _accept_unconverged = os.environ.get("ISMIP7_ACCEPT_UNCONVERGED", "0").strip() == "1"
+    _accepted_unconverged = [0]
+    if _accept_unconverged:
+        PETSc.Sys.Print(
+            "  Diagnostic solves: a solve stopped by the iteration cap or the "
+            "line search with a finite residual is ACCEPTED as it stands "
+            "(ISMIP7_ACCEPT_UNCONVERGED=1); not for a published budget")
+
     def solve_diagnostic(label, **metadata):
         if subelement is not None:
             # the grounded part of each cell follows the live geometry
@@ -1820,7 +1890,22 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         work_before = _condensed_work()
         t0_solve = perf_counter()
         try:
-            return slvr.solve()
+            try:
+                return slvr.solve()
+            except fd.ConvergenceError:
+                # ISMIP7_ACCEPT_UNCONVERGED=1: a solve that ran out of
+                # iterations or line-search steps with a finite residual is
+                # taken as it stands, the way a fixed-iteration Picard
+                # scheme takes its last iterate. Logged on the result line;
+                # a diverged (NaN/inf) residual is still an error.
+                _reason = int(slvr.snes.getConvergedReason())
+                _fn = float(slvr.snes.getFunctionNorm())
+                if (_accept_unconverged and np.isfinite(_fn)
+                        and _reason in (PETSc.SNES.ConvergedReason.DIVERGED_MAX_IT,
+                                        PETSc.SNES.ConvergedReason.DIVERGED_LINE_SEARCH)):
+                    _accepted_unconverged[0] += 1
+                    return None
+                raise
         finally:
             elapsed = perf_counter() - t0_solve
             reason = slvr.snes.getConvergedReason()
@@ -1833,6 +1918,7 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 "linear_iterations": slvr.snes.getLinearSolveIterations(),
                 "function_norm": slvr.snes.getFunctionNorm(),
                 "seconds": elapsed,
+                "accepted_unconverged": int(_accepted_unconverged[0]),
             }
             condensed = ""
             if work_before is not None:
@@ -1908,6 +1994,19 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         accept_scale = snes_atol_scale()
         accept_limit = accept_scale * recorded if recorded is not None else None
         have_mixed = M_guess is not None and tau_guess is not None
+        # ISMIP7_RESTART_RESOLVE=cold: a one-off that ignores the writer's
+        # record and re-solves the loaded state to the cold-start tolerance.
+        # A link whose re-solve floored high ran its momentum solves at
+        # iteration zero on a frozen velocity (NOTS seq0 controls, 20 Oct
+        # 2026: 1695 of 1715 solves), and the checkpoints it wrote record
+        # that stale state's own residual, so the fast path would accept the
+        # state and the ordinary re-solve would target garbage. The chain
+        # unsets it for every successor, like ISMIP7_RESTART.
+        cold_resolve = (
+            os.environ.get("ISMIP7_RESTART_RESOLVE", "").strip().lower() == "cold"
+        )
+        if cold_resolve:
+            recorded, accept_limit = None, None
 
         if have_mixed and accept_limit is not None and fnorm0 <= accept_limit:
             restart_solved = True
@@ -1919,7 +2018,10 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                 f"recorded {recorded:.2e}; run atol={restart_atol:.2e})"
             )
         else:
-            if not have_mixed:
+            if cold_resolve:
+                why = ("ISMIP7_RESTART_RESOLVE=cold, the record is ignored and "
+                       "the state is re-solved to the cold-start tolerance")
+            elif not have_mixed:
                 why = "velocity-only checkpoint"
             elif accept_limit is None:
                 why = "checkpoint records no full_state_residual"
@@ -1931,8 +2033,18 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
             PETSc.Sys.Print(f"Restart state must be re-solved: {why}")
             _rtol0, _atol0, _stol0, _max_it0 = slvr.snes.getTolerances()
             _bounds = final_solve_bounds()
+            # The re-solve targets the residual the writer RECORDED, not the
+            # acceptance limit: until 2026-10-20 it stopped at the limit
+            # (100 x recorded) and the run atol, 100 x the achieved norm, came
+            # out 10^4 x the recorded level. The calvsu no-calving follow-ons
+            # resumed a state recorded at 3.9e3 with run atol 2.7e7, took 278
+            # of 751 momentum solves at iteration zero on a frozen velocity,
+            # and the transport blew up at 2016.55. The re-solve converges to
+            # the record, the run atol is capped at the acceptance limit, and
+            # a solve that floors above that limit keeps the loaded state for
+            # the rescue ladder.
             slvr.snes.setTolerances(
-                atol=accept_limit if accept_limit is not None else _atol0,
+                atol=recorded if recorded is not None else _atol0,
                 stol=_bounds["snes_stol"],
                 max_it=_bounds["snes_max_it"],
             )
@@ -1942,11 +2054,17 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
                     loaded_fnorm=f"{fnorm0:.3e}",
                     recorded=("none" if recorded is None else f"{recorded:.3e}"),
                 )
-                restart_solved = True
                 fnorm_conv = slvr.snes.getFunctionNorm()
+                if accept_limit is not None and fnorm_conv > accept_limit:
+                    raise fd.ConvergenceError(
+                        f"restart re-solve floored at ||F||={fnorm_conv:.2e}, "
+                        f"above {accept_limit:.2e}")
+                restart_solved = True
                 run_atol = (
                     snes_atol_scale() * fnorm_conv if fnorm_conv > 0.0 else _atol0
                 )
+                if accept_limit is not None:
+                    run_atol = min(run_atol, accept_limit)
                 slvr.snes.setTolerances(atol=run_atol, stol=_stol0, max_it=_max_it0)
                 PETSc.Sys.Print(
                     f"Restart state re-solved (||F|| {fnorm0:.2e} -> "
@@ -2136,6 +2254,11 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         # (icepack2_tools.cellview); None under DG0 and CG1.
         "cell_view": cell_view,
         "h_cell": h_cell,
+        # the momentum balance's thickness and surface: h and s themselves,
+        # or with an advected front the copy zeroed beyond the level set
+        "h_dyn": h_dyn,
+        "s_dyn": s_dyn,
+        "h_cell_dyn": h_cell_dyn,
         "geom_xy": geom_xy,
         "mesh_basename": mesh_basename,
         "geometry_source": geometry_source,
@@ -2238,6 +2361,9 @@ def setup_model(restart_from=None, *, allow_timing_cache_a_ref=False,
         "fssa_tendency": fssa_tendency,
         # Cells a retreat-only front has emptied (restart only; else None).
         "calved_cells": calved_cells_ckpt,
+        # The saved level set and the anchor it was written under (restart only).
+        "levelset_state": levelset_ckpt,
+        "front_anchor_state": front_anchor_ckpt,
         "phys_div": phys_div,
         # DG0 prognostic thickness state (restart only; else None).
         "h_dg_state": h_dg_state,
@@ -2364,6 +2490,7 @@ def save_model_state(ctx, final_path, t_now, extra_attrs=None):
             chk.set_attr("/", "dt_yr", float(ctx["dt"]))
         if ctx.get("calving_law") is not None:
             chk.set_attr("/", "calving_law", str(ctx["calving_law"].describe()))
+            chk.set_attr("/", "front_anchor", str(ctx.get("front_anchor", "extent")))
         chk.set_attr("/", "friction", str(ctx.get("friction", "budd")))
         if ctx.get("smb_elevation_feedback") is not None:
             chk.set_attr("/", SMB_FEEDBACK_ATTR,
@@ -2539,18 +2666,25 @@ def run_simulation(
     # decide per cell read cell means, indexed like every DG0 array here.
     cell_view = ctx.get("cell_view")
     h_cell = ctx.get("h_cell")
+    # The momentum balance's thickness: h itself, or with an advected front
+    # a copy that _lift_h zeroes beyond the level set (setup_model,
+    # thickness_dynamic). dyn_front names the level set once it exists.
+    h_dyn = ctx.get("h_dyn", h)
+    s_dyn = ctx.get("s_dyn", s)
+    h_cell_dyn = ctx.get("h_cell_dyn", h_cell)
+    dyn_front = {"level_set": None}
     # Under DG0 geometry the transport state IS the geometry - the same
     # Function object, not a copy. That is the whole point: the terminus
     # back-pressure and the boundary flux then integrate one thickness, so
     # they cannot disagree. Under CG1 geometry h_dg is a separate DG0 carrier
     # bridged by the lumped lift below. Under DG1 the same holds on the DG1
     # space, which is then the transport space too.
+    Q_tr = Q_g if geom_dg1 else Q_dg
     # A restart's DG carrier as the checkpoint loaded it (None on a cold
     # start), taken before ctx["h_dg_state"] is pointed at the live carrier
     # the checkpoint writer reads: tested after that, a CG1 cold start found
     # its own empty carrier, "restored" it, and began with no ice.
     h_dg_restart = ctx.get("h_dg_state")
-    Q_tr = Q_g if geom_dg1 else Q_dg
     h_dg = h if geom_dg else Function(Q_dg, name="h_dg")
     ctx["h_dg_state"] = h_dg
     h_dg_old = Function(Q_tr)
@@ -2687,7 +2821,14 @@ def run_simulation(
     # unconditional ISMIP7_FIXED_FRONT=1 cannot pin a projection law by
     # accident (the reason the legacy flag is ignored under a law).
     front_advance = _front_advance()
+    front_anchor_mode = _front_anchor()
+    ctx["front_anchor"] = front_anchor_mode
     retreat_only = calving_law_obj is not None and front_advance == "none"
+    # A land-terminating front does not calve and is not held: it deforms
+    # under its own weight and advances with the ice, and what it carries
+    # into the sea calves there (ISMIP7_FRONT_MARINE, runconfig.front_marine;
+    # the law's own marine_only zeroes its rate on land).
+    front_marine = calving_law_obj is not None and _front_marine()
     if front_advance == "none" and calving_law_obj is None:
         raise ValueError(
             "ISMIP7_FRONT_ADVANCE=none needs a level-set law (ISMIP7_CALVING); "
@@ -2720,6 +2861,13 @@ def run_simulation(
             f"(ISMIP7_CALVING={calving})"
             + ("; retreat-only: nothing advances past the t=0 extent "
                "(ISMIP7_FRONT_ADVANCE=none)" if retreat_only else "")
+            + ("; a land-terminating front does not calve and advances with "
+               "the ice" + (", the t=0 extent held only on the sea" if retreat_only else "")
+               + " (ISMIP7_FRONT_MARINE)" if front_marine else "")
+            + ("; front carried by advection and the calving rate "
+               "(ISMIP7_FRONT_ANCHOR=advect), the transport moving the ice "
+               "with it (only cells inside the front export ice, enclosed "
+               "water filled, icebergs removed)" if front_anchor_mode == "advect" else "")
             + ("; ISMIP7_FIXED_FRONT is set but ignored for removal"
                if fixed_front and not retreat_only else ""))
     elif fixed_front:
@@ -2757,6 +2905,8 @@ def run_simulation(
     # the budget and the ISMIP7 fields all count the same forcing.
     forced = Function(Q_dg, name="forced")
     bed_cell = Function(Q_dg).project(b).dat.data_ro.copy()
+    # where a front is in the ocean: the cells whose bed is below sea level
+    sea_cells = bed_cell < 0.0 if front_marine else None
 
     # h_dg is the PERSISTENT prognostic state (DG0). The old scheme
     # re-projected CG1 h -> DG0 every step; that roundtrip (L2 project +
@@ -3349,6 +3499,22 @@ def run_simulation(
         # the cell means the exact-front push decides ice edges on, and the
         # per-cell rules read
         _refresh_cells()
+        if h_dyn is not h:
+            # the momentum balance's thickness: the live one, zero in the
+            # cells beyond the advected front, where the transport parks the
+            # deposit the front has not yet crossed (setup_model)
+            h_dyn.assign(h)
+            ls_dyn = dyn_front["level_set"]
+            if ls_dyn is not None:
+                beyond_dyn = ls_dyn.beyond_front()
+                if geom_dg1:
+                    cell_view.set_cells(h_dyn, beyond_dyn, 0.0)
+                else:
+                    h_dyn.dat.data[beyond_dyn] = 0.0
+            s_dyn.interpolate(
+                max_value(b + h_dyn, (Constant(1.0) - rho_ratio) * h_dyn))
+            if h_cell_dyn is not None:
+                cell_view.mean_function(h_dyn, out=h_cell_dyn)
 
     # Level-set calving front (ISMIP7_CALVING != none): each step the level
     # set is the eikonal distance to the current ice extent, the calving
@@ -3359,6 +3525,12 @@ def run_simulation(
     # the current thickness each step, so a restart needs no saved front: the
     # retreat is already carried in h by the sub-cell shed.
     level_set = None
+    front_transport = None
+    # an advected front's calving by its parts, per step attempt [Gt]: the
+    # ice the transport carried across the front without it following,
+    # what the front's rules took from the cells it left, the icebergs;
+    # and the cells of enclosed water filled into the ice
+    front_split = {"crossing": 0.0, "retreat": 0.0, "icebergs": 0.0, "filled": 0}
     phi_entry = None
     last_c_mean = 0.0
     drag_rule = ctx.get("drag_rule")
@@ -3377,13 +3549,82 @@ def run_simulation(
         if calving_law_obj.front_mode == "fixed":
             _h0 = Function(Q_dg).project(ctx.get("H_init", h))
             phi_init = initial_distance(mesh, _h0, h_min=front_hmin)
+        anchor_was = ctx.get("front_anchor_state")
+        if t_restart is not None and anchor_was is not None and anchor_was != front_anchor_mode:
+            raise RuntimeError(
+                f"the restart state was written with ISMIP7_FRONT_ANCHOR="
+                f"{anchor_was} and this run asks for {front_anchor_mode}: the two "
+                f"anchors carry the front differently, so a run keeps the one it "
+                f"started with (give a new anchor its own ISMIP7_RUN_TAG)")
+        if (front_anchor_mode == "advect" and calving_law_obj.front_mode != "fixed"
+                and t_restart is not None):
+            if ctx.get("levelset_state") is None:
+                raise RuntimeError(
+                    "ISMIP7_FRONT_ANCHOR=advect restarts from the saved level "
+                    "set, and the restart state holds none")
+            phi_init = ctx["levelset_state"]
+            PETSc.Sys.Print("  Front: the advected level set continues from the checkpoint")
         # Under DG1 the level set reads the cell means (h_cell, refreshed
         # with every lift), so its extent is the cells' as under DG0.
         level_set = LevelSet(
             mesh, h_cell if geom_dg1 else h_dg, law=calving_law_obj.front_mode,
             h_min=front_hmin, drag_mask=ctx.get("drag_mask"), phi_init=phi_init,
+            anchor=front_anchor_mode,
+            # an advected front reinitialises on model time: the forward
+            # advances it at every substep, and reinitialised every fifth
+            # advance it stood still (runconfig.front_reinit_interval)
+            reinit_interval=(_front_reinit_interval()
+                             if front_anchor_mode == "advect" else None),
         )
         phi_entry = Function(level_set.Q0)
+        if level_set.anchor == "advect":
+            # The transport moves the ice with the advected front
+            # (icepack_tools.front_transport): only the cells inside the front
+            # export ice, a cell beyond it receives what follows the front's
+            # own advance, and the rest of the ice crossing it is the calving
+            # flux, booked by the transport itself. Emptying every cell beyond
+            # the level set after a plain transport instead booked all the ice
+            # reaching the front as calving, whatever the law: 6,650 Gt/yr in
+            # the first step on the 5 km buffered mesh, where the extent
+            # anchor booked 1,370. Water the level set encloses in the ice
+            # (nunataks, lakes) joins the ice, and icebergs are removed. A
+            # retreat-only front is the coupling's barrier at the t=0 extent.
+            if legacy_transport:
+                raise ValueError(
+                    "ISMIP7_FRONT_ANCHOR=advect needs the conservative transport; "
+                    "unset ISMIP7_LEGACY_TRANSPORT")
+            from icepack_tools.front_transport import FrontTransport
+            phi_bar = None
+            if retreat_only:
+                # the t=0 extent, as the `fixed` law takes it: on a restart the
+                # level set's own construction-time field is the restart's front
+                _h0 = Function(Q_dg).project(ctx.get("H_init", h))
+                phi_bar = initial_distance(mesh, _h0, h_min=front_hmin)
+            front_transport = FrontTransport(level_set, u_transport,
+                                             barrier=retreat_only, phi0=phi_bar,
+                                             sea=sea_cells)
+            if front_transport.n_filled:
+                PETSc.Sys.Print(
+                    f"  Front: {front_transport.n_filled} cells of water the "
+                    f"level set encloses in the ice (nunataks, lakes) join the ice")
+            # from here the momentum balance reads the thickness inside the
+            # front only (thickness_dynamic); a restart's apron beyond it,
+            # written by a forward without this rule, drops out of the
+            # balance at the first solve
+            dyn_front["level_set"] = level_set
+            _lift_h()
+            F_transport = front_transport_form(
+                h_dg_trial, h_dg_old, phi_dg, dt_c, src_dg, front_transport)
+            transport_problem = LinearVariationalProblem(
+                fd.lhs(F_transport), fd.rhs(F_transport), h_dg)
+            transport_solver = LinearVariationalSolver(
+                transport_problem,
+                solver_parameters=transport_solver_parameters(),
+                options_prefix="ismip7_transport_",
+            )
+            # each exporting cell's calving flux, for the ISMIP7 output
+            front_calving_cells = front_transport.calving(h_dg, fd.TestFunction(Q_dg))
+            front_calving_cof = fd.Cofunction(Q_dg.dual())
     # save_model_state writes the front and the ISMIP7 year in progress.
     ctx["level_set"] = level_set
     ctx["annual"] = annual
@@ -3418,6 +3659,43 @@ def run_simulation(
             h_dg.dat.data[mask] = 0.0
         return gt
 
+    def _scale_cells(factor):
+        r"""Scale every cell by its ``factor`` (DG0 indexing): the value
+        under DG0, the whole linear field under DG1, so the slope goes with
+        the mean and a positive cell stays positive."""
+        if geom_dg1:
+            cell_view.write_nodes(h_dg, cell_view.nodes(h_dg) * factor[:, None])
+        else:
+            h_dg.dat.data[:] *= factor
+
+    def _front_rules(grounded):
+        r"""The advected front's rules after the transport
+        (icepack_tools.front_transport), each removal booked as calving and
+        returned in Gt: a cell beyond the front keeps what the front's
+        advance carried into it, or the part of it still behind a front that
+        retreated off it this step, and every other cell beyond the front is
+        emptied; a band cell holding more than the ice it came from hands the
+        excess back to it; ice no path through ice connects to grounded ice
+        is an iceberg. Collective."""
+        keep, band, touch = front_transport.rules()
+        cut = np.array(_cells(h_dg)) * (1.0 - keep)
+        gt = mesh.comm.allreduce(float((cut * cell_area).sum())) * rho_gt
+        if annual is not None:
+            annual.book_removal(slice(None), cut)
+        _scale_cells(keep)
+        give, back, _moved = front_transport.excess(
+            np.array(_cells(h_dg)), band, touch)
+        _scale_cells(1.0 - give)
+        if geom_dg1:
+            cell_view.add_cells(h_dg, back)
+        else:
+            h_dg.dat.data[:] += back
+        berg = front_transport.icebergs(np.array(_cells(h_dg)), grounded)
+        berg_gt = _remove_cells(berg)
+        front_split["retreat"] += gt
+        front_split["icebergs"] += berg_gt
+        return gt + berg_gt
+
     def _advance(dt_local, label):
         r"""One transport advance of dt_local with the CURRENT velocity
         (transport-first ordering: the velocity was solved at the current
@@ -3436,14 +3714,28 @@ def run_simulation(
         beyond = beyond_front if legacy_front_sink else None
         calv_frac = None
         ls_ice_free = None
+        front_switched = None
         if level_set is not None:
             if front_state is not None and calving_law_obj.time_dependent:
                 calving_rate = calving_law_obj.rate(front_state, t_yr)
-            last_c_mean = level_set.advance(dt_local, u_vel, rate=calving_rate)
-            lsb, calv_frac = level_set.calving_masks()
-            beyond = front_removal_mask(lsb, beyond_front, retreat_only, calved)
+            if front_transport is not None:
+                # The advected front: its own rules empty what it leaves,
+                # after the transport (_front_rules), and its sub-cell
+                # position lives in phi itself.
+                last_c_mean = front_transport.advance(dt_local, rate=calving_rate)
+                front_split["filled"] += front_transport.n_filled
+                # The cells whose side of the front this advance changed, for
+                # the substep controller: only the cells inside export, so
+                # their transport changes with the side, not with the step.
+                front_switched = (front_transport.inside_old
+                                  != (front_transport.chi_in.dat.data_ro > 0.5))
+            else:
+                last_c_mean = level_set.advance(dt_local, u_vel, rate=calving_rate)
+                lsb, calv_frac = level_set.calving_masks()
+                beyond = front_removal_mask(lsb, beyond_front, retreat_only, calved,
+                                            sea=sea_cells)
             ls_ice_free = level_set.beyond_front()
-            if retreat_only:
+            if retreat_only and front_transport is None:
                 ls_ice_free = ls_ice_free | calved
             if a_ref is not None and free_front:
                 if geom_dg1:
@@ -3530,15 +3822,29 @@ def run_simulation(
             # next solve measures its surface change from (fssa, `step`).
             fssa_tendency.dat.data[:] = (
                 h_dg.dat.data_ro - h_dg_old.dat.data_ro) / dt_local
+        # The same state for the substep controller, which sizes the step to
+        # the transport and its lagged velocity; the floor and the front's
+        # removals below are events (icepack2_tools/substep.py).
+        h_transport = np.array(h_dg.dat.data_ro) if adapt is not None else None
         if trace_on:
             _h_tr = {i: float(h_dg.dat.data_ro[i]) for _, i in trace_cells}
-        out_gt = float(assemble(
-            un_transport_plus * h_dg * ds
-        )) * rho_gt * dt_local
+        calv_tr_gt = 0.0
+        if front_transport is not None:
+            # only the inside cells export, across the domain edge as across
+            # the front, where the ice not following the front calves
+            out_gt = float(assemble(
+                front_transport.outflow(h_dg))) * rho_gt * dt_local
+            calv_tr_gt = float(assemble(
+                front_transport.calving(h_dg))) * rho_gt * dt_local
+            front_split["crossing"] += calv_tr_gt
+        else:
+            out_gt = float(assemble(
+                un_transport_plus * h_dg * ds
+            )) * rho_gt * dt_local
         m1 = float(assemble(h_dg * dx)) * rho_gt
         transport_resid_gt = None
         if not legacy_transport:
-            transport_resid_gt = (m1 - m0) - (source_gt - out_gt)
+            transport_resid_gt = (m1 - m0) - (source_gt - out_gt - calv_tr_gt)
         elapsed = perf_counter() - transport_t0
         _transport_stat, transport_reason = _record_transport(
             label, elapsed, transport_resid_gt
@@ -3587,7 +3893,18 @@ def run_simulation(
             # the sources and the withheld sink are cell means.
             annual.book_advance(dt_local, smb_f, melt_f, ref_f,
                                 h_dg, u_vel, grounded,
-                                withheld=_cells(src_dg) - _src_want)
+                                withheld=_cells(src_dg) - _src_want,
+                                exporting=(front_transport.chi_in
+                                           if front_transport is not None else None))
+            if front_transport is not None:
+                # the calving flux the transport moved across the front, to
+                # licalvf in the cell it left; read off the new thickness
+                # before the positivity floor, so a roundoff-negative trace is
+                # dropped as the boundary outflow's is (licalvf stops at zero)
+                assemble(front_calving_cells, tensor=front_calving_cof)
+                annual.book_removal(
+                    slice(None),
+                    np.maximum(front_calving_cof.dat.data_ro, 0.0) / cell_area * dt_local)
 
         # Floor to h_clamp, EXCEPT in the cells the front rules report as
         # holding no ice: see clamp_thickness for why every such rule has to
@@ -3642,8 +3959,13 @@ def run_simulation(
         if collapse is not None and _any_rank(collapse.any()):
             hit = collapsed & (_cells(h_dg) > 0.0)
             calv_gt += _remove_cells(hit)
+            if front_transport is not None:
+                # the collapsed cells are open water now, for the front too
+                front_transport.retreat_from(hit)
         if beyond is not None:
             calv_gt += _remove_cells(beyond)
+        if front_transport is not None:
+            calv_gt += _front_rules(grounded)
         if calv_frac is not None:
             # Sub-cell calving: the front cells shed the fraction of their
             # thickness that a front retreating at rate c removes in dt.
@@ -3681,7 +4003,8 @@ def run_simulation(
             #     under both laws whatever N is.
             sliver = retreat_slivers(_cells(h_dg), _cells(h_dg_old), front_hmin)
             calv_gt += _remove_cells(sliver)
-            if retreat_only:
+            # (the advected front's barrier holds a retreat-only front itself)
+            if retreat_only and front_transport is None:
                 calved[:] = held_calved(calved, _cells(h_dg_old), _cells(h_dg),
                                         front_hmin, sliver=sliver,
                                         beyond=beyond, calv_frac=calv_frac)
@@ -3708,6 +4031,8 @@ def run_simulation(
         if level_set is None and drag_rule is not None:
             drag_rule(_cells(h_dg))
         m3 = m2 - calv_gt                                        # ∫h preserved by projection
+        # the calving flux the front-aware transport moved left before m1
+        calv_gt += calv_tr_gt
         mass_now = float(assemble(h * dx)) * _RHO_I_SI / 1e12
         clamp_cg_gt = mass_now - m3          # Gt added by the CG floor after projection
         return {
@@ -3723,6 +4048,10 @@ def run_simulation(
             "smb_gt": smb_gt,
             "melt_gt": melt_gt,
             "collapse_cells": collapse_cells,
+            "h_transport": h_transport,
+            "front_switched": (None if front_switched is None
+                               else front_switched if cell_view is None
+                               else cell_view.node_mask(front_switched)),
         }
 
     # Time loop, transport-first: each step advances the geometry with the
@@ -3796,6 +4125,8 @@ def run_simulation(
             f"error estimate, {adapt.m}..{adapt.m_max} substeps of dt={dt:g} yr, "
             f"halving after {adapt.quiet_steps} quiet steps, cells >= "
             f"{adapt.hmin:g} m"
+            + (f", up to {adapt.ceiling:g}x tol accepted at {adapt.m_max} substeps"
+               if adapt.ceiling > 0 else ", stalling at the ceiling")
         )
 
     # Timing drivers use this marker rather than timing setup_model or the
@@ -3823,6 +4154,13 @@ def run_simulation(
     # just under the budget overshoots it by that whole step and gets killed
     # mid-write, which is the outcome the budget exists to avoid.
     step_max_min = 0.0
+    # Mean substep of the last completed step: a step entering with m
+    # substeps costs about m of them, which the longest whole step cannot
+    # foresee when m has just climbed (the 2 km screening of 11 October lost
+    # two links to steps deep in 64x subcycling that outran a 20 min margin).
+    # The mean, not the longest substep: one slow substep in 64 made the
+    # prediction 102 min for a 16 min step and stopped links after one step.
+    substep_mean_min = 0.0
     stalled = False
     collapse_cells = (0, 0, 0)
     collapse_held_peak = (0, t_start)      # most cells held at once, and when
@@ -3832,12 +4170,16 @@ def run_simulation(
             mins = (perf_counter() - _T_PROCESS_START) / 60.0
             # Every rank must leave the loop together: the final save is
             # collective, so a rank-local decision would hang the job.
+            m_next = SUBCYCLES[0] if adapt is None else adapt.m
+            step_cost_min = max(step_max_min, 1.25 * m_next * substep_mean_min)
             if mesh.comm.allreduce(
-                    int(mins + step_max_min >= wall_stop_min)) > 0:
+                    int(mins + step_cost_min >= wall_stop_min)) > 0:
                 PETSc.Sys.Print(
                     f"  Wall-clock budget: {mins:.1f} min used of "
-                    f"{wall_stop_min:g}, and the longest step so far took "
-                    f"{step_max_min:.1f} min. Stopping at t_yr={t_start + (k - 1) * dt:.1f} "
+                    f"{wall_stop_min:g}, and the next step could take "
+                    f"{step_cost_min:.1f} min (longest step {step_max_min:.1f}, "
+                    f"{m_next} substeps of about {substep_mean_min:.2f}). "
+                    f"Stopping at t_yr={t_start + (k - 1) * dt:.1f} "
                     f"with the budget intact, for the next job in the chain"
                 )
                 break
@@ -3885,13 +4227,17 @@ def run_simulation(
                 if level_set is not None:
                     level_set.phi.assign(phi_entry)
                     level_set.update_cell_fields()
+                    if front_transport is not None:
+                        front_transport.refresh()
             if adapt is not None:
                 adapt.begin_attempt()
             acc = {"out_gt": 0.0, "calv_gt": 0.0, "clamp_gt": 0.0,
                    "limit_gt": 0.0, "amb_gt": 0.0,
                    "smb_gt": 0.0, "melt_gt": 0.0}
+            front_split.update(crossing=0.0, retreat=0.0, icebergs=0.0, filled=0)
             ok = True
             reject_err = None
+            t_attempt_start = perf_counter()
             for _j in range(m):
                 h_before = (np.array(h_dg.dat.data_ro)
                             if adapt is not None else None)
@@ -3904,8 +4250,9 @@ def run_simulation(
                 # the accepted attempt stands for the step.
                 collapse_cells = sub["collapse_cells"]
                 if adapt is not None:
-                    err = adapt.observe(h_before, h_dg.dat.data_ro, dt / m,
-                                        h_diag_xy.dat.data_ro)
+                    err = adapt.observe(h_before, sub["h_transport"], dt / m,
+                                        h_diag_xy.dat.data_ro,
+                                        skip=sub["front_switched"])
                     at = ("" if adapt.err_xy is None else " at (" + ", ".join(
                         f"{c / 1e3:.0f}" for c in adapt.err_xy) + ") km")
                     if adapt.exceeds(err):
@@ -3916,7 +4263,13 @@ def run_simulation(
                         ok = False
                         reject_err = err
                         break
-                    if err > adapt.tol:
+                    if err > adapt.tol and adapt.ceiling_now:
+                        PETSc.Sys.Print(
+                            f"  Step {k}: substep {_j + 1}/{m} thickness error "
+                            f"{err:.3g} m{at} at the ceiling of {adapt.m_max} "
+                            f"substeps (within {adapt.ceiling:g}x tol), accepting"
+                        )
+                    elif err > adapt.tol:
                         PETSc.Sys.Print(
                             f"  Step {k}: substep {_j + 1}/{m} thickness error "
                             f"{err:.3g} m{at} not reduced by refining "
@@ -3933,6 +4286,7 @@ def run_simulation(
                     ok = False
                     break
             if ok:
+                substep_mean_min = (perf_counter() - t_attempt_start) / 60.0 / m
                 if m > 1 and adapt is None:
                     PETSc.Sys.Print(f"  Step {k}: completed via x{m} subcycle")
                 tallies = acc
@@ -3977,6 +4331,8 @@ def run_simulation(
             if level_set is not None:
                 level_set.phi.assign(phi_entry)
                 level_set.update_cell_fields()
+                if front_transport is not None:
+                    front_transport.refresh()
             break
 
         t_elapsed = perf_counter() - t_step_start
@@ -4169,6 +4525,12 @@ def run_simulation(
                 + (f"\n      collapse [cells]: flagged={collapse_cells[0]} "
                    f"removed={collapse_cells[1]} held={collapse_cells[2]}"
                    if collapse is not None else "")
+                + (f"\n      front calving [Gt/yr]: crossing="
+                   f"{-front_split['crossing']/dt:+.0f} retreat="
+                   f"{-front_split['retreat']/dt:+.0f} icebergs="
+                   f"{-front_split['icebergs']/dt:+.0f}; enclosed water filled "
+                   f"{front_split['filled']} cells"
+                   if front_transport is not None else "")
             )
 
         if not np.isfinite(resid_gt) or abs(resid_gt) > mass_tol_gt:

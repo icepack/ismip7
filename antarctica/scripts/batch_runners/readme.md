@@ -399,7 +399,7 @@ partition, constraint and rank count from the site file.
 checkpoints `ISMIP7_MAP_OUT` every `ISMIP7_CHECKPOINT_EVERY_IT` iterates (default
 1) and warm-starts from it, so each
 job queues its successor first with `--dependency=afterany`, copying partition,
-constraint, memory, time and task layout from `scontrol`. Every link exits at
+constraint, memory, time, task layout and node exclusions from `scontrol`. Every link exits at
 once if `<map>.done` exists, meaning the MAP reached disk. The driver writes
 that marker as soon as the checkpoint write returns, so a kill in the tail
 (final solve, summary figure) cannot lose it; the runner's post-`srun` grep for
@@ -423,13 +423,22 @@ A link that loses a rank (the OOM killer, a crash) ends at once (below, "One
 dead rank ends the step") with no `Saved MAP:`, and its queued successor
 resumes from the last checkpoint in a fresh process, so an out-of-memory link
 costs one evaluation and a restart.
+`ISMIP7_MAXITER` counts per process, so each link spends it again.
+`ISMIP7_CHAIN_ITER_BUDGET` caps the accepted iterations across the whole
+chain: each link adds the count its predecessor saved in the checkpoint to
+the sidecar `<map>.iters`, keyed by the checkpoint's mtime and size so a link
+that saved nothing is not counted twice, and runs the remainder as its
+`ISMIP7_MAXITER`; a spent budget marks the MAP done.
 Regression test: `tests/test_inversion_chain.py`.
 
 ### `projection.sbatch`, self-chaining
 
 A 285-year projection is about four days on the production mesh, so this
-resubmits itself with `--dependency=afterok` until the run reaches its end
-year, resuming through `ISMIP7_AUTO_RESUME=1`. Each driver owns its end year
+resubmits itself with `--dependency=afterany` until the run reaches its end
+year, resuming through `ISMIP7_AUTO_RESUME=1`. A link queues its successor
+only after its driver exits 0 with the checkpoint saved, so the dependency
+orders the links and a link the scheduler takes in its last lines still
+starts its successor. Each driver owns its end year
 and the runner does not default `ISMIP7_T_END`; the chain reads the value the
 run used from the driver's `Time-stepping: <start>-><end>` line. At the
 production step, `dt = 0.025` (issue 20), Rice's default of 32 ranks on one
@@ -491,6 +500,15 @@ ISMIP7_EXPERIMENT=hist_mri_esm2 ISMIP7_ESM=MRI-ESM2-0 \
     ISMIP7_CHAIN_THEN="control" antarctica/scripts/batch_runners/submit.sh projection
 ```
 
+**A finished chain can run a command.** `ISMIP7_CHAIN_THEN_CMD` is a shell
+command that both runners run once, in the link that finishes the run (the
+inversion's MAP marked done, the forward at its end year, after queueing its
+follow-ons). Every link inherits it; a forward's follow-ons do not. Its
+failure is logged and leaves the link's exit code alone. The staged
+initialization routine (`antarctica/INITIALIZATION_ROUTINE.md`) hands itself
+the next stage this way. Regression tests: `tests/test_inversion_chain.py`,
+`tests/test_projection_chain.py`.
+
 A relaunch from a stalled state has cleared the diagnostic-Newton wall in every
 observed case (see Known issues in `antarctica/README.md`). The chain leaves
 that judgement to you: resubmit, and auto-resume picks the run up.
@@ -516,7 +534,8 @@ node sat idle for the remaining 11.5 h (issue #161). A container site's
 `tests/test_site_core.py`.
 
 The wall budget is derived per job. Each link reads its own partition's
-`TimeLimit`, holds back 25 minutes and passes the rest as
+`TimeLimit`, holds back 25 minutes and the minutes since its `StartTime`
+(queue node setup and the environment), and passes the rest as
 `ISMIP7_WALL_STOP_MIN`, so the model stops a step early and writes a complete
 final checkpoint for the successor.
 

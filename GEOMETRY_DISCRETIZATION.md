@@ -680,7 +680,9 @@ as any first link that changes the objective does.
 sub-element friction and `ISMIP7_LEGACY_TRANSPORT`, which integrate a
 continuous surface; an inversion taking a warm start's geometry from another
 mesh, where a discontinuous linear field interpolated node by node samples one
-source cell per target node; adaptive transfer;
+source cell per target node; adaptive transfer; the inversion's dH/dt
+term with `ISMIP7_DHDT_FORCING=control` or `ocx`, or with
+`ISMIP7_DHDT_FILTER_L`, which have only run with DG0 geometry;
 `ISMIP7_SUBSTEP_TRACE`, which prints one value per cell; and timing caches:
 one is prepared on another mesh and its contract
 (`timing_campaign.cache_required_fields`) names the DG0 `N_ref`, so

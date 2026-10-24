@@ -90,6 +90,58 @@ if [ -f "$DONE" ]; then
     exit 0
 fi
 
+# --- the iteration budget of the whole chain --------------------------------
+# ISMIP7_MAXITER is one process's budget, and a link that resumes the
+# checkpoint counts from zero again, so a chain of one-hour links spends
+# ISMIP7_MAXITER per link until its depth runs out. ISMIP7_CHAIN_ITER_BUDGET
+# caps the accepted iterations across the chain instead: each link adds the
+# count its predecessor left in the checkpoint (objective_iteration, that
+# process's count at the saved iterate) to the sidecar <map>.iters, keyed by
+# the checkpoint's modification time and size so a predecessor that saved
+# nothing is not counted twice, and runs the remainder as its ISMIP7_MAXITER.
+# A chain whose budget is spent marks the MAP finished and runs the follow-on
+# command. The staged initialization routine gives every stage its budget
+# this way.
+if [ -n "${ISMIP7_CHAIN_ITER_BUDGET:-}" ]; then
+    remaining=$(python - "$ISMIP7_MAP_OUT" "$ISMIP7_CHAIN_ITER_BUDGET" <<'PY'
+import os
+import sys
+
+map_fn, budget = sys.argv[1], int(sys.argv[2])
+iters_fn = map_fn + ".iters"
+done, stamp = 0, ""
+if os.path.exists(iters_fn):
+    parts = open(iters_fn).read().split()
+    done = int(parts[0])
+    stamp = parts[1] if len(parts) > 1 else ""
+if os.path.exists(map_fn):
+    st = os.stat(map_fn)
+    this = f"{st.st_mtime_ns}:{st.st_size}"
+    if this != stamp:
+        import h5py
+        with h5py.File(map_fn, "r") as h:
+            done += int(round(float(h["/"].attrs.get("objective_iteration", 0))))
+        with open(iters_fn, "w") as fh:
+            fh.write(f"{done} {this}\n")
+print(budget - done)
+PY
+)
+    if [ -z "$remaining" ]; then
+        echo "chain: WARNING could not account the iteration budget;" \
+             "this link runs ISMIP7_MAXITER=$ISMIP7_MAXITER"
+    elif [ "$remaining" -le 0 ]; then
+        touch "$DONE"
+        echo "chain: the iteration budget ISMIP7_CHAIN_ITER_BUDGET=$ISMIP7_CHAIN_ITER_BUDGET" \
+             "is spent; marker $DONE"
+        ismip7_chain_then_cmd
+        exit 0
+    else
+        export ISMIP7_MAXITER="$remaining"
+        echo "chain: iteration budget $ISMIP7_CHAIN_ITER_BUDGET," \
+             "$remaining left for this link (ISMIP7_MAXITER)"
+    fi
+fi
+
 # --- queue the successor before doing anything slow -----------------------
 DEPTH="${ISMIP7_CHAIN_DEPTH:-0}"
 MAXD="${ISMIP7_CHAIN_MAX:-4}"
@@ -175,4 +227,6 @@ elif grep -q 'Saved MAP:' "$LOG"; then
     touch "$DONE"
     echo "chain: finished ($(grep -o 'Saved MAP:.*' "$LOG" | tail -1)); marker $DONE"
 fi
+# The link that finished the MAP hands the chain on (ISMIP7_CHAIN_THEN_CMD).
+[ -f "$DONE" ] && ismip7_chain_then_cmd
 exit $rc

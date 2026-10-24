@@ -327,17 +327,25 @@ def vertex_neighbours(Q_dg):
     return neighbours_of
 
 
-def front_removal_mask(law_beyond, initial_beyond, retreat_only, calved=None):
+def front_removal_mask(law_beyond, initial_beyond, retreat_only, calved=None,
+                       sea=None):
     r"""The cells a step empties for the front: the ones the level-set law's
     front has passed (``law_beyond``), and under a retreat-only front
     (``ISMIP7_FRONT_ADVANCE=none``) also every cell beyond the t=0 extent
     (``initial_beyond``), so ice the transport carries past the initial
     outline is removed and booked as calving instead of becoming new
     extent, and every cell the front has emptied before (``calved``, see
-    :func:`held_calved`). ``initial_beyond`` and ``calved`` may be None."""
+    :func:`held_calved`). ``initial_beyond`` and ``calved`` may be None.
+
+    With ``sea`` (the cells whose bed is below sea level,
+    ``ISMIP7_FRONT_MARINE``) the t=0 extent holds only there: a
+    land-terminating front advances with the ice, and what it carries into
+    the sea past the extent is removed."""
     import numpy as np
     if not retreat_only:
         return law_beyond
+    if initial_beyond is not None and sea is not None:
+        initial_beyond = np.logical_and(initial_beyond, sea)
     out = law_beyond
     for mask in (initial_beyond, calved):
         if mask is not None:

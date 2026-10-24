@@ -115,8 +115,25 @@ DISCONTINUOUS_GEOMETRY_SPACES = ("dg0", "dg1")
 # MAPs record the method used; the forward reads it back from the MAP.
 # vertex_front is the default since 8 October 2026 (IU, issue #167): IU's
 # final MAPs are refitted under it, and it has its own melt calibration.
-FRONT_RASTER_SAMPLES = ("vertex_front",)
-RASTER_SAMPLES = ("vertex", "cell_mean") + FRONT_RASTER_SAMPLES
+#   patch     - the hat-weighted patch mean (patchmean.py, 13 Oct 2026): the
+#               lumped L2 projection of the raster onto CG1, projected to the
+#               cell. As smooth as vertex (neighbouring cells share two of
+#               three patches) and the DG0 field conserves the raster's mass
+#               exactly. ISMIP7_PATCH_QDEGREE sets the points per cell.
+#   patch_front - patch, with the front cells rebuilt as under vertex_front.
+FRONT_RASTER_SAMPLES = ("vertex_front", "patch_front")
+RASTER_SAMPLES = ("vertex", "cell_mean", "patch") + FRONT_RASTER_SAMPLES
+FRONT_BASE_METHODS = {"vertex_front": "vertex", "patch_front": "patch"}
+PATCH_QDEGREE_DEFAULT = 10
+
+
+def patch_qdegree():
+    r"""``ISMIP7_PATCH_QDEGREE``: the quadrature degree of the patch means
+    (about (d + 2)^2 / 4 raster lookups per cell; 25 at the default 10)."""
+    value = int(os.environ.get("ISMIP7_PATCH_QDEGREE", PATCH_QDEGREE_DEFAULT))
+    if value < 1:
+        raise ValueError("ISMIP7_PATCH_QDEGREE must be >= 1")
+    return value
 RASTER_SAMPLE_DEFAULT = "vertex_front"
 
 
@@ -572,9 +589,10 @@ def raster_front(method):
 
 def raster_base_method(method):
     r"""How a single raster is put on a cell under ``method``: a front
-    sampling samples every raster by its vertices and changes only the front
-    cells' thickness and bed afterwards."""
-    return "vertex" if raster_front(method) else str(method).lower()
+    sampling samples every raster by its base method (``FRONT_BASE_METHODS``)
+    and changes only the front cells' thickness and bed afterwards."""
+    method = str(method).lower()
+    return FRONT_BASE_METHODS.get(method, method)
 
 
 def target_mesh_geometry_method(method, space="dg0"):
@@ -978,10 +996,59 @@ def calving_law_object():
             calving.load_module(path)
             _CALVING_MODULES_LOADED.add(path)
     params = calving.parse_params(calving_params())
+    if front_marine():
+        # a land-terminating front does not calve, whatever the law; a law's
+        # own marine_only in ISMIP7_CALVING_PARAMS stands
+        params.setdefault("marine_only", True)
     try:
-        return calving.make(name, **params)
+        law = calving.make(name, **params)
     except ValueError as err:
         raise ValueError(f"ISMIP7_CALVING={name}: {err}") from None
+    if calving_floating_only():
+        # The gate is the law's own (Law.gated, through the friction's
+        # grounded measure), so the rate vanishes on grounded ice and the
+        # recorded description says so, which keeps a resume honest.
+        law.grounded_gate = True
+    return law
+
+
+def calving_floating_only():
+    r"""``ISMIP7_CALVING_FLOATING_ONLY``: ``1`` confines the configured law
+    to floating ice (``0`` or unset: the law's own rule).
+
+    A law without a grounded gate calves a marine grounded cliff at up to
+    its rate cap: under ssp370 the hfb front ate 22 km into 1100 m thick
+    grounded ice at Kemp Land in three years (seq0f, October 2026), which
+    is a cliff-failure process the protocol does not ask for and the solver
+    cannot follow. Decided 22 Oct 2026: gate the hfb law to floating ice.
+    """
+    value = os.environ.get("ISMIP7_CALVING_FLOATING_ONLY", "0").strip()
+    if value in ("", "0"):
+        return False
+    if value == "1":
+        return True
+    raise ValueError(
+        f"ISMIP7_CALVING_FLOATING_ONLY must be 1 or 0/empty, got {value!r}")
+
+
+def front_marine():
+    r"""``ISMIP7_FRONT_MARINE``: a land-terminating front does not calve.
+
+    On unless set to ``"0"``. A cliff on land deforms under its own weight,
+    the stress imbalance at its face carrying the ice forward, and the ice
+    that reaches the sea calves there (Andrew, 16 October 2026). So the
+    calving law's rate is zero where the bed is at or above sea level (every
+    law's ``marine_only``, :mod:`icepack_tools.calving`), and a retreat-only
+    front (``ISMIP7_FRONT_ADVANCE=none``) is held at the t=0 extent only
+    where the bed is below sea level: a land margin advances with the ice,
+    and what it carries into the sea past the extent calves. On BedMachine
+    Antarctica v4.1 the front facing ice-free land is 129,000 km, three times
+    the ocean-facing front, and carries up to ~90 Gt/yr; the front of every
+    law booked what crossed it as calving. ``0`` restores that. A law whose
+    ``ISMIP7_CALVING_PARAMS`` set ``marine_only`` keeps its own setting for
+    the rate.
+    """
+    return os.environ.get("ISMIP7_FRONT_MARINE", "1").strip() != "0"
 
 
 def fixed_front():
@@ -1014,6 +1081,62 @@ def front_advance():
     if value not in FRONT_ADVANCE_MODES:
         raise ValueError(
             f"ISMIP7_FRONT_ADVANCE must be one of {FRONT_ADVANCE_MODES}, got {value!r}")
+    return value
+
+
+FRONT_ANCHORS = ("extent", "advect")
+
+
+def front_anchor():
+    r"""``ISMIP7_FRONT_ANCHOR``: how a level-set law's front evolves
+    (:mod:`icepack_tools.levelset`, ``anchor``).
+
+    ``extent`` (default): the front is re-solved every advance as the
+    distance to the ice extent the thickness holds, the transport advances
+    it and the law only retreats it by normal flow, with the sub-cell retreat
+    shed from the front cells. ``advect``: the front is a level set carried by
+    the ice velocity and retreated by the calving rate,
+    ``phi_t + u . grad(phi) - c |grad(phi)| = 0`` (the velocity extended
+    harmonically into the water, the rate along the normal), reinitialised
+    on model time (:func:`front_reinit_interval`), the transport moving the
+    ice with it (:mod:`icepack_tools.front_transport`): only the cells inside
+    the front export ice, the ice crossing it without following it calves,
+    and the cells it leaves are emptied, so the front is where the level set
+    says. A restart under ``advect`` continues the saved level set, and a
+    state written under one anchor does not restart under the other.
+    """
+    value = os.environ.get("ISMIP7_FRONT_ANCHOR", "extent").strip().lower()
+    if value not in FRONT_ANCHORS:
+        raise ValueError(
+            f"ISMIP7_FRONT_ANCHOR must be one of {FRONT_ANCHORS}, got {value!r}")
+    return value
+
+
+#: Model years between reinitialisations of an advected front: CalvingMIP's
+#: cadence (0.5 yr steps, every fifth reinitialised).
+FRONT_REINIT_YR_DEFAULT = 2.5
+
+
+def front_reinit_interval():
+    r"""``ISMIP7_FRONT_REINIT_YR``: model years between reinitialisations of
+    an advected front (``ISMIP7_FRONT_ANCHOR=advect``), default 2.5.
+
+    The forward advances the front at every adaptive substep, 80 to 1,280
+    times a model year, and every reinitialisation costs part of the sub-cell
+    motion since the one before: reinitialised every fifth advance, as the
+    level set does by default, the front moved 4 m between them on the 2 km
+    mesh and stood still. Counting model time keeps the cadence whatever the
+    substeps. A positive number of years."""
+    raw = os.environ.get("ISMIP7_FRONT_REINIT_YR", "").strip()
+    if not raw:
+        return FRONT_REINIT_YR_DEFAULT
+    try:
+        value = float(raw)
+    except ValueError:
+        value = float("nan")
+    if not value > 0.0:
+        raise ValueError(
+            f"ISMIP7_FRONT_REINIT_YR must be a positive number of years, got {raw!r}")
     return value
 
 

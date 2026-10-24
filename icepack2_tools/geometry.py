@@ -349,6 +349,29 @@ def sample_to_geometry(raster, Q_g, Q_cg, floor=None, method="vertex"):
             if floor is not None:
                 out.dat.data[bad] = np.maximum(out.dat.data_ro[bad], floor)
         return out
+    if method == "patch":
+        # The lumped L2 projection of the raster onto CG1 (patchmean.py):
+        # the DG0 projection below then carries the raster's mass exactly.
+        # Nodes whose patch the raster does not cover take the vertex value.
+        from .patchmean import quadrature_points, raster_patch_mean, fill_uncovered
+        from .runconfig import patch_qdegree
+        degree = patch_qdegree()
+        Qs, x, y = quadrature_points(Q_cg.mesh(), degree)
+        field, _cov, _ = raster_patch_mean(dataset, Qs, x, y, Q_cg, degree)
+        # Collective: every rank asks before any reads the fallback.
+        n_bad = Q_cg.mesh().comm.allreduce(
+            int((~np.isfinite(field.dat.data_ro)).sum()), op=MPI.SUM)
+        if n_bad:
+            fill_uncovered(field, raster_fn(Q_cg))
+        if floor is not None:
+            field = Function(Q_cg).interpolate(max_value(field, Constant(floor)))
+        if not is_dg0:
+            return field
+        if Q_g.ufl_element().degree() == 1:
+            # A vertex-node DG1 geometry (PR 169) holds the CG1 field exactly,
+            # and its cell means are the vertex means, so the mass is kept.
+            return Function(Q_g).interpolate(field)
+        return Function(Q_g).project(field)
     if method not in ("vertex", "cell_mean"):
         raise ValueError(f"unknown raster sampling method {method!r}")
 
@@ -557,3 +580,38 @@ def sample_bed_thickness(bm_fn, Q_g, Q_cg, floor=None, method="vertex"):
     if floor is not None:
         H.interpolate(max_value(H, Constant(floor)))
     return b, H, counts
+
+
+def remove_unconnected_ice(H, b, Q_g, h_min=1.0):
+    r"""Remove ice that no chain of ice cells connects to grounded ice.
+
+    Every ice cell (``H > h_min``) reachable from a grounded cell through
+    ice cells sharing a facet is kept; the rest (icebergs and detached
+    shelf fragments) is set to zero thickness. Modifies ``H`` in place and
+    returns the global count of cells emptied and their area. DG0 only;
+    collective.
+    """
+    import ufl
+    from .front import facet_neighbours
+    from .grounding import height_above_flotation
+
+    if Q_g.ufl_element().degree() != 0:
+        raise ValueError("remove_unconnected_ice needs a DG0 geometry")
+    mesh = Q_g.mesh()
+    ice = np.asarray(H.dat.data_ro > h_min)
+    haf = Function(Q_g).interpolate(height_above_flotation(H, b)).dat.data_ro
+    grounded = ice & (haf > 0.0)
+    neighbours_of = facet_neighbours(Q_g)
+    reached = grounded.copy()
+    while True:
+        new = ice & ~reached & neighbours_of(reached)
+        if not mesh.comm.allreduce(bool(new.any()), op=MPI.LOR):
+            break
+        reached |= new
+    berg = ice & ~reached
+    area = Function(Q_g).interpolate(ufl.CellVolume(mesh)).dat.data_ro
+    n = mesh.comm.allreduce(int(berg.sum()), op=MPI.SUM)
+    a = mesh.comm.allreduce(float(area[berg].sum()), op=MPI.SUM)
+    if n:
+        H.dat.data[berg] = 0.0
+    return n, a
