@@ -18,7 +18,7 @@
   "code": "dc5fe25, a local merge of b554238 with main 60438f4 (PR 139: core 11's forcing field ERA5 and isschecker_ocx.py); every non-OCX file matches the b554238 writer's",
   "started": "2026-09-27",
   "finished": "2026-09-27",
-  "results": "Quartz antarctica/results/rehearsal_25km/rehnoamb/submission, rehnoamb/checker, rehnoamb/scalars. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km/rehearsal_25km.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
+  "results": "Quartz antarctica/results/rehearsal_25km/rehnoamb/submission, rehnoamb/checker, rehnoamb/scalars. On 10 November 2026 the files over 1 MiB went to IU's Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km/rehearsal_25km.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "ismip7_output": "31 files a core on the 8 km grid, AIS/RICE/icepack2/CORE/C001 to C011, with params.nc (917, 1024, 1000)",
   "checker": "isschecker 0.5.1: 0 errors on every core (core 11 through isschecker_ocx.py, issue 18); 1 warning on each (non-mandatory variables the model does not write)",
   "scalars": "ismip7-scalars 0.1.0 sla20, slg20 and slvaf for every core, the historicals and core 11 their own reference (2004), the others paired with their ESM's historical; compare_scalars.py exit 0 on all eleven",

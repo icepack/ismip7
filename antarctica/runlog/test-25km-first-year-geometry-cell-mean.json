@@ -16,7 +16,7 @@
   "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)",
   "started": "2026-10-13",
   "finished": "2026-10-13",
-  "results": "the job log in Quartz antarctica/results/first_year_mass_gain_iu/logs/ismip7_inv_12197819.out. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
+  "results": "the job log in Quartz antarctica/results/first_year_mass_gain_iu/logs/ismip7_inv_12197819.out",
   "audit": "The startup continuation converged in 8 steps; six forward evaluations then diverged (residual 2.7e14 to 1.2e17) and the optimizer stopped on failed trials after about 17 iterations, with no done marker: published residual 7.6e10, misfit 1.87e5. No forward ran; its gridnoise job (12200304) failed for want of one",
   "notes": "Section 3 of antarctica/reports/first_year_mass_gain_iu.md; consistent with the README's 2 km measurement of cell_mean geometry"
 }

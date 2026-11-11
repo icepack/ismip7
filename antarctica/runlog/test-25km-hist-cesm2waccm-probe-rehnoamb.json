@@ -24,7 +24,7 @@
   "started": "2026-09-27",
   "finished": "2026-09-27",
   "cost": "2 min 14 s for the job; 0.4 to 0.9 s a step once running",
-  "results": "Quartz antarctica/results/rehearsal_25km/results/hist_cesm2_waccm_r25probenoamb_25000_*. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km/rehearsal_25km.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
+  "results": "Quartz antarctica/results/rehearsal_25km/results/hist_cesm2_waccm_r25probenoamb_25000_*. On 10 November 2026 the files over 1 MiB went to IU's Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km/rehearsal_25km.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "every step converged on its first scpc_gamg direct solve in 2 to 8 Newton iterations; no rescue, subcycle or tripwire event (speed and thickness bounds armed); mass residual about 1e-8 Gt a step and resid 0.00; speed max 1.65e4 m/yr at step 1, falling to 1.46e4 by step 10; largest relative thickening 1.6 per year in a 112 m floating cell. Budget at step 1: SMB +2435, melt -985, outflux -503, calving -1399, dM/dt -453 Gt/yr",
   "notes": "gate G4c of the rehearsal (issue 138): attempt A of the matrix, without the reference, went ahead on it"
 }

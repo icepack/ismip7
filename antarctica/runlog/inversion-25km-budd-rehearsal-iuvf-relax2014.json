@@ -18,7 +18,7 @@
   "started": "2026-10-10",
   "finished": "2026-10-10",
   "cost": "18 min 17 s on 8 ranks",
-  "results": "Quartz antarctica/results/rehearsal_25km_iu/maps/inversion_icepack2_budd_n3_dg0_logvel_25000_int250000_b20k_rho7500_floating_ef2_vf_wsiu_relax2014.h5 (sha256 9fcf10dc), with inversion_timing_relax2014.json. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/maps/inversion_icepack2_budd_n3_dg0_logvel_25000_int250000_b20k_rho7500_floating_ef2_vf_wsiu_relax2014.h5 (sha256 9fcf10dc), with inversion_timing_relax2014.json",
   "audit": "the objective settings matched the end state under the strict handoff; first objective 5,356.5 (misfit 4,891.8) on the relaxed geometry against the source MAP's 4,231.3 on its own. 250 L-BFGS-B iterations (270 evaluations) to the limit: total 3,551.2, misfit 3,023.1 (vel 249.5), |grad| 55; theta spans -32.8 to 20.7 and phi -26.6 to 9.5; published-state residual 1.6e-2",
   "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'); its historicals are core01-25km-hist-cesm2waccm-rehiurlx{noamb,amb}"
 }

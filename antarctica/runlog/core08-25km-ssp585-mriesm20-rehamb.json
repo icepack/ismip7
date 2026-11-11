@@ -26,7 +26,7 @@
   "started": "2026-09-27",
   "finished": "2026-09-27",
   "cost": "130 min of wall time",
-  "results": "Quartz antarctica/results/rehearsal_25km/results/ssp585_mri_esm2_0_rehamb_25000_*. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km/rehearsal_25km.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
+  "results": "Quartz antarctica/results/rehearsal_25km/results/ssp585_mri_esm2_0_rehamb_25000_*. On 10 November 2026 the files over 1 MiB went to IU's Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km/rehearsal_25km.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "OFF TRACK (SMB -209.2 [ 2000.0, 2900.0] Gt/yr FAIL; shelf basal melt 12991.8 [ 600.0, 1800.0] Gt/yr FAIL; dM/dt (post-2016) -2622.6 [ -400.0, 200.0] Gt/yr FAIL); resid at most 0.0000 Gt on 11440 rows; 17 rescued and 0 subcycled steps; VAF +180.8 mm SLE and mass -747590 Gt over the run; peak speed 79240 m/yr at t = 2264.55, (-337797, -555379) m",
   "ismip7_output": "2015 to 2300, 31 files on the 8 km grid in rehearsal_25km/rehamb/submission/AIS/RICE/icepack2/CORE/C008",
   "checker": "isschecker 0.5.1: 0 errors, 11 warnings",

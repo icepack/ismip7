@@ -26,7 +26,7 @@
   "started": "2026-10-10",
   "finished": "2026-10-10",
   "cost": "3 min 56 s",
-  "results": "Quartz antarctica/results/rehearsal_25km_iu/results/hist_cesm2_waccm_rehiurlxnoamb_25000_*. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/results/hist_cesm2_waccm_rehiurlxnoamb_25000_*. On 10 November 2026 the files over 1 MiB went to IU's Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "resid at most 0.0000 Gt on 480 rows; 480 of 480 steps converged on their first direct solve, 4.1 Newton iterations on average and 11 at the most, no rescue, no subcycle; VAF +30.0 mm SLE and mass +7,043 Gt over the run, dM/dt +843 Gt/yr in 2014; calving out of the fixed front 1,002 at step 1, 998 at step 2, 896 in 2004 and 769 in 2014 Gt/yr; peak speed 3.7e3 m/yr at t = 2003.03, (-1,601.3, -271.0) km",
   "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'). Against the non-relaxed rehearsal (core01-25km-hist-cesm2waccm-rehiunoamb: +30.3 mm, dM/dt +835, calving 1,251 to 775) the relaxation removes the first-step calving drop and leaves the drift. Final state sha256 13010fbe."
 }

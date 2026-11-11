@@ -26,7 +26,7 @@
   "started": "2026-10-10",
   "finished": "2026-10-10",
   "cost": "8 h 25 min of wall time on 32 ranks for 12 model years, 61.5 s a diagnostic solve on average",
-  "results": "Quartz antarctica/results/rehearsal_2km_iu/results/hist_mri_esm2_0_r2kiurlxnoamb_2000_*. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar, /hpss/d/l/dlilien/ISMIP7/results/rehearsal_2km_iu/rehearsal_2km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
+  "results": "Quartz antarctica/results/rehearsal_2km_iu/results/hist_mri_esm2_0_r2kiurlxnoamb_2000_*. On 10 November 2026 the files over 1 MiB went to IU's Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_2km_iu/rehearsal_2km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "resid at most 0.0000 Gt on 480 rows; 480 of 480 steps converged on their first direct solve, 9.3 Newton iterations on average and 22 at the most, no rescue, no subcycle; VAF +12.4 mm SLE and mass +1,905 Gt over the run, dM/dt +329 Gt/yr in 2014; calving out of the fixed front 1,447 at step 1, 1,432 at step 2, 1,327 in 2004 and 1,305 in 2014 Gt/yr; peak speed 1.8e4 m/yr at t = 2004.08, (-766.5, 1,157.3) km",
   "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'), the MRI-ESM2-0 pair of core01-2km-hist-cesm2waccm-r2kiurlxnoamb (+13.1 mm). Evidence only (c4c9eb8). Final state sha256 51af09fe329b28139cacc43ec9144302cb1b3c6df3e3a63b7287b1352baaef84."
 }
