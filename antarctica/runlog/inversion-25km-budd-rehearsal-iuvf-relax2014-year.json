@@ -18,7 +18,7 @@
   "started": "2026-10-10",
   "finished": "2026-10-10",
   "cost": "1 min 31 s",
-  "results": "Quartz antarctica/results/rehearsal_25km_iu/results/relax_inversion_icepack2_budd_n3_dg0_logvel_25000_int250000_b20k_rho7500_floating_ef2_vf_wsiu_25000_final.h5",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/results/relax_inversion_icepack2_budd_n3_dg0_logvel_25000_int250000_b20k_rho7500_floating_ef2_vf_wsiu_25000_final.h5. On 10 November 2026 the files over 1 MiB went to IU's Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "reached 2015.0 in one link, resid 0.00 every step. Mass budget [Gt/yr]: SMB +2,386, melt -1,050 falling to -1,028, flux out of the pinned front -1,264 at the first step falling to -982, dM/dt +69 rising to +374; VAF +1.07 mm SLE over the year",
   "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'): the 25 km counterpart of inversion-2km-budd-b20k-ef2-vf-relax2014-year, whose re-inversion is inversion-25km-budd-rehearsal-iuvf-relax2014"
 }

@@ -26,7 +26,7 @@
   "started": "2026-10-10",
   "finished": "2026-10-10",
   "cost": "5 h 13 min of wall time on 32 ranks for 12 model years, 37.0 s a diagnostic solve on average",
-  "results": "Quartz antarctica/results/rehearsal_2km_iu/results/hist_cesm2_waccm_r2kiurcrlxamb_2000_*",
+  "results": "Quartz antarctica/results/rehearsal_2km_iu/results/hist_cesm2_waccm_r2kiurcrlxamb_2000_*. On 10 November 2026 the files over 1 MiB went to IU's Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_2km_iu/rehearsal_2km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "resid at most 0.0000 Gt on 480 rows; 480 of 480 steps converged on their first direct solve, 4.1 Newton iterations on average and 29 at the most, no rescue, no subcycle; VAF +2.3 mm SLE and mass -779 Gt over the run, dM/dt +78 Gt/yr in 2014; calving out of the fixed front 1,514 at step 1, 1,503 at step 2, 1,504 in 2004 and 1,501 in 2014 Gt/yr; apparent-MB reference net +99 Gt/yr; peak speed 1.8e4 m/yr at t = 2003.03, (167.5, -718.9) km",
   "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'): IU's regularized Coulomb MAP. Evidence only: the same MAP's controls on BedMachine geometry never started (core01-2km-hist-cesm2waccm-r2kiurcrlcnoamb). With the reference every solve stayed short: 37 s and 4.1 Newton iterations on average. Final state sha256 b73c0e7187127081e8939f15ceefe66162d050f36576d3b054c88d13c9521e06."
 }
