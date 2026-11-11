@@ -26,7 +26,7 @@
   "started": "2026-10-09",
   "finished": "2026-10-09",
   "cost": "7 min of wall time",
-  "results": "Quartz antarctica/results/rehearsal_25km_iu/results/hist_cesm2_waccm_rehiunoamb_25000_*",
+  "results": "Quartz antarctica/results/rehearsal_25km_iu/results/hist_cesm2_waccm_rehiunoamb_25000_*. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "OFF TRACK (dM/dt (post-2016) 577.9 [ -400.0, 200.0] Gt/yr FAIL); resid at most 0.0000 Gt on 480 rows; 0 rescued and 0 subcycled steps; VAF +30.3 mm SLE and mass +6699 Gt over the run; peak speed 22164 m/yr at t = 2003.03, (-2026137, 484616) m",
   "ismip7_output": "2003 to 2014, 31 files on the 8 km grid in rehearsal_25km_iu/rehiunoamb/submission/AIS/RICE/icepack2/CORE/C001",
   "checker": "isschecker 0.5.1: 0 errors, 2 warnings",

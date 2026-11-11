@@ -25,7 +25,7 @@
   "code": "c62bcf0 (this PR's first commit on PR 168's branch at 74d0b84), Quartz worktree ismip7_rehearsal25iu/runvs (removed on 22 October 2026; its loose files are in /N/project/ice_rheology/ISMIP7/antarctica/results/quartz_worktree_archive_20261022/ismip7_rehearsal25iu_runvs.tar.gz, its HEAD c62bcf0 as archive/wt-runvs in /N/project/ice_rheology/ISMIP7/antarctica/results/rehearsal_25km_iu/scratch_results/ismip7_rehearsal25iu/git/archive_wt-runvs.bundle)",
   "started": "2026-10-13",
   "finished": "2026-10-13",
-  "results": "Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_vs_budd_25km_{point,cell_mean}.h5, json/gn_25km_*.json, json/gn_vs25km*u.json, csv/",
+  "results": "Quartz antarctica/results/first_year_mass_gain_iu/maps_25km/inversion_vs_budd_25km_{point,cell_mean}.h5, json/gn_25km_*.json, json/gn_vs25km*u.json, csv/. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "Unobserved nodes 1,857 (point) and 734 (cell_mean) of 4,509; misfit 3,339 and 4,589, |grad| 72 and 333. First-year cell-scale tendency (nb) 1.76 and 1.21 m/yr calibrated, 1.72 and 1.20 under uniform K; year-1 VAF gain +1.17 and +0.71 mm calibrated, +1.27 and +0.72 uniform",
   "notes": "Section 2 of antarctica/reports/first_year_mass_gain_iu.md. Forwards: calibrated melt from results/rehearsal_25km_iu/calibration/deltaT_per_basin_25000_K6.500e-05.npz (12192699, 12192700) and uniform K 6.5e-5 on the legacy per-basin path (12197820, 12197821)"
 }

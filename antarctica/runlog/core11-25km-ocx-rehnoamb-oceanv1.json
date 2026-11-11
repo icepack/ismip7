@@ -22,7 +22,7 @@
   "code": "b554238",
   "started": "2026-09-27",
   "finished": "2026-09-27",
-  "results": "Quartz antarctica/results/rehearsal_25km/results/ocx_rehnoamb_oceanv1/",
+  "results": "Quartz antarctica/results/rehearsal_25km/results/ocx_rehnoamb_oceanv1/. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km/rehearsal_25km.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "ON TRACK; resid 0.00 on 920 rows; 3 rescued steps",
   "notes": "superseded by core11-25km-ocx-rehnoamb, the rerun on the OCX ocean v2 fetched during the rehearsal (issue 138). Report: antarctica/reports/core11_ocx_25km_rehnoamb_oceanv1.md"
 }

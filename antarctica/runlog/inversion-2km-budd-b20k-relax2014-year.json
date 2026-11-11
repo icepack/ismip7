@@ -10,7 +10,7 @@
  "period": "2014.0 to 2015.0 at dt 0.0125 (80 steps)",
  "initial_state": "inversion-2km-budd-b20k-rho7500-floating's final MAP, rewound 1 yr with the Smith dH/dt on grounded ice",
  "forcing": "OCX protocol forcing for 2014 (ISMIP7_EXPERIMENT=relax), apparent MB off, front pinned",
- "notes": "Trigger 11487469 handed off at 18:54 EDT on 6 Oct, after the Budd production chain reached its 500 iterations (|grad| 0.13) at 18:51. README, \"The relaxed initial state\"; issue #162",
+ "notes": "Trigger 11487469 handed off at 18:54 EDT on 6 Oct, after the Budd production chain reached its 500 iterations (|grad| 0.13) at 18:51. README, \"The relaxed initial state\"; issue #162. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/reinvert_2km/reinvert_2km_scratch.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
  "jobs": [
   "11487469",
   "11489435"

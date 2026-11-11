@@ -24,7 +24,7 @@
   "started": "2026-09-27",
   "finished": "2026-09-27",
   "cost": "0.2 s a step once running",
-  "results": "Quartz antarctica/results/rehearsal_25km/results/hist_cesm2_waccm_r25probeamb_25000_*",
+  "results": "Quartz antarctica/results/rehearsal_25km/results/hist_cesm2_waccm_r25probeamb_25000_*. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km/rehearsal_25km.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "every step converged on its first scpc_gamg direct solve, no rescue, subcycle or tripwire event (speed and thickness bounds armed); a_ref in -438.9 to +609.4 m/yr, net +300.1 Gt/yr; the largest thickness change 1.0 m at step 1 falling to 0.2 m at step 10; dM/dt -143 Gt/yr at step 1 and 0 at step 10; resid 0.00",
   "notes": "gate G4c of attempt B of the rehearsal (issue 138), run once attempt A's MRI-ESM2-0 control slowed to a rescue at every step"
 }

@@ -17,7 +17,7 @@
   "started": "2026-10-01",
   "finished": "2026-10-01",
   "cost": "25 min wall; 70 s forward, 12 s adjoint, 95 s an evaluation; 110 V-cycles a condensed solve against bt's 64",
-  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/2km_gamgnl8_p32.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz",
+  "results": "Quartz /N/project/ice_rheology/ISMIP7/antarctica/results/inversion_cost_iu/scratch_results/ismip7_issue156_runs/maps/2km_gamgnl8_p32.h5; timing record, log and sacct summary copied to /Volumes/LaCie/Data/antarctica_general/ismip7_runs/inversion_solver_quartz. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/inversion_cost_iu/inversion_cost_iu_scratch.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "every evaluation's objective within 6.5e-8 of the full_mumps arm, final 4.935180e4; no forward failed",
   "notes": "cost probe for issue #156: no MAP is kept, the objective differs from Rice's (ISMIP7_FLUIDITY_PRIOR=legacy names the prior the warm start overrides; strict handoff off)"
 }

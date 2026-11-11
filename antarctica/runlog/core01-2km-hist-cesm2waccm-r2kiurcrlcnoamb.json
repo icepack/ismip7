@@ -26,7 +26,7 @@
   "started": "2026-10-10",
   "finished": "2026-10-10",
   "cost": "2 h 12 min on 32 ranks",
-  "results": "none; the log is Quartz antarctica/results/rehearsal_2km_iu/logs/ismip7_fwd_11899765.out",
+  "results": "none; the log is Quartz antarctica/results/rehearsal_2km_iu/logs/ismip7_fwd_11899765.out. On 10 November 2026 the files over 1 MiB went to the Scholarly Data Archive as /hpss/d/l/dlilien/ISMIP7/results/rehearsal_25km_iu/rehearsal_25km_iu.tar; member lists and sha256 are in antarctica/results/sda_archive_20261110/ (MANIFEST.tsv, listings/), and the smaller files stay in place.",
   "audit": "FAILED before step 1, exit 137 at 17:34 EDT on every rank after a ConvergenceError (MaxRSS 2.4 GB a rank, far inside the request). The cold-start seed from the MAP's own velocity, solved on the BedMachine geometry, diverged (50 Newton iterations, ||F|| 5.7e8, 675 s); the fallback continuation from n = 1 then stalled three times at 200 iterations with ||F|| at 1.19e8 (about 39 min each)",
   "notes": "the relaxed line beside the 25 km rehearsal (antarctica/reports/rehearsal_25km_iu.md, section 'The relaxed line'). The same MAP started on its own relaxed geometry (core01-2km-hist-cesm2waccm-r2kiurcrlxnoamb), and the Budd MAP's controls started on this geometry (core01-2km-hist-cesm2waccm-r2kiurlcnoamb). No regularized Coulomb start on BedMachine's 2 km geometry exists, so the production suite is Budd alone."
 }
